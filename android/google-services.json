@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "557201296463",
+    "project_id": "vicbangfit",
+    "storage_bucket": "vicbangfit.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:557201296463:android:d1edb7b85b239584c32e3a",
+        "android_client_info": {
+          "package_name": "com.vicbangfit.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDq6a5xSjNoOhROThKdAJlFx1yqBErdmE4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
