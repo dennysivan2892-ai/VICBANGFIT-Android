@@ -1,1 +1,60 @@
+name: Build VICBANGFIT APK
 
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v6
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Compilar web
+        run: npm run build
+
+      - name: Guardar configuración Firebase
+        run: |
+          cp android/app/google-services.json /tmp/google-services.json
+          rm -rf android
+
+      - name: Crear proyecto Android
+        run: npx cap add android
+
+      - name: Restaurar Firebase
+        run: |
+          cp /tmp/google-services.json android/app/google-services.json
+
+      - name: Sincronizar Capacitor
+        run: npx cap sync android
+
+      - name: Dar permisos a Gradle
+        run: chmod +x android/gradlew
+
+      - name: Compilar APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VICBANGFIT-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
