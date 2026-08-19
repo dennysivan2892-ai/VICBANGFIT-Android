@@ -296,9 +296,23 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
         <button class="tab active">Resumen</button><button class="tab" onclick="showPage('entrenamientos')">Entrenamiento</button><button class="tab" onclick="showPage('nutricion')">Nutrición</button><button class="tab" onclick="showPage('progreso')">Progreso</button><button class="tab" onclick="showPage('checkins')">Check-ins</button><button class="tab" onclick="showPage('mensajes')">Mensajes</button>
       </div>
       <div class="grid3">
-        <div class="card kpi"><div class="label">PESO ACTUAL</div><div class="value">82,4 kg</div><div class="green">-4,3 kg</div></div>
-        <div class="card kpi"><div class="label">ADHERENCIA</div><div class="value">92%</div><div class="green">+5%</div></div>
-        <div class="card kpi"><div class="label">FUERZA</div><div class="value">+12%</div><div class="green">Mejorando</div></div>
+  <div class="card kpi">
+    <div class="label">PESO ACTUAL</div>
+    <div class="value" id="summaryClientWeight">Sin datos</div>
+    <div class="muted tiny">Dato real del cliente</div>
+  </div>
+
+  <div class="card kpi">
+    <div class="label">ADHERENCIA</div>
+    <div class="value" id="summaryClientAdherence">—</div>
+    <div class="muted tiny">Sin registros</div>
+  </div>
+
+  <div class="card kpi">
+    <div class="label">FUERZA</div>
+    <div class="value" id="summaryClientStrength">Sin datos</div>
+    <div class="muted tiny">Sin registros</div>
+  </div>
       </div>
       <div class="card" style="margin-top:14px"><h3>Evolución de peso</h3>
         <svg class="chart" viewBox="0 0 760 220" preserveAspectRatio="none"><polyline points="0,35 90,45 180,58 270,72 360,92 450,112 540,140 630,152 760,185" fill="none" stroke="#ef2434" stroke-width="5"/></svg>
@@ -617,7 +631,31 @@ function renderClientTable(){
  const el=document.getElementById("clientTable");if(!el)return;
  el.innerHTML=clients.map((c,i)=>({...c,i})).filter(c=>(c.name+" "+c.goal+" "+c.email).toLowerCase().includes(q)).map(c=>`<tr><td><b>${c.name}</b><div class="muted tiny">${c.email}</div></td><td>${c.goal}</td><td>${c.weight}</td><td><span class="muted">${c.adherence==null?'—':c.adherence+'%'}</span></td><td>${c.check}</td><td><button class="btn dark" onclick="openClient(${c.i})">Abrir</button></td></tr>`).join("");
 }
-function openClient(i){const c=clients[i];if(!c)return;document.getElementById("clientTitle").textContent=c.name;document.getElementById("clientName").textContent=c.name;document.getElementById("bigAvatar").textContent=initials(c.name);document.getElementById("clientWeight").textContent=c.weight;document.getElementById("clientAdherence").textContent=c.adherence==null?'—':c.adherence+"%";document.getElementById("clientGoal").textContent=c.goal;showPage("cliente")}
+function openClient(i){
+  const c=clients[i];
+  if(!c)return;
+
+  document.getElementById("clientTitle").textContent=c.name;
+  document.getElementById("clientName").textContent=c.name;
+  document.getElementById("bigAvatar").textContent=initials(c.name);
+
+  const weight=c.weight||"Sin datos";
+  document.getElementById("clientWeight").textContent=weight;
+  document.getElementById("summaryClientWeight").textContent=weight;
+
+  const adherence=c.adherence==null?"—":c.adherence+"%";
+  document.getElementById("clientAdherence").textContent=adherence;
+  document.getElementById("summaryClientAdherence").textContent=adherence;
+
+  document.getElementById("summaryClientStrength").textContent="Sin datos";
+  document.getElementById("clientGoal").textContent=c.goal||"Sin datos";
+
+  document.getElementById("clientWaist").textContent="Sin datos";
+  document.getElementById("clientPlan").textContent="Sin asignar";
+  document.getElementById("clientNextCheckin").textContent="Sin programar";
+
+  showPage("cliente");
+}
 function renderChecks(){const el=document.getElementById("checkList");if(!el)return;el.innerHTML=clients.length?clients.map((c,i)=>`<div class="activity"><div class="icon-dot check-dot">▣</div><div style="flex:1"><b>${c.name}</b><div class="muted tiny">Peso ${c.weight} · Check-in ${c.check}</div></div><button class="btn dark" onclick="openClient(${i})">Revisar</button></div>`).join(""):'<div class="empty-state">Todavía no hay clientes.</div>'}
 function addClient(){document.getElementById('addClientForm')?.reset();setAuthMessage('newClientMsg','');document.getElementById('addClientModal')?.classList.add('open');setTimeout(()=>document.getElementById('newClientName')?.focus(),50)}
 function closeAddClientModal(){document.getElementById('addClientModal')?.classList.remove('open')}
