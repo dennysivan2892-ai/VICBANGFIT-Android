@@ -100,7 +100,35 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 .routine-exercise-row{display:grid;grid-template-columns:2fr .7fr .7fr .7fr .9fr auto;gap:8px;align-items:end;padding:10px 0;border-top:1px solid #242424}
 .routine-exercise-row:first-of-type{border-top:0}.routine-exercise-row .field{margin:0}.mini-btn{padding:10px 11px}
 @media(max-width:750px){.routine-toolbar{grid-template-columns:1fr}.routine-exercise-row{grid-template-columns:1fr 1fr}.routine-exercise-row .exercise-select{grid-column:1/-1}}
+@media(max-width:550px){
+  #clientes .card{padding:12px;overflow:visible}
+  #clientes .table,
+  #clientes .table tbody,
+  #clientes .table tr,
+  #clientes .table td{display:block;width:100%}
 
+  #clientes .table thead{display:none}
+
+  #clientes .table tr{
+    background:#0d0d0d;
+    border:1px solid #292929;
+    border-radius:14px;
+    padding:12px;
+    margin-bottom:12px;
+  }
+
+  #clientes .table td{
+    border:0;
+    padding:7px 0;
+  }
+
+  #clientes .table td:nth-child(2)::before{content:"Objetivo: ";font-weight:800;color:#888}
+  #clientes .table td:nth-child(3)::before{content:"Peso: ";font-weight:800;color:#888}
+  #clientes .table td:nth-child(4)::before{content:"Adherencia: ";font-weight:800;color:#888}
+  #clientes .table td:nth-child(5)::before{content:"Check-in: ";font-weight:800;color:#888}
+
+  #clientes .table td:last-child .btn{width:100%;margin-top:5px}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0/dist/umd/supabase.min.js"></script>
 </head>
