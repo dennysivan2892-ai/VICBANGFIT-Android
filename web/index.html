@@ -93,6 +93,14 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 
 .client-modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:18px;z-index:120}.client-modal.open{display:flex}.client-modal-card{width:min(520px,100%);max-height:90vh;overflow:auto;background:linear-gradient(145deg,#171717,#0d0d0d);border:1px solid #333;border-radius:18px;padding:20px;box-shadow:0 25px 80px #000c}.client-modal-card h2{margin:0 0 5px}.modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:15px}.empty-state{text-align:center;padding:28px;color:var(--muted)}
 
+.routine-builder{width:min(900px,100%)}
+.routine-toolbar{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;margin:14px 0}
+.routine-days{display:grid;gap:12px}.routine-day-editor{background:#0c0c0c;border:1px solid #292929;border-radius:13px;padding:12px}
+.routine-day-head{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}.routine-day-head input{flex:1}
+.routine-exercise-row{display:grid;grid-template-columns:2fr .7fr .7fr .7fr .9fr auto;gap:8px;align-items:end;padding:10px 0;border-top:1px solid #242424}
+.routine-exercise-row:first-of-type{border-top:0}.routine-exercise-row .field{margin:0}.mini-btn{padding:10px 11px}
+@media(max-width:750px){.routine-toolbar{grid-template-columns:1fr}.routine-exercise-row{grid-template-columns:1fr 1fr}.routine-exercise-row .exercise-select{grid-column:1/-1}}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0/dist/umd/supabase.min.js"></script>
 </head>
@@ -267,7 +275,7 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 </section>
 
 <section id="entrenamientos" class="section">
-  <div class="header"><div><h1>Entrenamientos</h1><div class="muted">Constructor de rutinas y biblioteca de sesiones.</div></div><button class="btn" onclick="toast('Nueva rutina creada')">＋ Crear rutina</button></div>
+  <div class="header"><div><h1>Entrenamientos</h1><div class="muted">Constructor de rutinas y biblioteca de sesiones.</div></div><button class="btn" onclick="openRoutineBuilder()">＋ Crear rutina</button></div>
   <div class="grid3">
     <div class="workout-day"><div class="row"><h3>Día 1 — Pecho + tríceps</h3><span class="pill">60–75 min</span></div>
       <div class="exercise"><b>Press inclinado</b><div class="meta">4 × 8–10 · RIR 2</div></div>
@@ -410,6 +418,22 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
       <div id="newClientMsg" class="auth-error"></div>
       <div class="modal-actions"><button class="btn ghost" type="button" onclick="closeAddClientModal()">Cancelar</button><button id="newClientBtn" class="btn" type="submit">Añadir cliente</button></div>
     </form>
+  </div>
+</div>
+
+<div id="routineBuilderModal" class="client-modal" onclick="if(event.target===this)closeRoutineBuilder()">
+  <div class="client-modal-card routine-builder">
+    <div class="row"><div><h2>Crear rutina</h2><div class="muted tiny">Asigna una rutina real a uno de tus clientes.</div></div><button class="btn ghost" type="button" onclick="closeRoutineBuilder()">✕</button></div>
+    <div class="routine-toolbar">
+      <div class="field"><label>Cliente</label><select id="routineClient"></select></div>
+      <div class="field"><label>Nombre de la rutina</label><input id="routineName" placeholder="Ej. Hipertrofia 4 días"></div>
+      <div class="field"><label>Objetivo</label><input id="routineGoal" placeholder="Ej. Ganancia muscular"></div>
+    </div>
+    <div id="routineDays" class="routine-days"></div>
+    <div class="row" style="margin-top:12px;align-items:flex-start">
+      <button class="btn dark" type="button" onclick="addRoutineDay()">＋ Añadir día</button>
+      <div style="text-align:right"><div id="routineMsg" class="auth-error"></div><button id="saveRoutineBtn" class="btn" type="button" onclick="saveRoutine()">Guardar rutina</button></div>
+    </div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -565,6 +589,57 @@ async function submitNewClient(ev){
  const {data,error}=await sb.functions.invoke('trainer-add-client',{body:payload});
  if(error||data?.error){setAuthMessage('newClientMsg',data?.error||error?.message||'No se pudo añadir el cliente');btn.disabled=false;btn.textContent='Añadir cliente';return}
  closeAddClientModal();toast(data?.message||'Cliente añadido');await loadTrainerClients();btn.disabled=false;btn.textContent='Añadir cliente';
+}
+
+
+let routineExerciseLibrary=[];
+let routineDayCounter=0;
+function escHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function openRoutineBuilder(){
+ if(currentProfile?.role!=="trainer"){toast('Solo el entrenador puede crear rutinas');return}
+ if(!clients.length){toast('Primero añade un cliente');showPage('clientes');return}
+ const modal=document.getElementById('routineBuilderModal');
+ document.getElementById('routineClient').innerHTML=clients.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+ document.getElementById('routineName').value='';document.getElementById('routineGoal').value='';setAuthMessage('routineMsg','');
+ const {data,error}=await sb.from('exercises').select('id,name,muscle_group').order('name');
+ if(error){setAuthMessage('routineMsg','No se pudo cargar la biblioteca de ejercicios.');return}
+ routineExerciseLibrary=data||[];routineDayCounter=0;document.getElementById('routineDays').innerHTML='';addRoutineDay();modal.classList.add('open');
+}
+function closeRoutineBuilder(){document.getElementById('routineBuilderModal')?.classList.remove('open')}
+function addRoutineDay(){
+ const wrap=document.getElementById('routineDays');const idx=++routineDayCounter;
+ const div=document.createElement('div');div.className='routine-day-editor';div.dataset.day=idx;
+ div.innerHTML=`<div class="routine-day-head"><div class="field" style="flex:1"><label>Día ${idx}</label><input class="routine-day-name" value="Día ${idx}" placeholder="Ej. Pecho + tríceps"></div><button class="btn ghost mini-btn" type="button" onclick="this.closest('.routine-day-editor').remove()">Eliminar día</button></div><div class="routine-exercises"></div><button class="btn dark mini-btn" type="button" onclick="addRoutineExercise(this.closest('.routine-day-editor'))">＋ Ejercicio</button>`;
+ wrap.appendChild(div);addRoutineExercise(div);
+}
+function addRoutineExercise(dayEl){
+ const options=routineExerciseLibrary.map(e=>`<option value="${e.id}">${escHtml(e.name)}${e.muscle_group?' · '+escHtml(e.muscle_group):''}</option>`).join('');
+ const row=document.createElement('div');row.className='routine-exercise-row';
+ row.innerHTML=`<div class="field exercise-select"><label>Ejercicio</label><select class="re-exercise">${options}</select></div><div class="field"><label>Series</label><input class="re-sets" type="number" min="1" max="20" value="3"></div><div class="field"><label>Rep. mín.</label><input class="re-min" type="number" min="1" max="100" value="8"></div><div class="field"><label>Rep. máx.</label><input class="re-max" type="number" min="1" max="100" value="12"></div><div class="field"><label>RIR</label><input class="re-rir" type="number" min="0" max="10" step="0.5" value="2"></div><button class="btn ghost mini-btn" type="button" onclick="this.parentElement.remove()">✕</button>`;
+ dayEl.querySelector('.routine-exercises').appendChild(row);
+}
+async function saveRoutine(){
+ const btn=document.getElementById('saveRoutineBtn');const client_id=document.getElementById('routineClient').value;const name=document.getElementById('routineName').value.trim();const goal=document.getElementById('routineGoal').value.trim()||null;const dayEls=[...document.querySelectorAll('#routineDays .routine-day-editor')];
+ if(!client_id||!name){setAuthMessage('routineMsg','Selecciona un cliente y escribe el nombre de la rutina.');return}
+ if(!dayEls.length){setAuthMessage('routineMsg','Añade al menos un día de entrenamiento.');return}
+ for(const d of dayEls){if(!d.querySelectorAll('.routine-exercise-row').length){setAuthMessage('routineMsg','Cada día debe tener al menos un ejercicio.');return}}
+ btn.disabled=true;btn.textContent='Guardando…';setAuthMessage('routineMsg','');
+ try{
+  const {data:routine,error:rErr}=await sb.from('routines').insert({trainer_id:currentProfile.id,client_id,name,goal,status:'active'}).select('id').single();if(rErr)throw rErr;
+  for(let di=0;di<dayEls.length;di++){
+   const d=dayEls[di];const dayName=d.querySelector('.routine-day-name').value.trim()||`Día ${di+1}`;
+   const {data:day,error:dErr}=await sb.from('workout_days').insert({routine_id:routine.id,day_number:di+1,name:dayName}).select('id').single();if(dErr)throw dErr;
+   const rows=[...d.querySelectorAll('.routine-exercise-row')];
+   for(let ei=0;ei<rows.length;ei++){
+    const r=rows[ei],exercise_id=r.querySelector('.re-exercise').value,sets=Math.max(1,parseInt(r.querySelector('.re-sets').value||'1')),min=parseInt(r.querySelector('.re-min').value||'0')||null,max=parseInt(r.querySelector('.re-max').value||'0')||null,rir=parseFloat(r.querySelector('.re-rir').value);
+    const {data:we,error:weErr}=await sb.from('workout_exercises').insert({workout_day_id:day.id,exercise_id,exercise_order:ei+1}).select('id').single();if(weErr)throw weErr;
+    const setRows=Array.from({length:sets},(_,si)=>({workout_exercise_id:we.id,set_number:si+1,target_reps_min:min,target_reps_max:max,target_rir:Number.isFinite(rir)?rir:null}));
+    const {error:sErr}=await sb.from('workout_sets').insert(setRows);if(sErr)throw sErr;
+   }
+  }
+  closeRoutineBuilder();toast('Rutina guardada correctamente');
+ }catch(err){console.error(err);setAuthMessage('routineMsg',err?.message||'No se pudo guardar la rutina.');}
+ finally{btn.disabled=false;btn.textContent='Guardar rutina'}
 }
 
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js"));
