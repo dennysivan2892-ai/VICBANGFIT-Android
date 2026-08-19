@@ -51,12 +51,45 @@ jobs:
 
       - name: Restaurar firma fija
         run: |
-          mkdir -p ~/.android
-          echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 --decode > ~/.android/debug.keystore
+          mkdir -p "$HOME/.vicbangfit"
+          echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 --decode > "$HOME/.vicbangfit/vicbangfit.keystore"
 
-      - name: Compilar APK
+      - name: Compilar APK sin firma
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleRelease
+
+      - name: Firmar APK VICBANGFIT
+        run: |
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BUILD_TOOLS=$(ls -d "$SDK"/build-tools/* | sort -V | tail -n 1)
+
+          "$BUILD_TOOLS/zipalign" -f 4 \
+            android/app/build/outputs/apk/release/app-release-unsigned.apk \
+            android/app/build/outputs/apk/release/VICBANGFIT-aligned.apk
+
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks "$HOME/.vicbangfit/vicbangfit.keystore" \
+            --ks-key-alias androiddebugkey \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out android/app/build/outputs/apk/release/VICBANGFIT.apk \
+            android/app/build/outputs/apk/release/VICBANGFIT-aligned.apk
+
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs \
+            android/app/build/outputs/apk/release/VICBANGFIT.apk
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VICBANGFIT-APK
+          path: android/app/build/outputs/apk/release/VICBANGFIT.apk
+      
+        
+          
+
+    
+        
+      
 
   
         
@@ -65,8 +98,6 @@ jobs:
     
     
 
-      - name: Guardar APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: VICBANGFIT-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+      
+      
+
