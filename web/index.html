@@ -274,13 +274,23 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
       <div class="metric-grid">
         <div class="metric"><span class="muted tiny">Peso</span><b id="clientWeight">82,4 kg</b></div>
         <div class="metric"><span class="muted tiny">Adherencia</span><b id="clientAdherence">92%</b></div>
-        <div class="metric"><span class="muted tiny">Cintura</span><b>88 cm</b></div>
-        <div class="metric"><span class="muted tiny">Plan</span><b>12 sem</b></div>
-      </div>
-      <hr style="border:0;border-top:1px solid #282828;margin:14px 0">
-      <div><b>Objetivo</b><div class="muted" id="clientGoal">Pérdida de grasa</div></div>
-      <div style="margin-top:12px"><b>Próximo check-in</b><div class="muted">Lunes · 10:00</div></div>
-    </div>
+<div class="metric"><span class="muted tiny">Cintura</span><b id="clientWaist">Sin datos</b></div>
+<div class="metric"><span class="muted tiny">Plan</span><b id="clientPlan">Sin asignar</b></div>
+</div>
+
+<hr style="border:0;border-top:1px solid #282828;margin:14px 0">
+
+<div><b>Objetivo</b><div class="muted" id="clientGoal">Sin datos</div></div>
+
+<div style="margin-top:12px">
+  <b>Próximo check-in</b>
+  <div class="muted" id="clientNextCheckin">Sin programar</div>
+</div>
+</div>
+  
+
+      
+  
     <div>
       <div class="tabs">
         <button class="tab active">Resumen</button><button class="tab" onclick="showPage('entrenamientos')">Entrenamiento</button><button class="tab" onclick="showPage('nutricion')">Nutrición</button><button class="tab" onclick="showPage('progreso')">Progreso</button><button class="tab" onclick="showPage('checkins')">Check-ins</button><button class="tab" onclick="showPage('mensajes')">Mensajes</button>
