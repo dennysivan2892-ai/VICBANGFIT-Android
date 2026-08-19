@@ -91,6 +91,8 @@ button{cursor:pointer}
 body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;width:100%;max-width:1200px;margin-right:auto;margin-left:auto}body.client-mode .mobilebar{display:none}
 @media(max-width:900px){body.client-mode .main{padding-bottom:20px}.auth-card{padding:20px}}
 
+.client-modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:18px;z-index:120}.client-modal.open{display:flex}.client-modal-card{width:min(520px,100%);max-height:90vh;overflow:auto;background:linear-gradient(145deg,#171717,#0d0d0d);border:1px solid #333;border-radius:18px;padding:20px;box-shadow:0 25px 80px #000c}.client-modal-card h2{margin:0 0 5px}.modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:15px}.empty-state{text-align:center;padding:28px;color:var(--muted)}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0/dist/umd/supabase.min.js"></script>
 </head>
@@ -149,7 +151,7 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
     <div class="header-actions"><input class="search" placeholder="Buscar cliente..."><button class="btn" onclick="showPage('clientes')">＋ Nuevo cliente</button><button class="logout-btn" onclick="logoutUser()">Salir</button></div>
   </div>
   <div class="grid4">
-    <div class="card kpi"><div class="label">CLIENTES ACTIVOS</div><div class="value">38</div><div class="trend green">+5 esta semana</div></div>
+    <div class="card kpi"><div class="label">CLIENTES ACTIVOS</div><div class="value" id="activeClientsCount">0</div><div class="trend green" id="activeClientsTrend">Datos reales</div></div>
     <div class="card kpi"><div class="label">ENTRENAMIENTOS</div><div class="value">142</div><div class="trend green">+18% completados</div></div>
     <div class="card kpi"><div class="label">ADHERENCIA MEDIA</div><div class="value">92%</div><div class="trend green">Excelente</div></div>
     <div class="card kpi"><div class="label">INGRESOS ESTE MES</div><div class="value">3.420 €</div><div class="trend green">+12% vs mes anterior</div></div>
@@ -395,6 +397,21 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 <button data-page="nutricion">🥗<br>Nutrición</button>
 <button data-page="progreso">⌁<br>Progreso</button>
 </div>
+<div id="addClientModal" class="client-modal" onclick="if(event.target===this)closeAddClientModal()">
+  <div class="client-modal-card">
+    <div class="row"><div><h2>Nuevo cliente</h2><div class="muted tiny">Se creará o vinculará su cuenta VICBANGFIT.</div></div><button class="btn ghost" type="button" onclick="closeAddClientModal()">✕</button></div>
+    <form id="addClientForm" onsubmit="submitNewClient(event)" style="margin-top:16px">
+      <div class="form-grid">
+        <div class="field"><label>Nombre completo</label><input id="newClientName" required autocomplete="name" placeholder="Nombre y apellidos"></div>
+        <div class="field"><label>Email</label><input id="newClientEmail" type="email" required autocomplete="email" placeholder="cliente@email.com"></div>
+        <div class="field"><label>Objetivo</label><select id="newClientGoal"><option>Pérdida de grasa</option><option>Hipertrofia</option><option>Recomposición corporal</option><option>Fuerza</option><option>Rendimiento</option><option>Salud</option><option>Otro</option></select></div>
+        <div class="field"><label>Peso actual (kg)</label><input id="newClientWeight" type="number" min="20" max="500" step="0.1" placeholder="Ej. 82.4"></div>
+      </div>
+      <div id="newClientMsg" class="auth-error"></div>
+      <div class="modal-actions"><button class="btn ghost" type="button" onclick="closeAddClientModal()">Cancelar</button><button id="newClientBtn" class="btn" type="submit">Añadir cliente</button></div>
+    </form>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 </div>
 
@@ -498,16 +515,8 @@ async function logoutUser(){await sb.auth.signOut();currentProfile=null;document
 async function bootstrapAuth(){const {data:{session}}=await sb.auth.getSession();if(session?.user)await enterApp(session.user);else{document.getElementById('authShell').style.display='grid';document.getElementById('appShell').style.display='none'}}
 sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){document.getElementById('appShell').style.display='none';document.getElementById('authShell').style.display='grid'}});
 
-const seedClients=[
-{name:"Carlos García",goal:"Pérdida de grasa",weight:"82,4 kg",adherence:92,check:"Hoy",status:"Activo",today:"Espalda"},
-{name:"Laura Martínez",goal:"Hipertrofia",weight:"63,1 kg",adherence:85,check:"Hoy",status:"Activo",today:"Pierna"},
-{name:"Miguel Torres",goal:"Recomposición",weight:"88 kg",adherence:94,check:"Mañana",status:"Activo",today:"Pecho"},
-{name:"Ana Sánchez",goal:"Glúteos",weight:"58 kg",adherence:90,check:"Hoy",status:"Activo",today:"Glúteos"},
-{name:"Javier Ruiz",goal:"Fuerza",weight:"95 kg",adherence:78,check:"2 días",status:"Revisar",today:"Hombros"}
-];
-let clients=JSON.parse(localStorage.getItem("vicbangfit_clients_v2")||"null")||seedClients;
-function save(){localStorage.setItem("vicbangfit_clients_v2",JSON.stringify(clients))}
-function initials(n){return n.split(" ").map(x=>x[0]).join("").slice(0,2)}
+let clients=[];
+function initials(n){return (n||'?').split(" ").filter(Boolean).map(x=>x[0]).join("").slice(0,2).toUpperCase()}
 function showPage(id){
   document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
   document.getElementById(id)?.classList.add("active");
@@ -515,33 +524,49 @@ function showPage(id){
   if(id==="clientes")renderClientTable(); if(id==="checkins")renderChecks(); window.scrollTo(0,0)
 }
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.page)));
-function toast(msg){const e=document.getElementById("toast");e.textContent=msg;e.style.display="block";setTimeout(()=>e.style.display="none",2200)}
+function toast(msg){const e=document.getElementById("toast");e.textContent=msg;e.style.display="block";setTimeout(()=>e.style.display="none",2600)}
+
+async function loadTrainerClients(){
+ if(currentProfile?.role!=="trainer")return;
+ const {data:links,error}=await sb.from('trainer_clients').select('client_id,status,joined_at').eq('trainer_id',currentProfile.id).eq('status','active').order('joined_at',{ascending:false});
+ if(error){console.error(error);toast('No se pudieron cargar los clientes');return}
+ const ids=(links||[]).map(x=>x.client_id);
+ if(!ids.length){clients=[];renderDashboard();renderClientTable();return}
+ const [{data:profiles,error:pe},{data:details,error:de}]=await Promise.all([
+   sb.from('profiles').select('id,email,full_name,phone').in('id',ids),
+   sb.from('client_details').select('user_id,current_weight_kg,goal').in('user_id',ids)
+ ]);
+ if(pe||de){console.error(pe||de);toast('No se pudieron cargar los datos de clientes');return}
+ const pm=new Map((profiles||[]).map(p=>[p.id,p])); const dm=new Map((details||[]).map(d=>[d.user_id,d]));
+ clients=ids.map(id=>{const p=pm.get(id)||{};const d=dm.get(id)||{};return {id,name:p.full_name||p.email||'Cliente',email:p.email||'',goal:d.goal||'Por definir',weight:d.current_weight_kg!=null?String(d.current_weight_kg).replace('.',',')+' kg':'—',adherence:null,check:'Pendiente',status:'Activo',today:'Sin asignar'}});
+ renderDashboard();renderClientTable();renderChecks();
+}
+
 function renderDashboard(){
- document.getElementById("clientStrip").innerHTML=clients.slice(0,5).map((c,i)=>`<div class="client-card" onclick="openClient(${i})"><span class="status-dot" style="background:${c.status==="Activo"?"var(--green)":"var(--orange)"}"></span><div class="avatar">${initials(c.name)}</div><h4>${c.name}</h4><div class="meta">${c.weight} · ${c.goal}</div><div class="bar"><i style="width:${c.adherence}%"></i></div><div class="row"><span class="green">${c.adherence}%</span><span class="blue tiny">Hoy: ${c.today}</span></div></div>`).join("");
- document.getElementById("pendingChecks").innerHTML=clients.slice(0,4).map(c=>`<div class="activity"><div class="icon-dot check-dot">▣</div><div><b>${c.name}</b><div class="muted tiny">${c.check==="Hoy"?"Hoy pendiente":c.check+" sin actualizar"}</div></div></div>`).join("");
- document.getElementById("agenda").innerHTML=[
-  ["09:00","Carlos García","Check-in semanal"],["11:00","Laura Martínez","Revisión nutrición"],["14:00","Miguel Torres","Ajuste entrenamiento"],["16:00","Ana Sánchez","Videollamada"],["18:00","Javier Ruiz","Seguimiento progreso"]
- ].map(x=>`<div class="agenda-item"><div class="time">${x[0]}</div><div><b>${x[1]}</b><div class="muted tiny">${x[2]}</div></div><div class="green">✓</div></div>`).join("");
+ const count=document.getElementById('activeClientsCount');if(count)count.textContent=clients.length;
+ const trend=document.getElementById('activeClientsTrend');if(trend)trend.textContent=clients.length===1?'1 cliente real':'Datos reales de Supabase';
+ document.getElementById("clientStrip").innerHTML=clients.length?clients.slice(0,5).map((c,i)=>`<div class="client-card" onclick="openClient(${i})"><span class="status-dot"></span><div class="avatar">${initials(c.name)}</div><h4>${c.name}</h4><div class="meta">${c.weight} · ${c.goal}</div><div class="bar"><i style="width:${c.adherence??0}%"></i></div><div class="row"><span class="green">${c.adherence==null?'—':c.adherence+'%'}</span><span class="blue tiny">${c.today}</span></div></div>`).join(""):'<div class="empty-state" style="grid-column:1/-1">Todavía no tienes clientes reales. Pulsa “+ Nuevo cliente”.</div>';
+ document.getElementById("pendingChecks").innerHTML=clients.length?clients.slice(0,4).map(c=>`<div class="activity"><div class="icon-dot check-dot">▣</div><div><b>${c.name}</b><div class="muted tiny">Check-in pendiente</div></div></div>`).join(""):'<div class="muted tiny">Sin check-ins pendientes.</div>';
+ document.getElementById("agenda").innerHTML='<div class="muted tiny">La agenda real se conectará en el módulo de calendario.</div>';
  document.getElementById("calendarList").innerHTML=document.getElementById("agenda").innerHTML;
 }
 function renderClientTable(){
  const q=(document.getElementById("clientSearch")?.value||"").toLowerCase();
- document.getElementById("clientTable").innerHTML=clients.map((c,i)=>({...c,i})).filter(c=>(c.name+" "+c.goal).toLowerCase().includes(q)).map(c=>`<tr><td><b>${c.name}</b></td><td>${c.goal}</td><td>${c.weight}</td><td><span class="green">${c.adherence}%</span></td><td>${c.check}</td><td><button class="btn dark" onclick="openClient(${c.i})">Abrir</button></td></tr>`).join("")
+ const el=document.getElementById("clientTable");if(!el)return;
+ el.innerHTML=clients.map((c,i)=>({...c,i})).filter(c=>(c.name+" "+c.goal+" "+c.email).toLowerCase().includes(q)).map(c=>`<tr><td><b>${c.name}</b><div class="muted tiny">${c.email}</div></td><td>${c.goal}</td><td>${c.weight}</td><td><span class="muted">${c.adherence==null?'—':c.adherence+'%'}</span></td><td>${c.check}</td><td><button class="btn dark" onclick="openClient(${c.i})">Abrir</button></td></tr>`).join("");
 }
-function openClient(i){
- const c=clients[i]; document.getElementById("clientTitle").textContent=c.name;
- document.getElementById("clientName").textContent=c.name;document.getElementById("bigAvatar").textContent=initials(c.name);
- document.getElementById("clientWeight").textContent=c.weight;document.getElementById("clientAdherence").textContent=c.adherence+"%";document.getElementById("clientGoal").textContent=c.goal; showPage("cliente")
+function openClient(i){const c=clients[i];if(!c)return;document.getElementById("clientTitle").textContent=c.name;document.getElementById("clientName").textContent=c.name;document.getElementById("bigAvatar").textContent=initials(c.name);document.getElementById("clientWeight").textContent=c.weight;document.getElementById("clientAdherence").textContent=c.adherence==null?'—':c.adherence+"%";document.getElementById("clientGoal").textContent=c.goal;showPage("cliente")}
+function renderChecks(){const el=document.getElementById("checkList");if(!el)return;el.innerHTML=clients.length?clients.map((c,i)=>`<div class="activity"><div class="icon-dot check-dot">▣</div><div style="flex:1"><b>${c.name}</b><div class="muted tiny">Peso ${c.weight} · Check-in ${c.check}</div></div><button class="btn dark" onclick="openClient(${i})">Revisar</button></div>`).join(""):'<div class="empty-state">Todavía no hay clientes.</div>'}
+function addClient(){document.getElementById('addClientForm')?.reset();setAuthMessage('newClientMsg','');document.getElementById('addClientModal')?.classList.add('open');setTimeout(()=>document.getElementById('newClientName')?.focus(),50)}
+function closeAddClientModal(){document.getElementById('addClientModal')?.classList.remove('open')}
+async function submitNewClient(ev){
+ ev.preventDefault();const btn=document.getElementById('newClientBtn');btn.disabled=true;btn.textContent='Añadiendo…';setAuthMessage('newClientMsg','');
+ const payload={full_name:document.getElementById('newClientName').value.trim(),email:document.getElementById('newClientEmail').value.trim(),goal:document.getElementById('newClientGoal').value,current_weight_kg:document.getElementById('newClientWeight').value||null,redirect_to:window.location.origin+window.location.pathname};
+ const {data,error}=await sb.functions.invoke('trainer-add-client',{body:payload});
+ if(error||data?.error){setAuthMessage('newClientMsg',data?.error||error?.message||'No se pudo añadir el cliente');btn.disabled=false;btn.textContent='Añadir cliente';return}
+ closeAddClientModal();toast(data?.message||'Cliente añadido');await loadTrainerClients();btn.disabled=false;btn.textContent='Añadir cliente';
 }
-function renderChecks(){
- document.getElementById("checkList").innerHTML=clients.map((c,i)=>`<div class="activity"><div class="icon-dot check-dot">▣</div><div style="flex:1"><b>${c.name}</b><div class="muted tiny">Peso ${c.weight} · Adherencia ${c.adherence}% · ${c.check}</div></div><button class="btn dark" onclick="openClient(${i})">Revisar</button></div>`).join("")
-}
-function addClient(){
- const name=prompt("Nombre del cliente:"); if(!name)return;
- const goal=prompt("Objetivo:", "Pérdida de grasa")||"Por definir";
- clients.push({name,goal,weight:"—",adherence:0,check:"Pendiente",status:"Nuevo",today:"Sin asignar"}); save();renderDashboard();renderClientTable();toast("Cliente añadido")
-}
-renderDashboard();
+
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js"));
 bootstrapAuth();
 </script>
