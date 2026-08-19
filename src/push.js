@@ -1,49 +1,129 @@
-VICBANGFIT ANDROID + FIREBASE CLOUD MESSAGING
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 
-Identidad Android
-- package/applicationId: com.vicbangfit.app
-- Firebase project: vicbangfit
-- Firebase project number: 557201296463
-- Firebase mobile app id: 1:557201296463:android:d1edb7b85b239584c32e3a
+function getSb() {
+  return window.VICBANGFIT_SB || window.sb || null;
+}
 
-QuÃ© incluye
-- Proyecto Capacitor preparado para Android.
-- google-services.json colocado en android/app/google-services.json.
-- @capacitor/push-notifications.
-- Solicitud de permiso de notificaciones.
-- Registro del token FCM.
-- Guardado del token en public.push_tokens de Supabase.
-- Refresco de notificaciones in-app al recibir un push.
-- Manejo bÃ¡sico al tocar una notificaciÃ³n.
-- Nunca incluye una clave Firebase de cuenta de servicio.
+async function saveToken(token) {
+  const sb = getSb();
 
-IMPORTANTE
-El archivo google-services.json NO es la credencial que permite enviar mensajes
-desde el servidor. Para enviar push desde Supabase/Edge Functions hace falta
-autenticaciÃ³n servidor FCM HTTP v1, guardada como secreto del servidor.
-No pongas una service account/private key en index.html, JavaScript, GitHub pÃºblico
-ni dentro del APK.
+  if (!sb) {
+    console.warn('Supabase todavía no está disponible');
+    return;
+  }
 
-CÃ³mo generar el proyecto Android completo en un ordenador
-1. Instala Node.js y Android Studio.
-2. Abre una terminal en esta carpeta.
-3. Ejecuta: npm install
-4. Ejecuta: npm run build
-5. Si android/ aÃºn no contiene el proyecto nativo generado:
-   - guarda temporalmente android/app/google-services.json
-   - ejecuta npx cap add android
-   - vuelve a colocar google-services.json en android/app/
-6. Ejecuta: npx cap sync android
-7. Ejecuta: npx cap open android
-8. En Android Studio, conecta tu mÃ³vil y pulsa Run.
+  const {
+    data: { user },
+    error: userError
+  } = await sb.auth.getUser();
 
-Prueba FCM
-- Inicia sesiÃ³n en VICBANGFIT en el mÃ³vil.
-- Acepta notificaciones.
-- El token FCM se guarda en public.push_tokens.
-- En Firebase Console > Messaging, puedes enviar una notificaciÃ³n de prueba al token.
+  if (userError || !user) {
+    console.warn('No hay usuario autenticado para guardar el token FCM');
+    return;
+  }
 
-Siguiente fase servidor
-- Crear una Supabase Edge Function para FCM HTTP v1.
-- Guardar la credencial de servidor Firebase como secreto de Supabase.
-- Disparar la Edge Function cuando se cree una notificaciÃ³n PR.
+  const payload = {
+    user_id: user.id,
+    token: token,
+    platform: 'android',
+    device_name: navigator.userAgent.slice(0, 120),
+    app_version: '1.0.0',
+    enabled: true,
+    last_seen_at: new Date().toISOString()
+  };
+
+  const { error } = await sb
+    .from('push_tokens')
+    .upsert(payload, {
+      onConflict: 'token'
+    });
+
+  if (error) {
+    console.error('Error guardando token FCM:', error);
+  } else {
+    console.log('Token FCM guardado correctamente en Supabase');
+  }
+}
+
+export async function initVicbangfitPush() {
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+
+  if (Capacitor.getPlatform() !== 'android') {
+    return;
+  }
+
+  let permission = await PushNotifications.checkPermissions();
+
+  if (permission.receive === 'prompt') {
+    permission = await PushNotifications.requestPermissions();
+  }
+
+  if (permission.receive !== 'granted') {
+    console.warn('Permiso de notificaciones no concedido');
+    return;
+  }
+
+  await PushNotifications.addListener(
+    'registration',
+    async token => {
+      console.log('FCM token recibido');
+      await saveToken(token.value);
+    }
+  );
+
+  await PushNotifications.addListener(
+    'registrationError',
+    error => {
+      console.error('Error registrando FCM:', error);
+    }
+  );
+
+  await PushNotifications.addListener(
+    'pushNotificationReceived',
+    notification => {
+      console.log('Notificación recibida:', notification);
+
+      if (window.loadNotifications) {
+        window.loadNotifications();
+      }
+    }
+  );
+
+  await PushNotifications.addListener(
+    'pushNotificationActionPerformed',
+    action => {
+      const data = action.notification?.data || {};
+
+      if (window.showPage) {
+        if (data.type === 'pr' || data.exercise_id) {
+          window.showPage('notificaciones');
+
+          if (window.loadNotifications) {
+            window.loadNotifications();
+          }
+        }
+      }
+    }
+  );
+
+  await PushNotifications.register();
+}
+
+window.addEventListener(
+  'vicbangfit-auth-ready',
+  () => {
+    initVicbangfitPush();
+  }
+);
+
+window.addEventListener(
+  'load',
+  () => {
+    setTimeout(() => {
+      initVicbangfitPush();
+    }, 1500);
+  }
+);
