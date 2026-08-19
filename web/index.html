@@ -569,6 +569,7 @@ async function enterApp(user){
   if(title) title.textContent='Hola, '+coachName+' 👋';
   const trainerName=document.getElementById('trainerDisplayName');
   if(trainerName) trainerName.textContent=coachName;
+   await loadTrainerClients();
   showPage('dashboard');
   return;
  }
