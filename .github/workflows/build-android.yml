@@ -38,7 +38,29 @@ jobs:
 
       - name: Crear proyecto Android
         run: npx cap add android
+      - name: Configurar enlace de recuperación VICBANGFIT
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
 
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+
+          needle = """            </intent-filter>"""
+          deep_link = """            </intent-filter>
+                      <intent-filter>
+                          <action android:name="android.intent.action.VIEW" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <category android:name="android.intent.category.BROWSABLE" />
+                          <data android:scheme="com.vicbangfit.app" android:host="auth-callback" />
+                      </intent-filter>"""
+
+          if 'android:host="auth-callback"' not in s:
+              if needle not in s:
+                  raise SystemExit("No se encontró el intent-filter de Android")
+              s = s.replace(needle, deep_link, 1)
+              p.write_text(s)
+          PY
       - name: Restaurar Firebase
         run: |
           cp /tmp/google-services.json android/app/google-services.json
