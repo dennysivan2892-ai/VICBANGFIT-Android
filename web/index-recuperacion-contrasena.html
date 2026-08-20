@@ -1,0 +1,1036 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070707">
+<link rel="manifest" href="manifest.json">
+<title>VICBANGFIT Coach</title>
+<style>
+:root{
+  --bg:#070707;--bg2:#0b0b0b;--card:#111;--card2:#171717;--line:#292929;
+  --red:#ef2434;--red2:#ff3345;--txt:#f6f6f6;--muted:#9f9f9f;
+  --green:#24d17d;--blue:#2f9bff;--orange:#ff9e1a;--purple:#9b65ff;--yellow:#ffd44c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.app{display:flex;min-height:100vh}
+.sidebar{
+  width:250px;position:fixed;left:0;top:0;bottom:0;background:linear-gradient(180deg,#0b0b0b,#090909);
+  border-right:1px solid var(--line);padding:18px 12px;overflow-y:auto;z-index:40
+}
+.logo{font-size:28px;font-weight:950;font-style:italic;letter-spacing:-1px;margin:6px 10px 4px}
+.logo span{color:var(--red)}
+.logo-sub{margin:0 10px 20px;color:#888;font-size:10px;letter-spacing:2px}
+.profile-mini{display:flex;gap:10px;align-items:center;margin:0 8px 18px;padding:10px;border:1px solid #222;border-radius:14px;background:#101010}
+.avatar{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#777,#161616 55%);border:2px solid var(--red);display:grid;place-items:center;font-weight:900}
+.profile-mini b{display:block}.online{color:var(--green);font-size:12px}
+.nav button{width:100%;background:transparent;border:0;color:#d1d1d1;text-align:left;padding:12px 13px;border-radius:10px;margin:2px 0}
+.nav button:hover,.nav button.active{background:linear-gradient(90deg,#3a0b11,#171717);color:#fff}
+.nav button .badge{float:right;background:var(--red);padding:2px 7px;border-radius:999px;font-size:11px}
+.main{margin-left:250px;width:calc(100% - 250px);padding:22px;max-width:1600px}
+.header{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:20px}
+.header h1{font-size:30px;margin:0}.muted{color:var(--muted)}.tiny{font-size:12px}
+.header-actions{display:flex;gap:10px;align-items:center}
+.search{background:#101010;border:1px solid #2c2c2c;border-radius:10px;color:#fff;padding:11px 13px;min-width:260px}
+.btn{border:0;border-radius:10px;padding:11px 15px;font-weight:800;background:var(--red);color:#fff}
+.btn.dark{background:#1c1c1c}.btn.ghost{background:transparent;border:1px solid #333}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+.card{background:linear-gradient(145deg,#151515,#0e0e0e);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 8px 30px #0005}
+.kpi .label{color:#aaa;font-size:12px}.kpi .value{font-size:30px;font-weight:950;margin:6px 0 3px}.trend{font-size:12px}
+.green{color:var(--green)}.red{color:var(--red)}.blue{color:var(--blue)}.orange{color:var(--orange)}.purple{color:var(--purple)}
+.dashboard{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-top:14px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.card h3{margin:0 0 14px;font-size:16px}
+.client-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.client-card{background:#0e0e0e;border:1px solid #2b2b2b;border-radius:13px;padding:11px;position:relative;overflow:hidden}
+.client-card .status-dot{position:absolute;right:9px;top:9px;width:9px;height:9px;border-radius:50%;background:var(--green)}
+.client-card h4{margin:9px 0 3px}.bar{height:7px;border-radius:20px;background:#262626;overflow:hidden;margin:8px 0}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--red),#ff5562)}
+.meta{font-size:12px;color:#aaa}
+.activity{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid #242424}.activity:last-child{border-bottom:0}
+.icon-dot{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#16341f;color:var(--green);flex:0 0 auto}
+.check-dot{background:#291d47;color:var(--purple)}.msg-dot{background:#493317;color:var(--orange)}.pay-dot{background:#153a28;color:var(--green)}
+.agenda-item{display:grid;grid-template-columns:52px 1fr 20px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #252525}
+.agenda-item .time{color:var(--red);font-weight:900}
+.quick-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.quick{background:#151515;border:1px solid #2a2a2a;border-radius:10px;padding:11px 7px;text-align:center;font-size:11px}.quick b{display:block;font-size:18px;margin-bottom:5px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#aaa}.legend span:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:5px}
+.chart{height:220px;width:100%}
+.client-layout{display:grid;grid-template-columns:310px 1fr;gap:14px}
+.client-side .big-avatar{width:86px;height:86px;border-radius:50%;border:3px solid var(--red);display:grid;place-items:center;margin:0 auto 10px;background:#1a1a1a;font-size:28px;font-weight:900}
+.client-side h2{text-align:center;margin:4px 0}.metric-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.metric{background:#0e0e0e;border:1px solid #292929;padding:10px;border-radius:10px}.metric b{font-size:20px;display:block}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.tab{border:1px solid #303030;background:#141414;color:#ddd;padding:8px 11px;border-radius:9px}.tab.active{background:#301015;color:#fff;border-color:#6b1d28}
+.section{display:none}.section.active{display:block}
+.table{width:100%;border-collapse:collapse}.table th,.table td{padding:12px 8px;border-bottom:1px solid #252525;text-align:left}.table th{font-size:11px;color:#999}
+.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#202020;font-size:11px}
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.field label{display:block;color:#aaa;font-size:12px;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;padding:11px;background:#0d0d0d;border:1px solid #333;color:#fff;border-radius:9px}
+.workout-day{background:#0e0e0e;border:1px solid #282828;border-radius:12px;padding:12px}.exercise{padding:10px 0;border-bottom:1px solid #252525}.exercise:last-child{border-bottom:0}
+.macro{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:9px 0}.macrobar{height:8px;background:#272727;border-radius:9px;overflow:hidden}.macrobar i{display:block;height:100%}
+.mobilebar{display:none}.toast{position:fixed;right:18px;bottom:18px;background:#1d1d1d;border:1px solid #444;border-radius:10px;padding:12px 15px;display:none;z-index:99}
+@media(max-width:1200px){.client-strip{grid-template-columns:repeat(3,1fr)}.grid4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){
+  .sidebar{display:none}.main{margin-left:0;width:100%;padding:50px 14px 130px}.header{align-items:flex-start}.header-actions{flex-wrap:wrap;justify-content:flex-end}.search{min-width:0;width:170px}
+  .dashboard,.client-layout{grid-template-columns:1fr}.client-strip{grid-template-columns:repeat(2,1fr)}.grid3{grid-template-columns:1fr}.mobilebar{display:flex;position:fixed;left:0;right:0;bottom:55px;background:#0e0e0e;border-top:1px solid #2a2a2a;z-index:70;justify-content:space-around;padding:8px 5px}.mobilebar button{background:transparent;border:0;color:#999;font-size:10px}.mobilebar button.active{color:var(--red)}
+}
+@media(max-width:550px){.grid4{grid-template-columns:1fr 1fr}.client-strip{grid-template-columns:1fr}.header h1{font-size:24px}.search{display:none}.form-grid{grid-template-columns:1fr}.quick-actions{grid-template-columns:repeat(2,1fr)}}
+
+.auth-shell{min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 75% 15%,#2a090d 0,transparent 28%),radial-gradient(circle at 10% 85%,#161616 0,transparent 30%),#070707}
+.auth-card{width:min(460px,100%);background:linear-gradient(145deg,#171717,#0d0d0d);border:1px solid #2c2c2c;border-radius:22px;padding:26px;box-shadow:0 25px 80px #0009}
+.auth-brand{font-size:34px;font-weight:950;font-style:italic;letter-spacing:-1.5px;text-align:center}.auth-brand span{color:var(--red)}
+.auth-title{text-align:center;margin:18px 0 5px}.auth-copy{text-align:center;color:var(--muted);font-size:13px;margin-bottom:20px}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;background:#0c0c0c;border:1px solid #292929;border-radius:11px;padding:4px;margin-bottom:16px}.auth-tabs button{border:0;background:transparent;color:#aaa;padding:10px;border-radius:8px;font-weight:800}.auth-tabs button.active{background:#281014;color:#fff}
+.auth-form{display:none}.auth-form.active{display:block}.auth-field{margin-bottom:11px}.auth-field label{display:block;color:#aaa;font-size:12px;margin-bottom:5px}.auth-field input{width:100%;background:#0b0b0b;border:1px solid #333;color:#fff;border-radius:10px;padding:12px}
+.recovery-title{text-align:center;margin:4px 0 6px}.recovery-copy{text-align:center;color:var(--muted);font-size:13px;margin-bottom:16px}
+.auth-error{min-height:20px;color:#ff6875;font-size:12px;margin:8px 0}.auth-success{color:var(--green)}
+.auth-btn{width:100%;padding:13px}.auth-link{display:block;background:none;border:0;color:#bbb;margin:13px auto 0;font-size:12px;text-decoration:underline}
+.auth-security{margin-top:18px;padding-top:14px;border-top:1px solid #272727;color:#777;font-size:11px;text-align:center}
+#appShell{display:none}.logout-btn{background:#181818;border:1px solid #333;color:#ddd;border-radius:9px;padding:9px 12px}.role-chip{font-size:11px;padding:4px 8px;border-radius:999px;background:#271014;color:#ff7b86;border:1px solid #4b1820}
+.client-home-wrap{max-width:1100px;margin:auto}.client-hero{background:linear-gradient(135deg,#201013,#101010 55%);border:1px solid #382127;border-radius:18px;padding:20px;margin-bottom:14px}.client-hero h1{margin:0 0 5px}.client-nav{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.client-nav button{border:1px solid #303030;background:#151515;color:#ddd;padding:9px 11px;border-radius:9px}
+body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;width:100%;max-width:1200px;margin-right:auto;margin-left:auto}body.client-mode .mobilebar{display:none}
+@media(max-width:900px){body.client-mode .main{padding-bottom:20px}.auth-card{padding:20px}}
+
+.client-modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:18px;z-index:120}.client-modal.open{display:flex}.client-modal-card{width:min(520px,100%);max-height:90vh;overflow:auto;background:linear-gradient(145deg,#171717,#0d0d0d);border:1px solid #333;border-radius:18px;padding:20px;box-shadow:0 25px 80px #000c}.client-modal-card h2{margin:0 0 5px}.modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:15px}.empty-state{text-align:center;padding:28px;color:var(--muted)}
+
+.routine-builder{width:min(900px,100%)}
+.routine-toolbar{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;margin:14px 0}
+.routine-days{display:grid;gap:12px}.routine-day-editor{background:#0c0c0c;border:1px solid #292929;border-radius:13px;padding:12px}
+.routine-day-head{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}.routine-day-head input{flex:1}
+.routine-exercise-row{display:grid;grid-template-columns:2fr .7fr .7fr .7fr .9fr auto;gap:8px;align-items:end;padding:10px 0;border-top:1px solid #242424}
+.routine-exercise-row:first-of-type{border-top:0}.routine-exercise-row .field{margin:0}.mini-btn{padding:10px 11px}
+.real-routine-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.real-routine-card{padding:17px}.real-routine-card h3{font-size:20px;margin:0}.real-routine-head{margin-bottom:12px}.real-routine-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.real-routine-actions .btn{padding:9px 12px}.btn.danger{background:#351014;border:1px solid #6a1b26;color:#ff7b86}.real-routine-day{background:#0c0c0c;border:1px solid #282828;border-radius:12px;padding:12px;margin-top:10px}.real-routine-exercise{padding:9px 0;border-top:1px solid #242424}.real-routine-exercise:first-of-type{border-top:0}.real-routine-exercise b{display:block;margin-bottom:3px}
+@media(max-width:900px){.real-routine-list{grid-template-columns:1fr}}
+@media(max-width:750px){.routine-toolbar{grid-template-columns:1fr}.routine-exercise-row{grid-template-columns:1fr 1fr}.routine-exercise-row .exercise-select{grid-column:1/-1}}
+@media(max-width:550px){
+  #clientes .card{padding:12px;overflow:visible}
+  #clientes .table,
+  #clientes .table tbody,
+  #clientes .table tr,
+  #clientes .table td{display:block;width:100%}
+
+  #clientes .table thead{display:none}
+
+  #clientes .table tr{
+    background:#0d0d0d;
+    border:1px solid #292929;
+    border-radius:14px;
+    padding:12px;
+    margin-bottom:12px;
+  }
+
+  #clientes .table td{
+    border:0;
+    padding:7px 0;
+  }
+
+  #clientes .table td:nth-child(2)::before{content:"Objetivo: ";font-weight:800;color:#888}
+  #clientes .table td:nth-child(3)::before{content:"Peso: ";font-weight:800;color:#888}
+  #clientes .table td:nth-child(4)::before{content:"Adherencia: ";font-weight:800;color:#888}
+  #clientes .table td:nth-child(5)::before{content:"Check-in: ";font-weight:800;color:#888}
+
+  #clientes .table td:last-child .btn{width:100%;margin-top:5px}
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+<div id="authShell" class="auth-shell">
+  <div class="auth-card">
+    <div class="auth-brand">VICBANG<span>FIT</span></div>
+    <div class="auth-title"><h2 style="margin:0">Tu asesoría en una sola app</h2></div>
+    <div class="auth-copy">Acceso seguro para entrenador y clientes.</div>
+    <div class="auth-tabs"><button id="loginTab" class="active" onclick="switchAuth('login')">Iniciar sesión</button><button id="signupTab" onclick="switchAuth('signup')">Crear cuenta</button></div>
+    <form id="loginForm" class="auth-form active" onsubmit="loginUser(event)">
+      <div class="auth-field"><label>Email</label><input id="loginEmail" type="email" autocomplete="email" required placeholder="tu@email.com"></div>
+      <div class="auth-field"><label>Contraseña</label><input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••"></div>
+      <div id="loginMsg" class="auth-error"></div>
+      <button id="loginBtn" class="btn auth-btn" type="submit">Entrar en VICBANGFIT</button>
+      <button class="auth-link" type="button" onclick="resetPassword()">He olvidado mi contraseña</button>
+    </form>
+    <form id="signupForm" class="auth-form" onsubmit="signupUser(event)">
+      <div class="auth-field"><label>Nombre completo</label><input id="signupName" required autocomplete="name" placeholder="Nombre y apellidos"></div>
+      <div class="auth-field"><label>Email</label><input id="signupEmail" type="email" autocomplete="email" required placeholder="tu@email.com"></div>
+      <div class="auth-field"><label>Contraseña</label><input id="signupPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Mínimo 8 caracteres"></div>
+      <div id="signupMsg" class="auth-error"></div>
+      <button id="signupBtn" class="btn auth-btn" type="submit">Crear cuenta de cliente</button>
+      <div class="muted tiny" style="margin-top:10px;text-align:center">Las cuentas nuevas se crean como cliente. El rol de entrenador se asigna administrativamente.</div>
+    </form>
+    <form id="recoveryForm" class="auth-form" onsubmit="saveNewPassword(event)">
+      <h2 class="recovery-title">Nueva contraseña</h2>
+      <div class="recovery-copy">Escribe una contraseña nueva para tu cuenta VICBANGFIT.</div>
+      <div class="auth-field"><label>Nueva contraseña</label><input id="recoveryPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Mínimo 8 caracteres"></div>
+      <div class="auth-field"><label>Repetir contraseña</label><input id="recoveryPassword2" type="password" autocomplete="new-password" minlength="8" required placeholder="Repite la contraseña"></div>
+      <div id="recoveryMsg" class="auth-error"></div>
+      <button id="recoveryBtn" class="btn auth-btn" type="submit">Guardar nueva contraseña</button>
+    </form>
+    <div class="auth-security">🔒 Autenticación gestionada por Supabase. La app usa una clave pública; no contiene claves administrativas.</div>
+  </div>
+</div>
+<div id="appShell">
+<div class="app">
+<aside class="sidebar">
+  <div class="logo">VICBANG<span>FIT</span></div>
+  <div class="logo-sub">COACH PANEL</div>
+  <div class="profile-mini"><div class="avatar">V</div><div><b id="trainerDisplayName">Vicbangfit</b><span class="online">● Online · Entrenador</span></div></div>
+  <div class="nav">
+    <button class="active" data-page="dashboard">⌂ Dashboard</button>
+    <button data-page="clientes">♙ Clientes</button>
+    <button data-page="entrenamientos">🏋 Entrenamientos</button>
+    <button data-page="nutricion">🥗 Nutrición</button>
+    <button data-page="planes">▤ Planes</button>
+    <button data-page="checkins">✓ Check-ins</button>
+    <button data-page="progreso">⌁ Progreso</button>
+    <button data-page="mensajes">▣ Mensajes <span class="badge">12</span></button>
+    <button data-page="calendario">▦ Calendario</button>
+    <button data-page="pagos">€ Pagos y facturas</button>
+    <button data-page="plantillas">▤ Plantillas</button>
+    <button data-page="ejercicios">◈ Ejercicios</button>
+    <button data-page="ajustes">⚙ Ajustes</button>
+  </div>
+</aside>
+
+<main class="main">
+<section id="dashboard" class="section active">
+  <div class="header">
+    <div><h1>Hola, Coach 👋</h1><div class="muted">Aquí tienes el resumen de tus clientes y su progreso.</div></div>
+    <div class="header-actions"><input class="search" placeholder="Buscar cliente..."><button class="btn" onclick="showPage('clientes')">＋ Nuevo cliente</button><button class="logout-btn" onclick="logoutUser()">Salir</button></div>
+  </div>
+  <div class="grid4">
+    <div class="card kpi"><div class="label">CLIENTES ACTIVOS</div><div class="value" id="activeClientsCount">0</div><div class="trend green" id="activeClientsTrend">Datos reales</div></div>
+    <div class="card kpi"><div class="label">ENTRENAMIENTOS</div><div class="value">142</div><div class="trend green">+18% completados</div></div>
+    <div class="card kpi"><div class="label">ADHERENCIA MEDIA</div><div class="value">92%</div><div class="trend green">Excelente</div></div>
+    <div class="card kpi"><div class="label">INGRESOS ESTE MES</div><div class="value">3.420 €</div><div class="trend green">+12% vs mes anterior</div></div>
+  </div>
+
+  <div class="dashboard">
+    <div>
+      <div class="card">
+        <div class="row"><h3>Tus clientes <span class="muted tiny">(activos)</span></h3><button class="btn dark" onclick="showPage('clientes')">Ver todos</button></div>
+        <div class="client-strip" id="clientStrip"></div>
+      </div>
+
+      <div class="grid3" style="margin-top:14px">
+        <div class="card" style="grid-column:span 2">
+          <div class="row"><h3>Progreso general</h3><span class="pill">Últimos 7 días</span></div>
+          <svg class="chart" viewBox="0 0 760 220" preserveAspectRatio="none">
+            <line x1="0" y1="180" x2="760" y2="180" stroke="#222"/><line x1="0" y1="120" x2="760" y2="120" stroke="#222"/><line x1="0" y1="60" x2="760" y2="60" stroke="#222"/>
+            <polyline points="0,150 90,122 180,128 270,105 360,112 450,87 540,98 630,70 760,62" fill="none" stroke="#ef2434" stroke-width="5"/>
+            <polyline points="0,170 90,150 180,142 270,135 360,126 450,132 540,110 630,101 760,92" fill="none" stroke="#24d17d" stroke-width="4"/>
+            <polyline points="0,190 90,170 180,178 270,155 360,165 450,145 540,160 630,135 760,125" fill="none" stroke="#2f9bff" stroke-width="4"/>
+          </svg>
+          <div class="legend"><span class="red">Entrenamientos</span><span class="green">Nutrición</span><span class="blue">Peso</span></div>
+        </div>
+        <div class="card">
+          <div class="row"><h3>Check-ins pendientes</h3><span class="red tiny">Ver todos</span></div>
+          <div id="pendingChecks"></div>
+        </div>
+      </div>
+
+      <div class="grid3" style="margin-top:14px">
+        <div class="card">
+          <h3>Nutrición — resumen</h3>
+          <div style="font-size:34px;font-weight:950;margin-bottom:10px">2.360 <span class="muted tiny">kcal</span></div>
+          <div class="macro"><span>Proteínas 182 g</span><b class="green">30%</b></div><div class="macrobar"><i style="width:73%;background:var(--green)"></i></div>
+          <div class="macro"><span>Carbohidratos 240 g</span><b class="blue">45%</b></div><div class="macrobar"><i style="width:82%;background:var(--blue)"></i></div>
+          <div class="macro"><span>Grasas 70 g</span><b class="orange">20%</b></div><div class="macrobar"><i style="width:66%;background:var(--orange)"></i></div>
+        </div>
+        <div class="card" style="grid-column:span 2">
+          <div class="row"><h3>Evolución de peso <span class="muted tiny">(promedio)</span></h3><span class="pill">Todos los clientes</span></div>
+          <svg class="chart" viewBox="0 0 760 220" preserveAspectRatio="none">
+            <defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#ef2434" stop-opacity=".38"/><stop offset="100%" stop-color="#ef2434" stop-opacity="0"/></linearGradient></defs>
+            <polygon points="0,40 90,50 180,48 270,72 360,90 450,112 540,132 630,160 760,200 760,220 0,220" fill="url(#g)"/>
+            <polyline points="0,40 90,50 180,48 270,72 360,90 450,112 540,132 630,160 760,200" fill="none" stroke="#ef2434" stroke-width="5"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card"><h3>Agenda de hoy</h3><div id="agenda"></div></div>
+      <div class="card" style="margin-top:14px"><div class="row"><h3>Actividad reciente</h3><span class="red tiny">Ver todo</span></div>
+        <div class="activity"><div class="icon-dot">✓</div><div><b>Carlos García</b> completó su entrenamiento<div class="muted tiny">Hace 45 min</div></div></div>
+        <div class="activity"><div class="icon-dot check-dot">▣</div><div><b>Laura Martínez</b> subió su peso<div class="muted tiny">Hace 1 h</div></div></div>
+        <div class="activity"><div class="icon-dot msg-dot">✉</div><div><b>Miguel Torres</b> envió su check-in<div class="muted tiny">Hace 2 h</div></div></div>
+        <div class="activity"><div class="icon-dot pay-dot">€</div><div>Pago recibido de <b>Javier Ruiz</b><div class="muted tiny">Hace 5 h</div></div></div>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>Acciones rápidas</h3><div class="quick-actions">
+        <button class="quick" onclick="showPage('clientes')"><b>＋</b>Nuevo cliente</button>
+        <button class="quick" onclick="showPage('entrenamientos')"><b>🏋</b>Crear rutina</button>
+        <button class="quick" onclick="showPage('nutricion')"><b>🥗</b>Crear dieta</button>
+        <button class="quick" onclick="showPage('mensajes')"><b>✉</b>Mensaje</button>
+        <button class="quick" onclick="showPage('plantillas')"><b>▤</b>Plantillas</button>
+        <button class="quick" onclick="showPage('ejercicios')"><b>◈</b>Ejercicios</button>
+        <button class="quick" onclick="toast('Datos exportados')"><b>⇧</b>Exportar</button>
+        <button class="quick" onclick="showPage('ajustes')"><b>•••</b>Más</button>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<section id="clientes" class="section">
+  <div class="header"><div><h1>Clientes</h1><div class="muted">Perfiles, objetivos, evolución y acceso rápido.</div></div><button class="btn" onclick="addClient()">＋ Nuevo cliente</button></div>
+  <div class="card">
+    <input id="clientSearch" class="search" style="width:100%;margin-bottom:12px" placeholder="Buscar por nombre u objetivo..." oninput="renderClientTable()">
+    <table class="table"><thead><tr><th>CLIENTE</th><th>OBJETIVO</th><th>PESO</th><th>ADHERENCIA</th><th>CHECK-IN</th><th></th></tr></thead><tbody id="clientTable"></tbody></table>
+  </div>
+</section>
+
+<section id="cliente" class="section">
+  <div class="header"><div><h1 id="clientTitle">Perfil del cliente</h1><div class="muted">Ficha completa y seguimiento.</div></div><button class="btn ghost" onclick="showPage('clientes')">← Volver</button></div>
+  <div class="client-layout">
+    <div class="card client-side">
+      <div class="big-avatar" id="bigAvatar">CG</div><h2 id="clientName">Carlos García</h2><div style="text-align:center"><span class="pill green">Activo</span></div>
+      <div class="metric-grid">
+        <div class="metric"><span class="muted tiny">Peso</span><b id="clientWeight">82,4 kg</b></div>
+        <div class="metric"><span class="muted tiny">Adherencia</span><b id="clientAdherence">92%</b></div>
+<div class="metric"><span class="muted tiny">Cintura</span><b id="clientWaist">Sin datos</b></div>
+<div class="metric"><span class="muted tiny">Plan</span><b id="clientPlan">Sin asignar</b></div>
+</div>
+
+<hr style="border:0;border-top:1px solid #282828;margin:14px 0">
+
+<div><b>Objetivo</b><div class="muted" id="clientGoal">Sin datos</div></div>
+
+<div style="margin-top:12px">
+  <b>Próximo check-in</b>
+  <div class="muted" id="clientNextCheckin">Sin programar</div>
+</div>
+</div>
+  
+
+      
+  
+    <div>
+      <div class="tabs">
+        <button class="tab active">Resumen</button><button class="tab" onclick="showPage('entrenamientos')">Entrenamiento</button><button class="tab" onclick="showPage('nutricion')">Nutrición</button><button class="tab" onclick="showPage('progreso')">Progreso</button><button class="tab" onclick="showPage('checkins')">Check-ins</button><button class="tab" onclick="showPage('mensajes')">Mensajes</button>
+      </div>
+      <div class="grid3">
+  <div class="card kpi">
+    <div class="label">PESO ACTUAL</div>
+    <div class="value" id="summaryClientWeight">Sin datos</div>
+    <div class="muted tiny">Dato real del cliente</div>
+  </div>
+
+  <div class="card kpi">
+    <div class="label">ADHERENCIA</div>
+    <div class="value" id="summaryClientAdherence">—</div>
+    <div class="muted tiny">Sin registros</div>
+  </div>
+
+  <div class="card kpi">
+    <div class="label">FUERZA</div>
+    <div class="value" id="summaryClientStrength">Sin datos</div>
+    <div class="muted tiny">Sin registros</div>
+  </div>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>Evolución de peso</h3>
+        <svg class="chart" viewBox="0 0 760 220" preserveAspectRatio="none"><polyline points="0,35 90,45 180,58 270,72 360,92 450,112 540,140 630,152 760,185" fill="none" stroke="#ef2434" stroke-width="5"/></svg>
+      </div>
+      <div class="grid3" style="margin-top:14px">
+        <div class="card"><h3>Último check-in</h3><p><b>Peso:</b> 82,4 kg</p><p><b>Energía:</b> 8/10</p><p><b>Hambre:</b> 5/10</p><p><b>Sueño:</b> 7 h 30 min</p></div>
+        <div class="card"><h3>Nutrición</h3><p>2.340 kcal</p><p>180 g proteína</p><p>240 g carbohidratos</p><p>70 g grasas</p></div>
+        <div class="card"><h3>Entrenamiento</h3><p>4 sesiones/semana</p><p>16 sesiones este mes</p><p>92% completado</p><button class="btn dark" onclick="showPage('entrenamientos')">Ver rutina</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="entrenamientos" class="section">
+  <div class="header"><div><h1>Entrenamientos</h1><div class="muted">Rutinas reales guardadas y asignadas a tus clientes.</div></div><button class="btn" onclick="openRoutineBuilder()">＋ Crear rutina</button></div>
+  <div id="trainerRoutinesList" class="real-routine-list"><div class="empty-state card">Cargando rutinas…</div></div>
+</section>
+
+<section id="nutricion" class="section">
+  <div class="header"><div><h1>Nutrición</h1><div class="muted">Macros, comidas, sustituciones y adherencia.</div></div><button class="btn" onclick="toast('Nuevo plan nutricional creado')">＋ Crear plan</button></div>
+  <div class="grid4">
+    <div class="card kpi"><div class="label">KCAL OBJETIVO</div><div class="value">2.340</div></div>
+    <div class="card kpi"><div class="label">PROTEÍNA</div><div class="value">180 g</div></div>
+    <div class="card kpi"><div class="label">CARBOHIDRATOS</div><div class="value">240 g</div></div>
+    <div class="card kpi"><div class="label">GRASAS</div><div class="value">70 g</div></div>
+  </div>
+  <div class="grid3" style="margin-top:14px">
+    <div class="card"><h3>Desayuno</h3><p>Avena 80 g</p><p>Claras 250 ml</p><p>Frutos rojos 100 g</p><p class="muted">≈ 560 kcal</p></div>
+    <div class="card"><h3>Comida</h3><p>Arroz 120 g</p><p>Pollo 200 g</p><p>Verduras 250 g</p><p class="muted">≈ 720 kcal</p></div>
+    <div class="card"><h3>Cena</h3><p>Patata 350 g</p><p>Salmón 180 g</p><p>Ensalada</p><p class="muted">≈ 670 kcal</p></div>
+  </div>
+</section>
+
+<section id="checkins" class="section">
+  <div class="header"><div><h1>Check-ins</h1><div class="muted">Revisión semanal de tus clientes.</div></div><button class="btn" onclick="toast('Recordatorio enviado')">Enviar recordatorio</button></div>
+  <div class="card" id="checkList"></div>
+</section>
+
+<section id="progreso" class="section">
+  <div class="header"><div><h1>Progreso</h1><div class="muted">Peso, medidas, adherencia y rendimiento.</div></div></div>
+  <div class="grid4">
+    <div class="card kpi"><div class="label">PESO MEDIO</div><div class="value">82,4 kg</div><div class="green">-0,8 kg</div></div>
+    <div class="card kpi"><div class="label">% GRASA MEDIO</div><div class="value">15,3%</div><div class="green">-0,6%</div></div>
+    <div class="card kpi"><div class="label">MEJOR ADHERENCIA</div><div class="value">96%</div><div class="green">Laura Martínez</div></div>
+    <div class="card kpi"><div class="label">CLIENTE TOP</div><div class="value">Miguel</div><div class="green">+4,2 kg músculo</div></div>
+  </div>
+</section>
+
+<section id="mensajes" class="section">
+  <div class="header"><div><h1>Mensajes</h1><div class="muted">Conversaciones con tus clientes.</div></div></div>
+  <div class="card">
+    <div class="activity"><div class="icon-dot msg-dot">✉</div><div style="flex:1"><b>Javier Ruiz</b><div>¿Puedo cambiar el ejercicio de hombro?</div><div class="muted tiny">Hace 5 h</div></div><button class="btn dark" onclick="toast('Chat abierto')">Abrir</button></div>
+    <div class="activity"><div class="icon-dot msg-dot">✉</div><div style="flex:1"><b>Ana Sánchez</b><div>Te he enviado las fotos del check-in.</div><div class="muted tiny">Hace 7 h</div></div><button class="btn dark" onclick="toast('Chat abierto')">Abrir</button></div>
+  </div>
+</section>
+
+<section id="calendario" class="section">
+  <div class="header"><div><h1>Calendario</h1><div class="muted">Agenda de revisiones y videollamadas.</div></div><button class="btn" onclick="toast('Evento creado')">＋ Evento</button></div>
+  <div class="card" id="calendarList"></div>
+</section>
+
+<section id="pagos" class="section">
+  <div class="header"><div><h1>Pagos y facturas</h1><div class="muted">Suscripciones, cobros e ingresos.</div></div></div>
+  <div class="grid4">
+    <div class="card kpi"><div class="label">INGRESOS</div><div class="value">3.420 €</div></div>
+    <div class="card kpi"><div class="label">SUSCRIPCIONES</div><div class="value">34</div></div>
+    <div class="card kpi"><div class="label">PENDIENTES</div><div class="value">3</div></div>
+    <div class="card kpi"><div class="label">TICKET MEDIO</div><div class="value">100,6 €</div></div>
+  </div>
+</section>
+
+<section id="planes" class="section">
+  <div class="header"><div><h1>Planes</h1><div class="muted">Servicios y precios.</div></div><button class="btn" onclick="toast('Plan creado')">＋ Nuevo plan</button></div>
+  <div class="grid3">
+    <div class="card"><h3>Online Premium</h3><p>Entrenamiento + nutrición + check-in + chat.</p><h2>149 €/mes</h2></div>
+    <div class="card"><h3>Entrenamiento</h3><p>Rutina personalizada + seguimiento.</p><h2>99 €/mes</h2></div>
+    <div class="card"><h3>Nutrición</h3><p>Plan nutricional + revisión semanal.</p><h2>79 €/mes</h2></div>
+  </div>
+</section>
+
+<section id="plantillas" class="section"><div class="header"><div><h1>Plantillas</h1><div class="muted">Rutinas y planes reutilizables.</div></div></div><div class="grid3"><div class="card"><h3>Hipertrofia 4 días</h3><p>Plantilla base intermedia.</p></div><div class="card"><h3>Pérdida de grasa 4 días</h3><p>Fuerza + volumen moderado.</p></div><div class="card"><h3>Fuerza 3 días</h3><p>Base de progresión.</p></div></div></section>
+
+<section id="ejercicios" class="section"><div class="header"><div><h1>Biblioteca de ejercicios</h1><div class="muted">Catálogo para construir rutinas.</div></div><button class="btn" onclick="toast('Ejercicio añadido')">＋ Ejercicio</button></div><div class="grid4"><div class="card"><h3>Press inclinado</h3><span class="pill">Pecho</span></div><div class="card"><h3>Remo máquina</h3><span class="pill">Espalda</span></div><div class="card"><h3>Prensa</h3><span class="pill">Pierna</span></div><div class="card"><h3>Curl bíceps</h3><span class="pill">Bíceps</span></div></div></section>
+
+<section id="ajustes" class="section">
+  <div class="header"><div><h1>Ajustes</h1><div class="muted">Configuración de la plataforma.</div></div></div>
+  <div class="card">
+    <div class="form-grid">
+      <div class="field"><label>Nombre comercial</label><input value="VICBANGFIT"></div>
+      <div class="field"><label>Moneda</label><select><option>EUR (€)</option></select></div>
+      <div class="field"><label>Email de soporte</label><input value="coach@vicbangfit.app"></div>
+      <div class="field"><label>Check-in predeterminado</label><select><option>Semanal</option></select></div>
+    </div>
+    <button class="btn" style="margin-top:12px" onclick="toast('Ajustes guardados')">Guardar cambios</button>
+  </div>
+</section>
+
+<section id="client_home" class="section">
+  <div class="client-home-wrap">
+    <div class="header"><div><span class="role-chip">CLIENTE</span><h1 id="clientWelcome" style="margin-top:8px">Hola 👋</h1><div class="muted">Tu entrenamiento, nutrición y progreso.</div></div><button class="logout-btn" onclick="logoutUser()">Cerrar sesión</button></div>
+    <div class="client-hero"><div class="muted tiny">RUTINA ASIGNADA</div><h1 id="clientHeroTitle">Cargando entrenamiento…</h1><p class="muted" id="clientHeroMeta">Buscando tu rutina activa.</p><button id="clientHeroBtn" class="btn" onclick="showPage('client_workout')">Ver mi entrenamiento →</button></div>
+    <div class="grid4">
+      <div class="card kpi"><div class="label">PESO</div><div class="value" id="myWeight">—</div><div class="green">Seguimiento</div></div>
+      <div class="card kpi"><div class="label">ADHERENCIA</div><div class="value">92%</div><div class="green">Esta semana</div></div>
+      <div class="card kpi"><div class="label">ENTRENAMIENTOS</div><div class="value">3/4</div><div class="green">Semana actual</div></div>
+      <div class="card kpi"><div class="label">CHECK-IN</div><div class="value" style="font-size:20px">Pendiente</div><div class="orange">Domingo</div></div>
+    </div>
+    <div class="client-nav"><button onclick="showPage('client_workout')">🏋 Entrenamiento</button><button onclick="showPage('client_nutrition')">🥗 Nutrición</button><button onclick="showPage('client_progress')">📊 Progreso</button><button onclick="showPage('client_checkin')">📸 Check-in</button></div>
+  </div>
+</section>
+<section id="client_workout" class="section"><div class="header"><div><h1>Mi entrenamiento</h1><div class="muted">Rutinas asignadas por tu entrenador.</div></div><button class="btn ghost" onclick="showPage('client_home')">← Inicio</button></div><div id="clientRoutineList" class="real-routine-list"><div class="empty-state card">Cargando tu entrenamiento…</div></div></section>
+<section id="client_nutrition" class="section"><div class="header"><div><h1>Mi nutrición</h1></div><button class="btn ghost" onclick="showPage('client_home')">← Inicio</button></div><div class="grid4"><div class="card kpi"><div class="label">KCAL</div><div class="value">2.340</div></div><div class="card kpi"><div class="label">PROTEÍNA</div><div class="value">180 g</div></div><div class="card kpi"><div class="label">CARBO</div><div class="value">240 g</div></div><div class="card kpi"><div class="label">GRASA</div><div class="value">70 g</div></div></div></section>
+<section id="client_progress" class="section"><div class="header"><div><h1>Mi progreso</h1></div><button class="btn ghost" onclick="showPage('client_home')">← Inicio</button></div><div class="card"><h3>Evolución</h3><p class="muted">Los datos reales aparecerán aquí a medida que completes check-ins y entrenamientos.</p></div></section>
+<section id="client_checkin" class="section"><div class="header"><div><h1>Check-in semanal</h1></div><button class="btn ghost" onclick="showPage('client_home')">← Inicio</button></div><div class="card"><div class="form-grid"><div class="field"><label>Peso (kg)</label><input id="checkWeight" type="number" step="0.1"></div><div class="field"><label>Energía (1–10)</label><input type="number" min="1" max="10"></div><div class="field"><label>Hambre (1–10)</label><input type="number" min="1" max="10"></div><div class="field"><label>Sueño (horas)</label><input type="number" step="0.5"></div></div><button class="btn" style="margin-top:12px" onclick="toast('El guardado real del check-in será el siguiente módulo')">Enviar check-in</button></div></section>
+
+</main>
+</div>
+
+<div class="mobilebar">
+<button class="active" data-page="dashboard">⌂<br>Inicio</button>
+<button data-page="clientes">♙<br>Clientes</button>
+<button data-page="entrenamientos">🏋<br>Rutinas</button>
+<button data-page="nutricion">🥗<br>Nutrición</button>
+<button data-page="progreso">⌁<br>Progreso</button>
+</div>
+<div id="addClientModal" class="client-modal" onclick="if(event.target===this)closeAddClientModal()">
+  <div class="client-modal-card">
+    <div class="row"><div><h2>Nuevo cliente</h2><div class="muted tiny">Se creará o vinculará su cuenta VICBANGFIT.</div></div><button class="btn ghost" type="button" onclick="closeAddClientModal()">✕</button></div>
+    <form id="addClientForm" onsubmit="submitNewClient(event)" style="margin-top:16px">
+      <div class="form-grid">
+        <div class="field"><label>Nombre completo</label><input id="newClientName" required autocomplete="name" placeholder="Nombre y apellidos"></div>
+        <div class="field"><label>Email</label><input id="newClientEmail" type="email" required autocomplete="email" placeholder="cliente@email.com"></div>
+        <div class="field"><label>Objetivo</label><select id="newClientGoal"><option>Pérdida de grasa</option><option>Hipertrofia</option><option>Recomposición corporal</option><option>Fuerza</option><option>Rendimiento</option><option>Salud</option><option>Otro</option></select></div>
+        <div class="field"><label>Peso actual (kg)</label><input id="newClientWeight" type="number" min="20" max="500" step="0.1" placeholder="Ej. 82.4"></div>
+      </div>
+      <div id="newClientMsg" class="auth-error"></div>
+      <div class="modal-actions"><button class="btn ghost" type="button" onclick="closeAddClientModal()">Cancelar</button><button id="newClientBtn" class="btn" type="submit">Añadir cliente</button></div>
+    </form>
+  </div>
+</div>
+
+<div id="routineBuilderModal" class="client-modal" onclick="if(event.target===this)closeRoutineBuilder()">
+  <div class="client-modal-card routine-builder">
+    <div class="row"><div><h2 id="routineModalTitle">Crear rutina</h2><div id="routineModalCopy" class="muted tiny">Asigna una rutina real a uno de tus clientes.</div></div><button class="btn ghost" type="button" onclick="closeRoutineBuilder()">✕</button></div>
+    <div class="routine-toolbar">
+      <div class="field"><label>Cliente</label><select id="routineClient"></select></div>
+      <div class="field"><label>Nombre de la rutina</label><input id="routineName" placeholder="Ej. Hipertrofia 4 días"></div>
+      <div class="field"><label>Objetivo</label><input id="routineGoal" placeholder="Ej. Ganancia muscular"></div>
+    </div>
+    <div id="routineDays" class="routine-days"></div>
+    <div class="row" style="margin-top:12px;align-items:flex-start">
+      <button class="btn dark" type="button" onclick="addRoutineDay()">＋ Añadir día</button>
+      <div style="text-align:right"><div id="routineMsg" class="auth-error"></div><button id="saveRoutineBtn" class="btn" type="button" onclick="saveRoutine()">Guardar rutina</button></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+</div>
+
+<script>
+
+const SUPABASE_URL='https://eyxovtzsbocptfbidlhu.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_UoKYQLNQsaTqkx84-fxvsg_QL3_1udS';
+const APP_AUTH_REDIRECT='com.vicbangfit.app://auth-callback';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+window.VICBANGFIT_SB = sb;
+let currentProfile=null;
+
+function switchAuth(mode){
+ document.getElementById('loginTab').classList.toggle('active',mode==='login');
+ document.getElementById('signupTab').classList.toggle('active',mode==='signup');
+ document.getElementById('loginForm').classList.toggle('active',mode==='login');
+ document.getElementById('signupForm').classList.toggle('active',mode==='signup');
+ document.getElementById('recoveryForm').classList.remove('active');
+ document.querySelector('.auth-tabs').style.display='grid';
+}
+function showRecoveryForm(message='Enlace verificado. Ahora elige una contraseña nueva.'){
+ document.getElementById('appShell').style.display='none';
+ document.getElementById('authShell').style.display='grid';
+ document.getElementById('loginForm').classList.remove('active');
+ document.getElementById('signupForm').classList.remove('active');
+ document.getElementById('recoveryForm').classList.add('active');
+ document.querySelector('.auth-tabs').style.display='none';
+ setAuthMessage('recoveryMsg',message,true);
+ setTimeout(()=>document.getElementById('recoveryPassword')?.focus(),100);
+}
+function setAuthMessage(id,msg,ok=false){const e=document.getElementById(id);e.textContent=msg;e.classList.toggle('auth-success',ok)}
+async function loginUser(ev){
+ ev.preventDefault();const btn=document.getElementById('loginBtn');btn.disabled=true;btn.textContent='Entrando…';setAuthMessage('loginMsg','');
+ const email=document.getElementById('loginEmail').value.trim();const password=document.getElementById('loginPassword').value;
+ const {data,error}=await sb.auth.signInWithPassword({email,password});
+ if(error){setAuthMessage('loginMsg',error.message);btn.disabled=false;btn.textContent='Entrar en VICBANGFIT';return}
+ await enterApp(data.user);btn.disabled=false;btn.textContent='Entrar en VICBANGFIT';
+}
+async function signupUser(ev){
+ ev.preventDefault();const btn=document.getElementById('signupBtn');btn.disabled=true;btn.textContent='Creando cuenta…';setAuthMessage('signupMsg','');
+ const full_name=document.getElementById('signupName').value.trim();const email=document.getElementById('signupEmail').value.trim();const password=document.getElementById('signupPassword').value;
+ const {data,error}=await sb.auth.signUp({email,password,options:{data:{full_name}}});
+ if(error){setAuthMessage('signupMsg',error.message);btn.disabled=false;btn.textContent='Crear cuenta de cliente';return}
+ if(data.session){setAuthMessage('signupMsg','Cuenta creada. Entrando…',true);await enterApp(data.user)}
+ else setAuthMessage('signupMsg','Cuenta creada. Revisa tu correo para confirmar el email y luego inicia sesión.',true);
+ btn.disabled=false;btn.textContent='Crear cuenta de cliente';
+}
+async function resetPassword(){
+ const email=(document.getElementById('loginEmail').value||'').trim();if(!email){setAuthMessage('loginMsg','Escribe primero tu email.');return}
+ const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:APP_AUTH_REDIRECT});
+ setAuthMessage('loginMsg',error?error.message:'Te hemos enviado un correo. Ábrelo desde este teléfono y pulsa “Restablecer contraseña”.',!error)
+}
+async function handleVicbangfitAuthUrl(url){
+ try{
+  if(!url || !url.startsWith(APP_AUTH_REDIRECT))return false;
+  const hashIndex=url.indexOf('#');
+  const queryIndex=url.indexOf('?');
+  const hashParams=new URLSearchParams(hashIndex>=0?url.slice(hashIndex+1):'');
+  const queryParams=new URLSearchParams(queryIndex>=0?url.slice(queryIndex+1,hashIndex>=0?hashIndex:undefined):'');
+  const type=hashParams.get('type')||queryParams.get('type');
+  const errorDescription=hashParams.get('error_description')||queryParams.get('error_description');
+  if(errorDescription){
+   document.getElementById('authShell').style.display='grid';
+   setAuthMessage('loginMsg',decodeURIComponent(errorDescription));
+   return true;
+  }
+  const access_token=hashParams.get('access_token');
+  const refresh_token=hashParams.get('refresh_token');
+  const code=queryParams.get('code');
+  if(access_token&&refresh_token){
+   const {error}=await sb.auth.setSession({access_token,refresh_token});
+   if(error)throw error;
+  }else if(code){
+   const {error}=await sb.auth.exchangeCodeForSession(code);
+   if(error)throw error;
+  }else{
+   throw new Error('El enlace no contiene una sesión de recuperación válida. Solicita un correo nuevo.');
+  }
+  if(type==='recovery' || access_token || code){showRecoveryForm();return true}
+  return false;
+ }catch(error){
+  console.error(error);
+  document.getElementById('authShell').style.display='grid';
+  document.getElementById('appShell').style.display='none';
+  switchAuth('login');
+  setAuthMessage('loginMsg',error?.message||'No se pudo abrir el enlace de recuperación.');
+  return true;
+ }
+}
+window.handleVicbangfitAuthUrl=handleVicbangfitAuthUrl;
+async function saveNewPassword(ev){
+ ev.preventDefault();
+ const p1=document.getElementById('recoveryPassword').value;
+ const p2=document.getElementById('recoveryPassword2').value;
+ const btn=document.getElementById('recoveryBtn');
+ setAuthMessage('recoveryMsg','');
+ if(p1.length<8){setAuthMessage('recoveryMsg','La contraseña debe tener al menos 8 caracteres.');return}
+ if(p1!==p2){setAuthMessage('recoveryMsg','Las contraseñas no coinciden.');return}
+ btn.disabled=true;btn.textContent='Guardando…';
+ const {error}=await sb.auth.updateUser({password:p1});
+ if(error){setAuthMessage('recoveryMsg',error.message);btn.disabled=false;btn.textContent='Guardar nueva contraseña';return}
+ setAuthMessage('recoveryMsg','Contraseña actualizada correctamente.',true);
+ await new Promise(r=>setTimeout(r,700));
+ await sb.auth.signOut();
+ document.getElementById('recoveryPassword').value='';document.getElementById('recoveryPassword2').value='';
+ switchAuth('login');
+ setAuthMessage('loginMsg','Contraseña cambiada. Ya puedes iniciar sesión con la nueva contraseña.',true);
+ btn.disabled=false;btn.textContent='Guardar nueva contraseña';
+}
+async function loadProfile(user){
+ for(let i=0;i<3;i++){
+  const {data,error}=await sb.from('profiles').select('id,email,full_name,avatar_url,phone,role').eq('id',user.id).single();
+  if(data)return data;if(i<2)await new Promise(r=>setTimeout(r,500));
+ }
+ return null;
+}
+async function enterApp(user){
+ if(!user)return;
+ currentProfile=await loadProfile(user);
+
+ if(!currentProfile){
+  document.getElementById('appShell').style.display='none';
+  document.getElementById('authShell').style.display='grid';
+  setAuthMessage('loginMsg','Sesión válida, pero todavía no existe un perfil VICBANGFIT para esta cuenta.');
+  return;
+ }
+
+ const role=currentProfile.role;
+ window.dispatchEvent(new Event('vicbangfit-auth-ready'));
+
+ // La autorización se obtiene SOLO desde public.profiles.role.
+ // No se usa user_metadata ni ningún valor elegido en el navegador.
+ if(role!=='trainer' && role!=='client'){
+  await sb.auth.signOut();
+  currentProfile=null;
+  document.getElementById('appShell').style.display='none';
+  document.getElementById('authShell').style.display='grid';
+  setAuthMessage('loginMsg','La cuenta no tiene un rol VICBANGFIT válido. Contacta con el administrador.');
+  return;
+ }
+
+ document.getElementById('authShell').style.display='none';
+ document.getElementById('appShell').style.display='block';
+
+ if(role==='trainer'){
+  document.body.classList.remove('client-mode');
+  const coachName=currentProfile.full_name||'Coach';
+  const title=document.querySelector('#dashboard .header h1');
+  if(title) title.textContent='Hola, '+coachName+' 👋';
+  const trainerName=document.getElementById('trainerDisplayName');
+  if(trainerName) trainerName.textContent=coachName;
+   await loadTrainerClients();
+   await loadTrainerRoutines();
+  showPage('dashboard');
+  return;
+ }
+
+ document.body.classList.add('client-mode');
+ document.getElementById('clientWelcome').textContent='Hola, '+(currentProfile.full_name||user.email.split('@')[0])+' 👋';
+
+ const {data:details,error:detailsError}=await sb
+  .from('client_details')
+  .select('current_weight_kg,goal')
+  .eq('user_id',user.id)
+  .maybeSingle();
+
+ if(!detailsError && details?.current_weight_kg){
+  document.getElementById('myWeight').textContent=details.current_weight_kg+' kg';
+ }
+ await loadClientRoutines();
+ showPage('client_home');
+}
+async function logoutUser(){await sb.auth.signOut();currentProfile=null;document.body.classList.remove('client-mode');document.getElementById('appShell').style.display='none';document.getElementById('authShell').style.display='grid';switchAuth('login')}
+async function bootstrapAuth(){const {data:{session}}=await sb.auth.getSession();if(session?.user)await enterApp(session.user);else{document.getElementById('authShell').style.display='grid';document.getElementById('appShell').style.display='none'}}
+window.bootstrapAuth=bootstrapAuth;
+sb.auth.onAuthStateChange((event,session)=>{
+ if(event==='PASSWORD_RECOVERY'){showRecoveryForm();return}
+ if(event==='SIGNED_OUT'){document.getElementById('appShell').style.display='none';document.getElementById('authShell').style.display='grid'}
+});
+
+let clients=[];
+function initials(n){return (n||'?').split(" ").filter(Boolean).map(x=>x[0]).join("").slice(0,2).toUpperCase()}
+function showPage(id){
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id)?.classList.add("active");
+  document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===id));
+  if(id==="clientes")renderClientTable(); if(id==="checkins")renderChecks(); if(id==="entrenamientos" && currentProfile?.role==="trainer")loadTrainerRoutines(); if(id==="client_workout" && currentProfile?.role==="client")loadClientRoutines(); window.scrollTo(0,0)
+}
+document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.page)));
+function toast(msg){const e=document.getElementById("toast");e.textContent=msg;e.style.display="block";setTimeout(()=>e.style.display="none",2600)}
+
+async function loadTrainerClients(){
+ if(currentProfile?.role!=="trainer")return;
+ const {data:links,error}=await sb.from('trainer_clients').select('client_id,status,joined_at').eq('trainer_id',currentProfile.id).eq('status','active').order('joined_at',{ascending:false});
+ if(error){console.error(error);toast('No se pudieron cargar los clientes');return}
+ const ids=(links||[]).map(x=>x.client_id);
+ if(!ids.length){clients=[];renderDashboard();renderClientTable();return}
+ const [{data:profiles,error:pe},{data:details,error:de}]=await Promise.all([
+   sb.from('profiles').select('id,email,full_name,phone').in('id',ids),
+   sb.from('client_details').select('user_id,current_weight_kg,goal,waist_cm,plan_weeks,next_checkin_at').in('user_id',ids)
+ ]);
+ if(pe||de){console.error(pe||de);toast('No se pudieron cargar los datos de clientes');return}
+ const pm=new Map((profiles||[]).map(p=>[p.id,p])); const dm=new Map((details||[]).map(d=>[d.user_id,d]));
+ clients=ids.map(id=>{
+  const p=pm.get(id)||{};
+  const d=dm.get(id)||{};
+
+  return {
+    id,
+    name:p.full_name||p.email||'Cliente',
+    email:p.email||'',
+    goal:d.goal||'Por definir',
+    weight:d.current_weight_kg!=null
+      ?String(d.current_weight_kg).replace('.',',')+' kg'
+      :'—',
+    waist:d.waist_cm,
+    planWeeks:d.plan_weeks,
+    nextCheckinAt:d.next_checkin_at,
+    adherence:null,
+    check:'Pendiente',
+    status:'Activo',
+    today:'Sin asignar'
+  };
+});
+ renderDashboard();renderClientTable();renderChecks();
+}
+
+function renderDashboard(){
+ const count=document.getElementById('activeClientsCount');if(count)count.textContent=clients.length;
+ const trend=document.getElementById('activeClientsTrend');if(trend)trend.textContent=clients.length===1?'1 cliente real':'Datos reales de Supabase';
+ document.getElementById("clientStrip").innerHTML=clients.length?clients.slice(0,5).map((c,i)=>`<div class="client-card" onclick="openClient(${i})"><span class="status-dot"></span><div class="avatar">${initials(c.name)}</div><h4>${c.name}</h4><div class="meta">${c.weight} · ${c.goal}</div><div class="bar"><i style="width:${c.adherence??0}%"></i></div><div class="row"><span class="green">${c.adherence==null?'—':c.adherence+'%'}</span><span class="blue tiny">${c.today}</span></div></div>`).join(""):'<div class="empty-state" style="grid-column:1/-1">Todavía no tienes clientes reales. Pulsa “+ Nuevo cliente”.</div>';
+ document.getElementById("pendingChecks").innerHTML=clients.length?clients.slice(0,4).map(c=>`<div class="activity"><div class="icon-dot check-dot">▣</div><div><b>${c.name}</b><div class="muted tiny">Check-in pendiente</div></div></div>`).join(""):'<div class="muted tiny">Sin check-ins pendientes.</div>';
+ document.getElementById("agenda").innerHTML='<div class="muted tiny">La agenda real se conectará en el módulo de calendario.</div>';
+ document.getElementById("calendarList").innerHTML=document.getElementById("agenda").innerHTML;
+}
+function renderClientTable(){
+ const q=(document.getElementById("clientSearch")?.value||"").toLowerCase();
+ const el=document.getElementById("clientTable");if(!el)return;
+ el.innerHTML=clients.map((c,i)=>({...c,i})).filter(c=>(c.name+" "+c.goal+" "+c.email).toLowerCase().includes(q)).map(c=>`<tr><td><b>${c.name}</b><div class="muted tiny">${c.email}</div></td><td>${c.goal}</td><td>${c.weight}</td><td><span class="muted">${c.adherence==null?'—':c.adherence+'%'}</span></td><td>${c.check}</td><td><button class="btn dark" onclick="openClient(${c.i})">Abrir</button></td></tr>`).join("");
+}
+function openClient(i){
+  const c=clients[i];
+  if(!c)return;
+
+  document.getElementById("clientTitle").textContent=c.name;
+  document.getElementById("clientName").textContent=c.name;
+  document.getElementById("bigAvatar").textContent=initials(c.name);
+
+  const weight=c.weight||"Sin datos";
+  document.getElementById("clientWeight").textContent=weight;
+  document.getElementById("summaryClientWeight").textContent=weight;
+
+  const adherence=c.adherence==null?"—":c.adherence+"%";
+  document.getElementById("clientAdherence").textContent=adherence;
+  document.getElementById("summaryClientAdherence").textContent=adherence;
+
+  document.getElementById("summaryClientStrength").textContent="Sin datos";
+  document.getElementById("clientGoal").textContent=c.goal||"Sin datos";
+document.getElementById("clientWaist").textContent=
+  c.waist!=null ? String(c.waist).replace('.',',')+" cm" : "Sin datos";
+
+document.getElementById("clientPlan").textContent=
+  c.planWeeks!=null ? c.planWeeks+" sem" : "Sin asignar";
+
+document.getElementById("clientNextCheckin").textContent=
+  c.nextCheckinAt
+    ? new Date(c.nextCheckinAt).toLocaleString("es-ES",{
+        day:"2-digit",
+        month:"2-digit",
+        year:"numeric",
+        hour:"2-digit",
+        minute:"2-digit"
+      })
+    : "Sin programar";
+
+  showPage("cliente");
+}
+function renderChecks(){const el=document.getElementById("checkList");if(!el)return;el.innerHTML=clients.length?clients.map((c,i)=>`<div class="activity"><div class="icon-dot check-dot">▣</div><div style="flex:1"><b>${c.name}</b><div class="muted tiny">Peso ${c.weight} · Check-in ${c.check}</div></div><button class="btn dark" onclick="openClient(${i})">Revisar</button></div>`).join(""):'<div class="empty-state">Todavía no hay clientes.</div>'}
+function addClient(){document.getElementById('addClientForm')?.reset();setAuthMessage('newClientMsg','');document.getElementById('addClientModal')?.classList.add('open');setTimeout(()=>document.getElementById('newClientName')?.focus(),50)}
+function closeAddClientModal(){document.getElementById('addClientModal')?.classList.remove('open')}
+async function submitNewClient(ev){
+ ev.preventDefault();const btn=document.getElementById('newClientBtn');btn.disabled=true;btn.textContent='Añadiendo…';setAuthMessage('newClientMsg','');
+ const payload={full_name:document.getElementById('newClientName').value.trim(),email:document.getElementById('newClientEmail').value.trim(),goal:document.getElementById('newClientGoal').value,current_weight_kg:document.getElementById('newClientWeight').value||null,redirect_to:APP_AUTH_REDIRECT};
+ const {data,error}=await sb.functions.invoke('trainer-add-client',{body:payload});
+ if(error||data?.error){setAuthMessage('newClientMsg',data?.error||error?.message||'No se pudo añadir el cliente');btn.disabled=false;btn.textContent='Añadir cliente';return}
+ closeAddClientModal();toast(data?.message||'Cliente añadido');await loadTrainerClients();btn.disabled=false;btn.textContent='Añadir cliente';
+}
+
+
+let trainerRoutines=[];
+let routineExerciseLibrary=[];
+let routineDayCounter=0;
+let editingRoutineId=null;
+function escHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function formatRoutineSetMeta(sets){
+ const ordered=[...(sets||[])].sort((a,b)=>(a.set_number||0)-(b.set_number||0));
+ if(!ordered.length)return 'Sin series configuradas';
+ const first=ordered[0];
+ const reps=first.target_reps_min!=null&&first.target_reps_max!=null
+   ?(first.target_reps_min===first.target_reps_max?String(first.target_reps_min):first.target_reps_min+'–'+first.target_reps_max)
+   :(first.target_reps_min??first.target_reps_max??'—');
+ const rir=first.target_rir!=null?' · RIR '+String(first.target_rir).replace('.0',''):'';
+ return ordered.length+' × '+reps+rir;
+}
+function renderTrainerRoutines(){
+ const el=document.getElementById('trainerRoutinesList');if(!el)return;
+ if(!trainerRoutines.length){el.innerHTML='<div class="empty-state card">Todavía no hay rutinas guardadas. Pulsa “+ Crear rutina”.</div>';return}
+ el.innerHTML=trainerRoutines.map(r=>`<div class="card real-routine-card">
+   <div class="real-routine-head">
+    <div class="row"><h3>${escHtml(r.name)}</h3><span class="pill ${r.status==='active'?'green':''}">${escHtml(r.status==='active'?'Activa':(r.status||'Sin estado'))}</span></div>
+    <div class="meta" style="margin-top:5px"><b>${escHtml(r.client_name||'Cliente')}</b>${r.goal?' · '+escHtml(r.goal):''}</div>
+    <div class="real-routine-actions"><button class="btn dark" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar</button><button class="btn danger" type="button" onclick="deleteRoutine('${r.id}')">🗑 Eliminar</button></div>
+   </div>
+   ${(r.days||[]).length?r.days.map(d=>`<div class="real-routine-day">
+     <div class="row"><b>${escHtml(d.name||('Día '+d.day_number))}</b><span class="pill">${(d.exercises||[]).length} ejercicio${(d.exercises||[]).length===1?'':'s'}</span></div>
+     ${(d.exercises||[]).length?d.exercises.map(ex=>`<div class="real-routine-exercise"><b>${escHtml(ex.name||'Ejercicio')}</b><div class="meta">${escHtml(formatRoutineSetMeta(ex.sets))}${ex.muscle_group?' · '+escHtml(ex.muscle_group):''}</div></div>`).join(''):'<div class="muted tiny" style="margin-top:8px">Sin ejercicios.</div>'}
+    </div>`).join(''):'<div class="muted tiny">Esta rutina todavía no tiene días configurados.</div>'}
+  </div>`).join('');
+}
+async function loadTrainerRoutines(){
+ if(currentProfile?.role!=="trainer")return;
+ const el=document.getElementById('trainerRoutinesList');if(el)el.innerHTML='<div class="empty-state card">Cargando rutinas…</div>';
+ const {data:routines,error:rErr}=await sb.from('routines').select('id,client_id,name,goal,status,created_at').eq('trainer_id',currentProfile.id).order('created_at',{ascending:false});
+ if(rErr){console.error(rErr);if(el)el.innerHTML='<div class="empty-state card">No se pudieron cargar las rutinas.</div>';return}
+ const base=routines||[];
+ if(!base.length){trainerRoutines=[];renderTrainerRoutines();return}
+ const routineIds=base.map(r=>r.id);
+ const {data:days,error:dErr}=await sb.from('workout_days').select('id,routine_id,day_number,name').in('routine_id',routineIds).order('day_number',{ascending:true});
+ if(dErr){console.error(dErr);if(el)el.innerHTML='<div class="empty-state card">No se pudieron cargar los días de las rutinas.</div>';return}
+ const dayIds=(days||[]).map(d=>d.id);
+ let workoutExercises=[];
+ if(dayIds.length){
+  const {data,error}=await sb.from('workout_exercises').select('id,workout_day_id,exercise_id,exercise_order').in('workout_day_id',dayIds).order('exercise_order',{ascending:true});
+  if(error){console.error(error);if(el)el.innerHTML='<div class="empty-state card">No se pudieron cargar los ejercicios de las rutinas.</div>';return}
+  workoutExercises=data||[];
+ }
+ const exerciseIds=[...new Set(workoutExercises.map(x=>x.exercise_id).filter(Boolean))];
+ let exerciseRows=[];
+ if(exerciseIds.length){
+  const {data,error}=await sb.from('exercises').select('id,name,muscle_group').in('id',exerciseIds);
+  if(error){console.error(error);if(el)el.innerHTML='<div class="empty-state card">No se pudo cargar la biblioteca de ejercicios.</div>';return}
+  exerciseRows=data||[];
+ }
+ const weIds=workoutExercises.map(x=>x.id);
+ let workoutSets=[];
+ if(weIds.length){
+  const {data,error}=await sb.from('workout_sets').select('workout_exercise_id,set_number,target_reps_min,target_reps_max,target_rir').in('workout_exercise_id',weIds).order('set_number',{ascending:true});
+  if(error){console.error(error);if(el)el.innerHTML='<div class="empty-state card">No se pudieron cargar las series.</div>';return}
+  workoutSets=data||[];
+ }
+ const exMap=new Map(exerciseRows.map(x=>[x.id,x]));
+ const setsMap=new Map();for(const st of workoutSets){if(!setsMap.has(st.workout_exercise_id))setsMap.set(st.workout_exercise_id,[]);setsMap.get(st.workout_exercise_id).push(st)}
+ const weMap=new Map();for(const we of workoutExercises){if(!weMap.has(we.workout_day_id))weMap.set(we.workout_day_id,[]);const meta=exMap.get(we.exercise_id)||{};weMap.get(we.workout_day_id).push({...we,name:meta.name||'Ejercicio',muscle_group:meta.muscle_group||'',sets:setsMap.get(we.id)||[]})}
+ const dayMap=new Map();for(const d of (days||[])){if(!dayMap.has(d.routine_id))dayMap.set(d.routine_id,[]);dayMap.get(d.routine_id).push({...d,exercises:weMap.get(d.id)||[]})}
+ trainerRoutines=base.map(r=>({...r,client_name:clients.find(c=>c.id===r.client_id)?.name||'Cliente',days:dayMap.get(r.id)||[]}));
+ renderTrainerRoutines();
+}
+
+let clientRoutines=[];
+function renderClientRoutines(){
+ const list=document.getElementById('clientRoutineList');
+ const heroTitle=document.getElementById('clientHeroTitle');
+ const heroMeta=document.getElementById('clientHeroMeta');
+ const heroBtn=document.getElementById('clientHeroBtn');
+ if(!clientRoutines.length){
+  if(list)list.innerHTML='<div class="empty-state card">Todavía no tienes una rutina activa asignada.</div>';
+  if(heroTitle)heroTitle.textContent='Sin rutina asignada';
+  if(heroMeta)heroMeta.textContent='Tu entrenador todavía no te ha asignado una rutina activa.';
+  if(heroBtn)heroBtn.style.display='none';
+  return;
+ }
+ if(heroBtn)heroBtn.style.display='inline-block';
+ const primary=clientRoutines[0];
+ const primaryDays=[...(primary.days||[])].sort((a,b)=>(a.day_number||0)-(b.day_number||0));
+ const firstDay=primaryDays[0];
+ const exerciseCount=(firstDay?.exercises||[]).length;
+ const totalSets=(firstDay?.exercises||[]).reduce((sum,ex)=>sum+(ex.sets||[]).length,0);
+ if(heroTitle)heroTitle.textContent=firstDay?.name||primary.name||'Mi rutina';
+ if(heroMeta)heroMeta.textContent=`${primary.name}${firstDay?` · ${exerciseCount} ejercicio${exerciseCount===1?'':'s'} · ${totalSets} serie${totalSets===1?'':'s'}`:''}`;
+ if(!list)return;
+ list.innerHTML=clientRoutines.map(r=>`<div class="card real-routine-card">
+   <div class="real-routine-head">
+    <div class="row"><h3>${escHtml(r.name||'Rutina')}</h3><span class="pill green">Activa</span></div>
+    <div class="meta" style="margin-top:5px">${r.goal?escHtml(r.goal):'Objetivo por definir'}</div>
+   </div>
+   ${(r.days||[]).length?[...(r.days||[])].sort((a,b)=>(a.day_number||0)-(b.day_number||0)).map(d=>`<div class="real-routine-day">
+     <div class="row"><b>${escHtml(d.name||('Día '+d.day_number))}</b><span class="pill">${(d.exercises||[]).length} ejercicio${(d.exercises||[]).length===1?'':'s'}</span></div>
+     ${(d.exercises||[]).length?[...(d.exercises||[])].sort((a,b)=>(a.exercise_order||0)-(b.exercise_order||0)).map(ex=>`<div class="real-routine-exercise"><b>${escHtml(ex.name||'Ejercicio')}</b><div class="meta">${escHtml(formatRoutineSetMeta(ex.sets))}${ex.muscle_group?' · '+escHtml(ex.muscle_group):''}</div></div>`).join(''):'<div class="muted tiny" style="margin-top:8px">Sin ejercicios.</div>'}
+   </div>`).join(''):'<div class="muted">Esta rutina todavía no tiene días configurados.</div>'}
+  </div>`).join('');
+}
+async function loadClientRoutines(){
+ if(currentProfile?.role!=="client")return;
+ const list=document.getElementById('clientRoutineList');if(list)list.innerHTML='<div class="empty-state card">Cargando tu entrenamiento…</div>';
+ try{
+  const {data:routines,error:rErr}=await sb.from('routines').select('id,client_id,name,goal,status,created_at').eq('client_id',currentProfile.id).eq('status','active').order('created_at',{ascending:false});
+  if(rErr)throw rErr;
+  const base=routines||[];
+  if(!base.length){clientRoutines=[];renderClientRoutines();return}
+  const routineIds=base.map(r=>r.id);
+  const {data:days,error:dErr}=await sb.from('workout_days').select('id,routine_id,day_number,name').in('routine_id',routineIds).order('day_number',{ascending:true});
+  if(dErr)throw dErr;
+  const dayIds=(days||[]).map(d=>d.id);
+  let workoutExercises=[];
+  if(dayIds.length){
+   const {data,error}=await sb.from('workout_exercises').select('id,workout_day_id,exercise_id,exercise_order').in('workout_day_id',dayIds).order('exercise_order',{ascending:true});
+   if(error)throw error;workoutExercises=data||[];
+  }
+  const exerciseIds=[...new Set(workoutExercises.map(x=>x.exercise_id).filter(Boolean))];
+  let exerciseRows=[];
+  if(exerciseIds.length){
+   const {data,error}=await sb.from('exercises').select('id,name,muscle_group').in('id',exerciseIds);
+   if(error)throw error;exerciseRows=data||[];
+  }
+  const weIds=workoutExercises.map(x=>x.id);let workoutSets=[];
+  if(weIds.length){
+   const {data,error}=await sb.from('workout_sets').select('workout_exercise_id,set_number,target_reps_min,target_reps_max,target_rir').in('workout_exercise_id',weIds).order('set_number',{ascending:true});
+   if(error)throw error;workoutSets=data||[];
+  }
+  const exMap=new Map(exerciseRows.map(x=>[x.id,x]));
+  const setsMap=new Map();for(const st of workoutSets){if(!setsMap.has(st.workout_exercise_id))setsMap.set(st.workout_exercise_id,[]);setsMap.get(st.workout_exercise_id).push(st)}
+  const weMap=new Map();for(const we of workoutExercises){if(!weMap.has(we.workout_day_id))weMap.set(we.workout_day_id,[]);const meta=exMap.get(we.exercise_id)||{};weMap.get(we.workout_day_id).push({...we,name:meta.name||'Ejercicio',muscle_group:meta.muscle_group||'',sets:setsMap.get(we.id)||[]})}
+  const dayMap=new Map();for(const d of (days||[])){if(!dayMap.has(d.routine_id))dayMap.set(d.routine_id,[]);dayMap.get(d.routine_id).push({...d,exercises:weMap.get(d.id)||[]})}
+  clientRoutines=base.map(r=>({...r,days:dayMap.get(r.id)||[]}));
+  renderClientRoutines();
+ }catch(error){
+  console.error(error);clientRoutines=[];
+  if(list)list.innerHTML='<div class="empty-state card">No se pudo cargar tu entrenamiento.</div>';
+  const heroTitle=document.getElementById('clientHeroTitle');if(heroTitle)heroTitle.textContent='No se pudo cargar la rutina';
+  const heroMeta=document.getElementById('clientHeroMeta');if(heroMeta)heroMeta.textContent='Vuelve a intentarlo en unos segundos.';
+ }
+}
+
+async function loadRoutineExerciseLibrary(){
+ const {data,error}=await sb.from('exercises').select('id,name,muscle_group').order('name');
+ if(error)throw error;
+ routineExerciseLibrary=data||[];
+}
+function setupRoutineModal(mode){
+ const isEdit=mode==='edit';
+ const title=document.getElementById('routineModalTitle');if(title)title.textContent=isEdit?'Editar rutina':'Crear rutina';
+ const copy=document.getElementById('routineModalCopy');if(copy)copy.textContent=isEdit?'Modifica días, ejercicios, series, repeticiones y RIR.':'Asigna una rutina real a uno de tus clientes.';
+ const save=document.getElementById('saveRoutineBtn');if(save)save.textContent=isEdit?'Guardar cambios':'Guardar rutina';
+}
+async function openRoutineBuilder(){
+ if(currentProfile?.role!=="trainer"){toast('Solo el entrenador puede crear rutinas');return}
+ if(!clients.length){toast('Primero añade un cliente');showPage('clientes');return}
+ editingRoutineId=null;setupRoutineModal('create');
+ const modal=document.getElementById('routineBuilderModal');
+ document.getElementById('routineClient').innerHTML=clients.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+ document.getElementById('routineName').value='';document.getElementById('routineGoal').value='';setAuthMessage('routineMsg','');
+ try{await loadRoutineExerciseLibrary()}catch(error){console.error(error);setAuthMessage('routineMsg','No se pudo cargar la biblioteca de ejercicios.');return}
+ routineDayCounter=0;document.getElementById('routineDays').innerHTML='';addRoutineDay();modal.classList.add('open');
+}
+async function openEditRoutine(routineId){
+ if(currentProfile?.role!=="trainer")return;
+ const routine=trainerRoutines.find(r=>r.id===routineId);if(!routine){toast('No se encontró la rutina');return}
+ editingRoutineId=routineId;setupRoutineModal('edit');setAuthMessage('routineMsg','');
+ const modal=document.getElementById('routineBuilderModal');
+ document.getElementById('routineClient').innerHTML=clients.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+ document.getElementById('routineClient').value=routine.client_id;
+ document.getElementById('routineName').value=routine.name||'';document.getElementById('routineGoal').value=routine.goal||'';
+ try{await loadRoutineExerciseLibrary()}catch(error){console.error(error);setAuthMessage('routineMsg','No se pudo cargar la biblioteca de ejercicios.');return}
+ routineDayCounter=0;document.getElementById('routineDays').innerHTML='';
+ const orderedDays=[...(routine.days||[])].sort((a,b)=>(a.day_number||0)-(b.day_number||0));
+ if(orderedDays.length)orderedDays.forEach(d=>addRoutineDay(d));else addRoutineDay();
+ modal.classList.add('open');
+}
+function closeRoutineBuilder(){
+ document.getElementById('routineBuilderModal')?.classList.remove('open');
+ editingRoutineId=null;setupRoutineModal('create');
+}
+function addRoutineDay(dayData=null){
+ const wrap=document.getElementById('routineDays');const idx=++routineDayCounter;
+ const div=document.createElement('div');div.className='routine-day-editor';div.dataset.day=idx;
+ const dayName=dayData?.name||`Día ${idx}`;
+ div.innerHTML=`<div class="routine-day-head"><div class="field" style="flex:1"><label>Día ${idx}</label><input class="routine-day-name" value="${escHtml(dayName)}" placeholder="Ej. Pecho + tríceps"></div><button class="btn ghost mini-btn" type="button" onclick="this.closest('.routine-day-editor').remove()">Eliminar día</button></div><div class="routine-exercises"></div><button class="btn dark mini-btn" type="button" onclick="addRoutineExercise(this.closest('.routine-day-editor'))">＋ Ejercicio</button>`;
+ wrap.appendChild(div);
+ const exercises=[...(dayData?.exercises||[])].sort((a,b)=>(a.exercise_order||0)-(b.exercise_order||0));
+ if(exercises.length)exercises.forEach(ex=>addRoutineExercise(div,ex));else addRoutineExercise(div);
+}
+function addRoutineExercise(dayEl,exerciseData=null){
+ const options=routineExerciseLibrary.map(e=>`<option value="${e.id}">${escHtml(e.name)}${e.muscle_group?' · '+escHtml(e.muscle_group):''}</option>`).join('');
+ const firstSet=[...(exerciseData?.sets||[])].sort((a,b)=>(a.set_number||0)-(b.set_number||0))[0]||{};
+ const setCount=(exerciseData?.sets||[]).length||3;
+ const min=firstSet.target_reps_min??8,max=firstSet.target_reps_max??12,rir=firstSet.target_rir??2;
+ const row=document.createElement('div');row.className='routine-exercise-row';
+ row.innerHTML=`<div class="field exercise-select"><label>Ejercicio</label><select class="re-exercise">${options}</select></div><div class="field"><label>Series</label><input class="re-sets" type="number" min="1" max="20" value="${setCount}"></div><div class="field"><label>Rep. mín.</label><input class="re-min" type="number" min="1" max="100" value="${min}"></div><div class="field"><label>Rep. máx.</label><input class="re-max" type="number" min="1" max="100" value="${max}"></div><div class="field"><label>RIR</label><input class="re-rir" type="number" min="0" max="10" step="0.5" value="${rir}"></div><button class="btn ghost mini-btn" type="button" onclick="this.parentElement.remove()">✕</button>`;
+ dayEl.querySelector('.routine-exercises').appendChild(row);
+ if(exerciseData?.exercise_id)row.querySelector('.re-exercise').value=exerciseData.exercise_id;
+}
+async function deleteRoutine(routineId){
+ if(currentProfile?.role!=="trainer")return;
+ const routine=trainerRoutines.find(r=>r.id===routineId);if(!routine)return;
+ if(!confirm(`¿Eliminar la rutina “${routine.name}”? Esta acción eliminará también sus días, ejercicios y series.`))return;
+ try{
+  const {error}=await sb.from('routines').delete().eq('id',routineId).eq('trainer_id',currentProfile.id);if(error)throw error;
+  await loadTrainerRoutines();toast('Rutina eliminada');
+ }catch(error){console.error(error);toast(error?.message||'No se pudo eliminar la rutina')}
+}
+async function saveRoutine(){
+ const btn=document.getElementById('saveRoutineBtn');const client_id=document.getElementById('routineClient').value;const name=document.getElementById('routineName').value.trim();const goal=document.getElementById('routineGoal').value.trim()||null;const dayEls=[...document.querySelectorAll('#routineDays .routine-day-editor')];
+ if(!client_id||!name){setAuthMessage('routineMsg','Selecciona un cliente y escribe el nombre de la rutina.');return}
+ if(!dayEls.length){setAuthMessage('routineMsg','Añade al menos un día de entrenamiento.');return}
+ for(const d of dayEls){if(!d.querySelectorAll('.routine-exercise-row').length){setAuthMessage('routineMsg','Cada día debe tener al menos un ejercicio.');return}}
+ const wasEditing=Boolean(editingRoutineId);const targetRoutineId=editingRoutineId;
+ btn.disabled=true;btn.textContent=wasEditing?'Guardando cambios…':'Guardando…';setAuthMessage('routineMsg','');
+ try{
+  let routineId=targetRoutineId;
+  if(wasEditing){
+   const {error:uErr}=await sb.from('routines').update({client_id,name,goal}).eq('id',routineId).eq('trainer_id',currentProfile.id);if(uErr)throw uErr;
+   const {error:delErr}=await sb.from('workout_days').delete().eq('routine_id',routineId);if(delErr)throw delErr;
+  }else{
+   const {data:routine,error:rErr}=await sb.from('routines').insert({trainer_id:currentProfile.id,client_id,name,goal,status:'active'}).select('id').single();if(rErr)throw rErr;
+   routineId=routine.id;
+  }
+  for(let di=0;di<dayEls.length;di++){
+   const d=dayEls[di];const dayName=d.querySelector('.routine-day-name').value.trim()||`Día ${di+1}`;
+   const {data:day,error:dErr}=await sb.from('workout_days').insert({routine_id:routineId,day_number:di+1,name:dayName}).select('id').single();if(dErr)throw dErr;
+   const rows=[...d.querySelectorAll('.routine-exercise-row')];
+   for(let ei=0;ei<rows.length;ei++){
+    const r=rows[ei],exercise_id=r.querySelector('.re-exercise').value,sets=Math.max(1,parseInt(r.querySelector('.re-sets').value||'1')),min=parseInt(r.querySelector('.re-min').value||'0')||null,max=parseInt(r.querySelector('.re-max').value||'0')||null,rir=parseFloat(r.querySelector('.re-rir').value);
+    const {data:we,error:weErr}=await sb.from('workout_exercises').insert({workout_day_id:day.id,exercise_id,exercise_order:ei+1}).select('id').single();if(weErr)throw weErr;
+    const setRows=Array.from({length:sets},(_,si)=>({workout_exercise_id:we.id,set_number:si+1,target_reps_min:min,target_reps_max:max,target_rir:Number.isFinite(rir)?rir:null}));
+    const {error:sErr}=await sb.from('workout_sets').insert(setRows);if(sErr)throw sErr;
+   }
+  }
+  document.getElementById('routineBuilderModal')?.classList.remove('open');editingRoutineId=null;setupRoutineModal('create');await loadTrainerRoutines();toast(wasEditing?'Rutina actualizada correctamente':'Rutina guardada correctamente');
+ }catch(err){console.error(err);setAuthMessage('routineMsg',err?.message||'No se pudo guardar la rutina.');}
+ finally{btn.disabled=false;btn.textContent=editingRoutineId?'Guardar cambios':'Guardar rutina'}
+}
+
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js"));
+</script>
+<script type="module">
+import { App } from '@capacitor/app';
+
+async function startVicbangfit(){
+ let handled=false;
+ try{
+  const launch=await App.getLaunchUrl();
+  if(launch?.url)handled=await window.handleVicbangfitAuthUrl(launch.url);
+  await App.addListener('appUrlOpen',async ({url})=>{await window.handleVicbangfitAuthUrl(url)});
+ }catch(error){
+  console.log('VICBANGFIT: App plugin no disponible en este entorno',error);
+ }
+ if(!handled)await window.bootstrapAuth();
+}
+startVicbangfit();
+</script>
+<script type="module" src="../src/push.js"></script>
+</body>
+</html>
