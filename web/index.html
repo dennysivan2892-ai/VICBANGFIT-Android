@@ -611,11 +611,31 @@ async function loadTrainerClients(){
  if(!ids.length){clients=[];renderDashboard();renderClientTable();return}
  const [{data:profiles,error:pe},{data:details,error:de}]=await Promise.all([
    sb.from('profiles').select('id,email,full_name,phone').in('id',ids),
-   sb.from('client_details').select('user_id,current_weight_kg,goal').in('user_id',ids)
+   sb.from('client_details').select('user_id,current_weight_kg,goal,waist_cm,plan_weeks,next_checkin_at').in('user_id',ids))
  ]);
  if(pe||de){console.error(pe||de);toast('No se pudieron cargar los datos de clientes');return}
  const pm=new Map((profiles||[]).map(p=>[p.id,p])); const dm=new Map((details||[]).map(d=>[d.user_id,d]));
- clients=ids.map(id=>{const p=pm.get(id)||{};const d=dm.get(id)||{};return {id,name:p.full_name||p.email||'Cliente',email:p.email||'',goal:d.goal||'Por definir',weight:d.current_weight_kg!=null?String(d.current_weight_kg).replace('.',',')+' kg':'—',adherence:null,check:'Pendiente',status:'Activo',today:'Sin asignar'}});
+ clients=ids.map(id=>{
+  const p=pm.get(id)||{};
+  const d=dm.get(id)||{};
+
+  return {
+    id,
+    name:p.full_name||p.email||'Cliente',
+    email:p.email||'',
+    goal:d.goal||'Por definir',
+    weight:d.current_weight_kg!=null
+      ?String(d.current_weight_kg).replace('.',',')+' kg'
+      :'—',
+    waist:d.waist_cm,
+    planWeeks:d.plan_weeks,
+    nextCheckinAt:d.next_checkin_at,
+    adherence:null,
+    check:'Pendiente',
+    status:'Activo',
+    today:'Sin asignar'
+  };
+});
  renderDashboard();renderClientTable();renderChecks();
 }
 
@@ -650,10 +670,22 @@ function openClient(i){
 
   document.getElementById("summaryClientStrength").textContent="Sin datos";
   document.getElementById("clientGoal").textContent=c.goal||"Sin datos";
+document.getElementById("clientWaist").textContent=
+  c.waist!=null ? String(c.waist).replace('.',',')+" cm" : "Sin datos";
 
-  document.getElementById("clientWaist").textContent="Sin datos";
-  document.getElementById("clientPlan").textContent="Sin asignar";
-  document.getElementById("clientNextCheckin").textContent="Sin programar";
+document.getElementById("clientPlan").textContent=
+  c.planWeeks!=null ? c.planWeeks+" sem" : "Sin asignar";
+
+document.getElementById("clientNextCheckin").textContent=
+  c.nextCheckinAt
+    ? new Date(c.nextCheckinAt).toLocaleString("es-ES",{
+        day:"2-digit",
+        month:"2-digit",
+        year:"numeric",
+        hour:"2-digit",
+        minute:"2-digit"
+      })
+    : "Sin programar";
 
   showPage("cliente");
 }
