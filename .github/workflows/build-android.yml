@@ -38,6 +38,14 @@ jobs:
 
       - name: Crear proyecto Android
         run: npx cap add android
+      - name: Poner logo 3D VICBANGFIT
+        run: |
+          for d in android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi; do
+            mkdir -p "$d"
+            cp VICBANGFIT_logo_3D_512.png "$d/ic_launcher.png"
+            cp VICBANGFIT_logo_3D_512.png "$d/ic_launcher_round.png"
+            cp VICBANGFIT_logo_3D_512.png "$d/ic_launcher_foreground.png"
+          done
       - name: Configurar enlace de recuperación VICBANGFIT
         run: |
           python3 - <<'PY'
