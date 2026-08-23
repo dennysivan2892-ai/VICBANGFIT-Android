@@ -1,0 +1,107 @@
+name: Build VICBANGFIT iOS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Instalar Capacitor iOS compatible
+        shell: bash
+        run: |
+          CAP_VERSION="$(node - <<'NODE'
+          const p=require('./package.json');
+          const raw=(p.dependencies?.['@capacitor/core'] || p.devDependencies?.['@capacitor/core'] || '').trim();
+          const m=raw.match(/\d+(?:\.\d+){0,2}/);
+          process.stdout.write(m ? m[0] : '');
+          NODE
+          )"
+
+          if [ -n "$CAP_VERSION" ]; then
+            echo "Usando @capacitor/ios $CAP_VERSION"
+            npm install "@capacitor/ios@$CAP_VERSION" --no-save
+          else
+            echo "No se detectó @capacitor/core. Instalando Capacitor iOS actual."
+            npm install @capacitor/ios --no-save
+          fi
+
+      - name: Construir web
+        shell: bash
+        run: |
+          if node -e "const p=require('./package.json'); process.exit(p.scripts?.build ? 0 : 1)"; then
+            npm run build
+          else
+            echo "No hay script build; se usará el webDir configurado en Capacitor."
+          fi
+
+      - name: Crear proyecto iOS
+        shell: bash
+        run: |
+          rm -rf ios
+          npx cap add ios
+          npx cap sync ios
+
+      - name: Mostrar versión de Xcode
+        run: xcodebuild -version
+
+      - name: Compilar app iOS para simulador
+        shell: bash
+        run: |
+          mkdir -p ios-build
+
+          if [ -d "ios/App/App.xcworkspace" ]; then
+            xcodebuild \
+              -workspace ios/App/App.xcworkspace \
+              -scheme App \
+              -configuration Release \
+              -sdk iphonesimulator \
+              -destination "generic/platform=iOS Simulator" \
+              -derivedDataPath ios-build/DerivedData \
+              CODE_SIGNING_ALLOWED=NO \
+              build
+          else
+            xcodebuild \
+              -project ios/App/App.xcodeproj \
+              -scheme App \
+              -configuration Release \
+              -sdk iphonesimulator \
+              -destination "generic/platform=iOS Simulator" \
+              -derivedDataPath ios-build/DerivedData \
+              CODE_SIGNING_ALLOWED=NO \
+              build
+          fi
+
+      - name: Preparar artefacto iOS
+        shell: bash
+        run: |
+          APP_PATH="$(find ios-build/DerivedData/Build/Products -type d -name 'App.app' | head -n 1)"
+          if [ -z "$APP_PATH" ]; then
+            echo "No se encontró App.app"
+            exit 1
+          fi
+
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "ios-build/VICBANGFIT-iOS-Simulator.zip"
+
+      - name: Guardar versión iOS
+        uses: actions/upload-artifact@v4
+        with:
+          name: VICBANGFIT-iOS-Simulator
+          path: ios-build/VICBANGFIT-iOS-Simulator.zip
+          if-no-files-found: error
+          retention-days: 14
