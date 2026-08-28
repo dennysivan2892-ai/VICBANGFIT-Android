@@ -1,4 +1,4 @@
-        name: Build VICBANGFIT iOS App Store
+name: Build VICBANGFIT iOS App Store
 
 on:
   workflow_dispatch:
