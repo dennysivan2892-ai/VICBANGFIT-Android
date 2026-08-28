@@ -1,4 +1,4 @@
-name: Build VICBANGFIT iOS
+        name: Build VICBANGFIT iOS App Store
 
 on:
   workflow_dispatch:
@@ -22,86 +22,116 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
-      - name: Instalar Capacitor iOS compatible
-        shell: bash
-        run: |
-          CAP_VERSION="$(node - <<'NODE'
-          const p=require('./package.json');
-          const raw=(p.dependencies?.['@capacitor/core'] || p.devDependencies?.['@capacitor/core'] || '').trim();
-          const m=raw.match(/\d+(?:\.\d+){0,2}/);
-          process.stdout.write(m ? m[0] : '');
-          NODE
-          )"
-
-          if [ -n "$CAP_VERSION" ]; then
-            echo "Usando @capacitor/ios $CAP_VERSION"
-            npm install "@capacitor/ios@$CAP_VERSION" --no-save
-          else
-            echo "No se detectó @capacitor/core. Instalando Capacitor iOS actual."
-            npm install @capacitor/ios --no-save
-          fi
-
       - name: Construir web
-        shell: bash
-        run: |
-          if node -e "const p=require('./package.json'); process.exit(p.scripts?.build ? 0 : 1)"; then
-            npm run build
-          else
-            echo "No hay script build; se usará el webDir configurado en Capacitor."
-          fi
+        run: npm run build
 
-      - name: Crear proyecto iOS
+      - name: Crear y sincronizar proyecto iOS
         shell: bash
         run: |
           rm -rf ios
           npx cap add ios
           npx cap sync ios
 
+      - name: Instalar certificado y perfil de Apple
+        shell: bash
+        env:
+          IOS_P12_BASE64: ${{ secrets.IOS_P12_BASE64 }}
+          IOS_P12_PASSWORD: ${{ secrets.IOS_P12_PASSWORD }}
+          IOS_MOBILEPROVISION_BASE64: ${{ secrets.IOS_MOBILEPROVISION_BASE64 }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/VICBANGFIT_distribution.p12"
+          PROFILE_PATH="$RUNNER_TEMP/VICBANGFIT.mobileprovision"
+          KEYCHAIN_PATH="$RUNNER_TEMP/VICBANGFIT-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+
+          echo -n "$IOS_P12_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          echo -n "$IOS_MOBILEPROVISION_BASE64" | base64 --decode > "$PROFILE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" \
+            -P "$IOS_P12_PASSWORD" \
+            -A -t cert -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+          security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" "$RUNNER_TEMP/profile.plist")
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE_PATH" \
+            "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
+          echo "Perfil instalado: $PROFILE_UUID"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
       - name: Mostrar versión de Xcode
         run: xcodebuild -version
 
-      - name: Compilar app iOS para simulador
+      - name: Crear archivo firmado
         shell: bash
         run: |
-          mkdir -p ios-build
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/VICBANGFIT.xcarchive" \
+            DEVELOPMENT_TEAM=YT38N6PCWF \
+            PRODUCT_BUNDLE_IDENTIFIER=com.vicbangfit.app \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="VICBANGFIT-AppStore" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            MARKETING_VERSION="1.0.0" \
+            archive
 
-          if [ -d "ios/App/App.xcworkspace" ]; then
-            xcodebuild \
-              -workspace ios/App/App.xcworkspace \
-              -scheme App \
-              -configuration Release \
-              -sdk iphonesimulator \
-              -destination "generic/platform=iOS Simulator" \
-              -derivedDataPath ios-build/DerivedData \
-              CODE_SIGNING_ALLOWED=NO \
-              build
-          else
-            xcodebuild \
-              -project ios/App/App.xcodeproj \
-              -scheme App \
-              -configuration Release \
-              -sdk iphonesimulator \
-              -destination "generic/platform=iOS Simulator" \
-              -derivedDataPath ios-build/DerivedData \
-              CODE_SIGNING_ALLOWED=NO \
-              build
-          fi
-
-      - name: Preparar artefacto iOS
+      - name: Crear IPA para App Store Connect
         shell: bash
         run: |
-          APP_PATH="$(find ios-build/DerivedData/Build/Products -type d -name 'App.app' | head -n 1)"
-          if [ -z "$APP_PATH" ]; then
-            echo "No se encontró App.app"
-            exit 1
-          fi
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>teamID</key>
+            <string>YT38N6PCWF</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.vicbangfit.app</key>
+              <string>VICBANGFIT-AppStore</string>
+            </dict>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          PLIST
 
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "ios-build/VICBANGFIT-iOS-Simulator.zip"
+          mkdir -p "$GITHUB_WORKSPACE/ios-output"
 
-      - name: Guardar versión iOS
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$RUNNER_TEMP/VICBANGFIT.xcarchive" \
+            -exportPath "$GITHUB_WORKSPACE/ios-output" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+          ls -lah "$GITHUB_WORKSPACE/ios-output"
+
+      - name: Guardar IPA
         uses: actions/upload-artifact@v4
         with:
-          name: VICBANGFIT-iOS-Simulator
-          path: ios-build/VICBANGFIT-iOS-Simulator.zip
+          name: VICBANGFIT-iOS-AppStore
+          path: ios-output/*.ipa
           if-no-files-found: error
           retention-days: 14
