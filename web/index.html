@@ -7645,7 +7645,7 @@ function nutritionWeightDisplayName(value){
 function nutritionPreparedFactor(value){
  const n=nutritionSafetyNorm(value);
  // Conversión orientativa desde peso crudo a peso ya cocinado/elaborado.
- if(/arroz/.test(n))return 2.5;
+ if(/arroz/.test(n))return 3.75;
  if(/pasta/.test(n))return 2.4;
  if(/quinoa/.test(n))return 2.7;
  if(/lenteja|garbanzo/.test(n))return 2.5;
@@ -7677,7 +7677,7 @@ function nutritionFoodLabel(food){
   }
  }
  if(prepared==null||prepared==='')return `${name} · ${shownAmount} ${unit}`;
- return `${name} · ${shownAmount} ${unit} en crudo / ${String(prepared).replace('.',',')} ${preparedUnit} elaborado${estimated?' aprox.':''}`;
+ return `${name} · Peso en crudo: ${shownAmount} ${unit} · Peso elaborado: ${String(prepared).replace('.',',')} ${preparedUnit}${estimated?' (equivalencia)':''}`;
 }
 function nutritionParseFoodLine(line){
  const clean=String(line||'').trim();if(!clean)return null;
