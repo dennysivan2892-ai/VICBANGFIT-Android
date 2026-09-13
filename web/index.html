@@ -55,7 +55,13 @@ button{cursor:pointer}
 .check-dot{background:#291d47;color:var(--purple)}.msg-dot{background:#493317;color:var(--orange)}.pay-dot{background:#153a28;color:var(--green)}
 .agenda-item{display:grid;grid-template-columns:52px 1fr 20px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #252525}
 .agenda-item .time{color:var(--red);font-weight:900}
-.quick-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.quick{background:#151515;border:1px solid #2a2a2a;border-radius:10px;padding:11px 7px;text-align:center;font-size:11px}.quick b{display:block;font-size:18px;margin-bottom:5px}
+.quick-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
+.quick{position:relative;overflow:hidden;min-height:92px;background:linear-gradient(145deg,#1d1d1d,#111);border:1px solid #343434;border-radius:16px;padding:14px 11px;text-align:left;color:#fff!important;font-size:13px;font-weight:850;line-height:1.2;box-shadow:0 7px 18px #0006;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.quick:after{content:"";position:absolute;width:66px;height:66px;border-radius:50%;right:-24px;bottom:-30px;background:var(--quick-glow,#ef2434);opacity:.13;filter:blur(2px)}
+.quick:hover,.quick:focus-visible{transform:translateY(-2px);border-color:var(--quick-glow,#ef2434);box-shadow:0 9px 24px #0008,0 0 0 1px color-mix(in srgb,var(--quick-glow,#ef2434) 38%,transparent)}
+.quick b{display:grid;place-items:center;width:38px;height:38px;margin:0 0 8px;border-radius:12px;background:color-mix(in srgb,var(--quick-glow,#ef2434) 18%,#171717);font-size:22px;line-height:1;filter:none}
+.quick small{display:block;margin-top:4px;color:#aaa;font-size:9.5px;font-weight:600;line-height:1.25}
+.quick:nth-child(1){--quick-glow:#2f9bff}.quick:nth-child(2){--quick-glow:#ffd44c}.quick:nth-child(3){--quick-glow:#ff7043}.quick:nth-child(4){--quick-glow:#24d17d}.quick:nth-child(5){--quick-glow:#9b65ff}.quick:nth-child(6){--quick-glow:#ff4f79}.quick:nth-child(7){--quick-glow:#39c6e6}.quick:nth-child(8){--quick-glow:#ff9e1a}.quick:nth-child(9){--quick-glow:#62d38b}.quick:nth-child(10){--quick-glow:#b4b4b4}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#aaa}.legend span:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:5px}
 .chart{height:220px;width:100%}
 .client-layout{display:grid;grid-template-columns:310px 1fr;gap:14px}
@@ -2132,17 +2138,17 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
       <div class="card" style="margin-top:14px"><div class="row"><h3>Actividad reciente</h3><span class="pill">Real</span></div>
         <div id="dashboardRecentActivity"><div class="muted tiny">Cargando actividad…</div></div>
       </div>
-      <div class="card" style="margin-top:14px"><h3>Acciones rápidas</h3><div class="quick-actions">
-        <button class="quick" onclick="showPage('clientes')"><b>＋</b>Nuevo cliente</button>
-        <button id="adminAccountsQuick" class="quick" style="display:none" onclick="showPage('admin_accounts')"><b>👑</b>Administración</button>
-        <button class="quick" onclick="showPage('entrenamientos')"><b>🏋</b>Crear rutina</button>
-        <button class="quick" onclick="showPage('nutricion')"><b>🥗</b>Crear dieta</button>
-        <button class="quick" onclick="showPage('mensajes')"><b>✉</b>Mensaje</button>
-        <button class="quick" onclick="showPage('calendario')"><b>📅</b>Agenda</button>
-        <button class="quick" onclick="showPage('plantillas')"><b>▤</b>Plantillas</button>
-        <button class="quick" onclick="showPage('ejercicios')"><b>◈</b>Ejercicios</button>
-        <button class="quick" onclick="toast('Datos exportados')"><b>⇧</b>Exportar</button>
-        <button class="quick" onclick="showPage('ajustes')"><b>•••</b>Más</button>
+      <div class="card" style="margin-top:14px"><h3>⚡ Acciones rápidas</h3><div class="quick-actions">
+        <button class="quick" onclick="showPage('clientes')"><b>👤</b>Nuevo cliente<small>Añadir y gestionar clientes</small></button>
+        <button id="adminAccountsQuick" class="quick" style="display:none" onclick="showPage('admin_accounts')"><b>👑</b>Administración<small>Control general de cuentas</small></button>
+        <button class="quick" onclick="showPage('entrenamientos')"><b>🏋️</b>Crear rutina<small>Planificar entrenamientos</small></button>
+        <button class="quick" onclick="showPage('nutricion')"><b>🥗</b>Crear dieta<small>Preparar un plan nutricional</small></button>
+        <button class="quick" onclick="showPage('mensajes')"><b>💬</b>Mensajes<small>Hablar con tus clientes</small></button>
+        <button class="quick" onclick="showPage('calendario')"><b>📅</b>Agenda<small>Revisiones y próximas citas</small></button>
+        <button class="quick" onclick="showPage('plantillas')"><b>📋</b>Plantillas<small>Reutilizar planes guardados</small></button>
+        <button class="quick" onclick="showPage('ejercicios')"><b>💪</b>Ejercicios<small>Explorar la biblioteca</small></button>
+        <button class="quick" onclick="toast('Datos exportados')"><b>📤</b>Exportar<small>Descargar los datos</small></button>
+        <button class="quick" onclick="showPage('ajustes')"><b>⚙️</b>Más opciones<small>Configurar la aplicación</small></button>
       </div></div>
     </div>
   </div>
