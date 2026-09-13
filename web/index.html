@@ -7679,15 +7679,32 @@ function nutritionFoodLabel(food){
  if(prepared==null||prepared==='')return `${name} · ${shownAmount} ${unit}`;
  return `${name} · Peso en crudo: ${shownAmount} ${unit} · Peso elaborado: ${String(prepared).replace('.',',')} ${preparedUnit}${estimated?' (equivalencia)':''}`;
 }
+function nutritionFoodEditorLine(food){
+ const originalName=String(food?.food_name??food??'').trim();
+ const name=nutritionWeightDisplayName(originalName);
+ const amount=food?.amount;
+ const unit=String(food?.unit||'g').trim();
+ if(amount==null||amount==='')return name;
+ const prepared=food?.prepared_amount;
+ const preparedUnit=String(food?.prepared_unit||unit||'g').trim();
+ if(prepared==null||prepared==='')return `${name} ${String(amount).replace('.',',')} ${unit}`;
+ return `${name} ${String(amount).replace('.',',')} ${unit} crudo / ${String(prepared).replace('.',',')} ${preparedUnit} elaborado`;
+}
 function nutritionParseFoodLine(line){
  const clean=String(line||'').trim();if(!clean)return null;
- let dual=clean.match(/^(.*\S)\s+(\d+(?:[.,]\d+)?)\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?\s*(?:en\s+)?crudo\s*[\/|·-]+\s*(\d+(?:[.,]\d+)?)\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?\s*(?:elaborado|cocinado|cocido)?$/i);
- if(dual)return {food_name:dual[1].trim(),amount:Number(dual[2].replace(',','.')),unit:(dual[3]||'g'),prepared_amount:Number(dual[4].replace(',','.')),prepared_unit:(dual[5]||dual[3]||'g')};
+ // Formato visual: Arroz · Peso en crudo: 80 g · Peso elaborado: 300 g
+ let visual=clean.match(/^(.*?)\s*·\s*peso\s+en\s+crudo\s*:\s*(\d+(?:[.,]\d+)?)\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?\s*·\s*peso\s+elaborado\s*:\s*(\d+(?:[.,]\d+)?)\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?(?:\s*\([^)]*\))?$/i);
+ if(visual)return {food_name:nutritionWeightDisplayName(visual[1]),amount:Number(visual[2].replace(',','.')),unit:(visual[3]||'g'),prepared_amount:Number(visual[4].replace(',','.')),prepared_unit:(visual[5]||visual[3]||'g')};
+ let dual=clean.match(/^(.*?\S)\s+(\d+(?:[.,]\d+)?)\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?\s*(?:en\s+)?crudo\s*[\/|·-]+\s*(\d+(?:[.,]\d+)?)\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?\s*(?:elaborado|cocinado|cocido)?$/i);
+ if(dual)return {food_name:nutritionWeightDisplayName(dual[1]),amount:Number(dual[2].replace(',','.')),unit:(dual[3]||'g'),prepared_amount:Number(dual[4].replace(',','.')),prepared_unit:(dual[5]||dual[3]||'g')};
+ // Formato antiguo duplicado: Arroz en crudo · 80 g en crudo
+ let rawOnly=clean.match(/^(.*?)\s*(?:·|-)?\s*(\d+(?:[.,]\d+)?)\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?\s*(?:en\s+)?crudo$/i);
+ if(rawOnly)return {food_name:nutritionWeightDisplayName(rawOnly[1]),amount:Number(rawOnly[2].replace(',','.')),unit:(rawOnly[3]||'g'),prepared_amount:null,prepared_unit:null};
  let match=clean.match(/^(.*\S)\s+(\d+(?:[.,]\d+)?)\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?$/);
- if(match)return {food_name:match[1].trim(),amount:Number(match[2].replace(',','.')),unit:(match[3]||null),prepared_amount:null,prepared_unit:null};
+ if(match)return {food_name:nutritionWeightDisplayName(match[1]),amount:Number(match[2].replace(',','.')),unit:(match[3]||null),prepared_amount:null,prepared_unit:null};
  match=clean.match(/^(\d+(?:[.,]\d+)?)\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)?\s+(.+)$/);
- if(match)return {food_name:match[3].trim(),amount:Number(match[1].replace(',','.')),unit:(match[2]||null),prepared_amount:null,prepared_unit:null};
- return {food_name:clean,amount:null,unit:null,prepared_amount:null,prepared_unit:null};
+ if(match)return {food_name:nutritionWeightDisplayName(match[3]),amount:Number(match[1].replace(',','.')),unit:(match[2]||null),prepared_amount:null,prepared_unit:null};
+ return {food_name:nutritionWeightDisplayName(clean),amount:null,unit:null,prepared_amount:null,prepared_unit:null};
 }
 
 
@@ -7835,7 +7852,7 @@ function addNutritionMealEditor(data={}){
  const seq=++nutritionMealEditorSeq;
  const box=document.createElement('div');box.className='nutrition-meal-editor';box.dataset.seq=seq;
  box.dataset.mealId=data.id||data.meal_id||'';
- const foods=(data.foods||[]).map(x=>typeof x==='string'?x:nutritionFoodLabel(x)).filter(Boolean).join('\n');
+ const foods=(data.foods||[]).map(x=>typeof x==='string'?x:nutritionFoodEditorLine(x)).filter(Boolean).join('\n');
  box.innerHTML=`<div class="row"><b>Comida ${document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor').length+1}</b><button class="btn ghost" type="button" onclick="this.closest('.nutrition-meal-editor').remove()">Eliminar</button></div>
  <div class="form-grid" style="margin-top:10px"><div class="field"><label>Nombre</label><input class="nutrition-meal-name" value="${nutritionEsc(data.name||'')}" placeholder="Ej. Merienda"></div><div class="field"><label>Hora / recordatorio</label><input class="nutrition-meal-time" type="time" value="${nutritionEsc(nutritionMealTime(data.time||data.target_time||''))}"></div></div>
  <div class="muted tiny" style="margin-top:7px">🔔 Si asignas una hora, el cliente recibirá un recordatorio automático de esta comida. Déjala vacía para no enviar recordatorio.</div>
