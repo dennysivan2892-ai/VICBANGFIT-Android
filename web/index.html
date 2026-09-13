@@ -75,7 +75,8 @@ button{cursor:pointer}
 #admin_accounts .admin-result-count b{color:#fff;font-size:15px}
 #admin_accounts .admin-table-wrap{overflow:auto;margin-top:8px}
 #admin_accounts .admin-account-cell{display:flex;align-items:center;gap:11px;min-width:230px}
-#admin_accounts .admin-avatar{flex:0 0 40px;width:40px;height:40px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(135deg,#f3253b,#94152c);box-shadow:0 7px 18px rgba(243,37,59,.2);color:#fff;font-weight:950;font-size:16px}
+#admin_accounts .admin-avatar{position:relative;overflow:hidden;flex:0 0 40px;width:40px;height:40px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(135deg,#f3253b,#94152c);box-shadow:0 7px 18px rgba(243,37,59,.2);color:#fff;font-weight:950;font-size:16px}
+#admin_accounts .admin-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;background:#161616}
 #admin_accounts .admin-account-name{font-weight:900;color:#f5f5f5}
 #admin_accounts .admin-email{margin-top:3px;word-break:break-word}
 #admin_accounts .admin-role{display:inline-flex;align-items:center;gap:7px;font-weight:750}
@@ -4859,8 +4860,9 @@ function renderAdminAccounts(){
       :`<div style="display:flex;gap:6px;flex-wrap:wrap">${primary}<button class="btn ${active?'ghost':'dark'}" type="button" onclick="adminAccountAction('${a.id}','${active?'deactivate':'activate'}')">${active?'Dar de baja':'Reactivar'}</button><button class="btn danger" type="button" onclick="adminAccountAction('${a.id}','delete')">Eliminar</button></div>`;
     const displayName=escHtml(a.full_name||'Sin nombre');
     const initial=escHtml((a.full_name||a.email||'?').trim().charAt(0).toUpperCase()||'?');
+    const photo=escHtml(a.avatar_url||'');
     return `<tr>
-      <td><div class="admin-account-cell"><span class="admin-avatar">${initial}</span><div><div class="admin-account-name">${displayName}${adminBadge}</div><div class="muted tiny admin-email">${escHtml(a.email||'')}</div></div></div></td>
+      <td><div class="admin-account-cell"><span class="admin-avatar">${initial}${photo?`<img src="${photo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</span><div><div class="admin-account-name">${displayName}${adminBadge}</div><div class="muted tiny admin-email">${escHtml(a.email||'')}</div></div></div></td>
       <td>${adminRoleLabel(a)}</td>
       <td>${status}</td>
       <td>${adminDate(a.created_at)}</td>
