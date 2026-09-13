@@ -1,4 +1,4 @@
-name: Build VICBANGFIT iOS App Store
+name: Subir VICBANGFIT a TestFlight
 
 on:
   workflow_dispatch:
@@ -154,10 +154,3 @@ jobs:
             --apiKey "$APPSTORE_KEY_ID" \
             --apiIssuer "$APPSTORE_ISSUER_ID"
 
-      - name: Guardar IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: VICBANGFIT-iOS-AppStore
-          path: ios-output/*.ipa
-          if-no-files-found: error
-          retention-days: 14
