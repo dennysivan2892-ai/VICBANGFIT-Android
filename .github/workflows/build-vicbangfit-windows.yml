@@ -204,13 +204,6 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npm run dist
 
-      - name: Guardar instalador como artefacto
-        uses: actions/upload-artifact@v4
-        with:
-          name: VICBANGFIT-Windows
-          path: windows-build/dist/VICBANGFIT-Windows-Setup.exe
-          if-no-files-found: error
-
       - name: Publicar en GitHub Releases
         shell: pwsh
         env:

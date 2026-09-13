@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -108,26 +111,12 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs \
             android/app/build/outputs/apk/release/VICBANGFIT.apk
 
-      - name: Guardar APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: VICBANGFIT-APK
-          path: android/app/build/outputs/apk/release/VICBANGFIT.apk
-      
-        
-          
-
-    
-        
-      
-
-  
-        
-          
-  
-    
-    
-
-      
-      
-
+      - name: Publicar APK en GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="android-build-${{ github.run_number }}"
+          gh release create "$tag" \
+            android/app/build/outputs/apk/release/VICBANGFIT.apk \
+            --title "VICBANGFIT Android" \
+            --notes "APK de VICBANGFIT generado automáticamente desde la versión actual."
