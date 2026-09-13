@@ -7637,32 +7637,47 @@ async function applyNutritionSubstitution(index){
 }
 
 function nutritionWeightDisplayName(value){
- const name=String(value||'').trim();
- if(!name)return '';
- const n=nutritionSafetyNorm(name);
- // Si el alimento ya especifica su estado, respetamos exactamente esa indicación.
- if(/\b(crudo|cruda|crudos|crudas|cocido|cocida|cocidos|cocidas|cocinado|cocinada|cocinados|cocinadas)\b/i.test(name))return name;
- // Alimentos cuyo peso puede variar de forma importante al cocinarlos.
- const rawKeys=[
-  'arroz','pasta','quinoa','patata','boniato',
-  'pechuga de pollo','pollo','pechuga de pavo','pavo','ternera',
-  'pescado blanco','salmon'
- ];
- if(rawKeys.some(k=>n.includes(nutritionSafetyNorm(k))))return `${name} · peso en crudo`;
- return name;
+ return String(value||'')
+  .replace(/\s*[·-]?\s*peso\s+en\s+crudo\s*$/i,'')
+  .replace(/\s+en\s+crudo\s*$/i,'')
+  .trim();
+}
+function nutritionPreparedFactor(value){
+ const n=nutritionSafetyNorm(value);
+ // Conversión orientativa desde peso crudo a peso ya cocinado/elaborado.
+ if(/arroz/.test(n))return 2.5;
+ if(/pasta/.test(n))return 2.4;
+ if(/quinoa/.test(n))return 2.7;
+ if(/lenteja|garbanzo/.test(n))return 2.5;
+ if(/patata|boniato/.test(n))return .85;
+ if(/pechuga de pollo|pollo|pechuga de pavo|pavo/.test(n))return .75;
+ if(/ternera/.test(n))return .75;
+ if(/pescado|salmon|atun fresco/.test(n))return .8;
+ if(/brocoli/.test(n))return .9;
+ return null;
 }
 function nutritionWeightNoticeHtml(){
- return `<div class="nutrition-weight-notice"><b>⚖️ Pesos de los alimentos:</b> todos los gramos corresponden al <b>peso en crudo, antes de cocinar</b>, salvo que se indique expresamente “cocido” o “cocinado”.</div>`;
+ return `<div class="nutrition-weight-notice"><b>⚖️ Pesos de los alimentos:</b> cuando un alimento cambia al cocinarse se muestra <b>peso en crudo / peso elaborado aproximado</b>. El valor indicado manualmente por el entrenador siempre tiene prioridad.</div>`;
 }
 function nutritionFoodLabel(food){
  const originalName=String(food?.food_name??food??'').trim();
  const name=nutritionWeightDisplayName(originalName);
- const amount=food?.amount;const unit=String(food?.unit??'').trim();
+ const amount=food?.amount;
+ const unit=String(food?.unit||'g').trim();
  if(amount==null||amount==='')return name;
- const raw=`${String(amount).replace('.',',')}${unit?' '+unit:''} en crudo`;
- const prepared=food?.prepared_amount;
+ const shownAmount=String(amount).replace('.',',');
+ let prepared=food?.prepared_amount;
  const preparedUnit=String(food?.prepared_unit||unit||'g').trim();
- return prepared==null||prepared===''?`${name} · ${raw}`:`${name} · ${raw} / ${String(prepared).replace('.',',')} ${preparedUnit} elaborado`;
+ let estimated=false;
+ if((prepared==null||prepared==='') && /^g(?:r|rs|ramo|ramos)?$/i.test(unit)){
+  const factor=nutritionPreparedFactor(originalName);
+  if(factor){
+   prepared=Math.round(Number(amount)*factor);
+   estimated=true;
+  }
+ }
+ if(prepared==null||prepared==='')return `${name} · ${shownAmount} ${unit}`;
+ return `${name} · ${shownAmount} ${unit} en crudo / ${String(prepared).replace('.',',')} ${preparedUnit} elaborado${estimated?' aprox.':''}`;
 }
 function nutritionParseFoodLine(line){
  const clean=String(line||'').trim();if(!clean)return null;
