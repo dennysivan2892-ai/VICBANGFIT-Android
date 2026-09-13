@@ -2,6 +2,11 @@ name: Subir VICBANGFIT a TestFlight
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build-vicbangfit-ios-testflight.yml"
 
 permissions:
   contents: read
