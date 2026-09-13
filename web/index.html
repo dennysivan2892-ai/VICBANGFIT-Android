@@ -41,6 +41,76 @@ button{cursor:pointer}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
 .card{background:linear-gradient(145deg,#151515,#0e0e0e);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 8px 30px #0005}
 .kpi .label{color:#aaa;font-size:12px}.kpi .value{font-size:30px;font-weight:950;margin:6px 0 3px}.trend{font-size:12px}
+
+/* Administración de cuentas — rediseño visual */
+#admin_accounts{--admin-red:#f3253b;--admin-blue:#49a8ff;--admin-violet:#a879ff;--admin-orange:#ff9b45}
+#admin_accounts .admin-hero{position:relative;overflow:hidden;align-items:center;padding:24px;border:1px solid rgba(243,37,59,.28);border-radius:22px;background:linear-gradient(125deg,rgba(243,37,59,.18),rgba(243,37,59,.035) 52%,rgba(255,255,255,.025));box-shadow:0 18px 50px rgba(0,0,0,.22);margin-bottom:16px}
+#admin_accounts .admin-hero:after{content:"👑";position:absolute;right:126px;top:-22px;font-size:116px;opacity:.055;transform:rotate(10deg);pointer-events:none}
+#admin_accounts .admin-eyebrow{display:flex;align-items:center;gap:7px;color:#ff6273;font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px}
+#admin_accounts .admin-hero h1{margin:0 0 5px;font-size:clamp(27px,4vw,39px);line-height:1.05}
+#admin_accounts .admin-refresh{min-width:132px;border-radius:15px;box-shadow:0 10px 28px rgba(243,37,59,.28);font-weight:900}
+#admin_accounts .admin-refresh .refresh-icon{display:inline-block;font-size:18px;margin-right:5px;transition:transform .35s ease}
+#admin_accounts .admin-refresh:active .refresh-icon{transform:rotate(180deg)}
+#admin_accounts .admin-stats{gap:12px;margin-bottom:16px}
+#admin_accounts .admin-stat{position:relative;overflow:hidden;min-height:126px;padding:18px;border-radius:19px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(145deg,rgba(255,255,255,.065),rgba(255,255,255,.018));box-shadow:0 13px 32px rgba(0,0,0,.18)}
+#admin_accounts .admin-stat:after{content:"";position:absolute;width:72px;height:72px;border-radius:50%;right:-25px;bottom:-30px;background:var(--stat-color);filter:blur(18px);opacity:.2}
+#admin_accounts .admin-stat-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#admin_accounts .admin-stat .label{font-weight:850;letter-spacing:.55px;color:#b6b6bb}
+#admin_accounts .admin-stat .value{font-size:38px;margin:10px 0 0;line-height:1;color:#fff}
+#admin_accounts .admin-stat-icon{display:grid;place-items:center;width:39px;height:39px;border-radius:12px;font-size:19px;background:rgba(var(--stat-rgb),.18);border:1px solid rgba(var(--stat-rgb),.34)}
+#admin_accounts .admin-stat-total{--stat-color:var(--admin-red);--stat-rgb:243,37,59}
+#admin_accounts .admin-stat-clients{--stat-color:var(--admin-blue);--stat-rgb:73,168,255}
+#admin_accounts .admin-stat-trainers{--stat-color:var(--admin-violet);--stat-rgb:168,121,255}
+#admin_accounts .admin-stat-inactive{--stat-color:var(--admin-orange);--stat-rgb:255,155,69}
+#admin_accounts .admin-accounts-card{border-radius:21px;padding:18px;box-shadow:0 18px 45px rgba(0,0,0,.2)}
+#admin_accounts .admin-toolbar{display:flex;align-items:end;gap:10px;flex-wrap:wrap;padding-bottom:15px;border-bottom:1px solid rgba(255,255,255,.07)}
+#admin_accounts .admin-field{display:flex;flex-direction:column;gap:7px;flex:1;min-width:220px}
+#admin_accounts .admin-field.role{flex:0 1 190px;min-width:160px}
+#admin_accounts .admin-field label{font-size:11px;color:#999;font-weight:850;letter-spacing:.55px;text-transform:uppercase}
+#admin_accounts .admin-field-wrap{position:relative}
+#admin_accounts .admin-field-wrap .field-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none}
+#admin_accounts .admin-field-wrap .search{width:100%;padding-left:39px;min-height:45px;border-radius:13px;background:#0d0d0f;border-color:rgba(255,255,255,.1)}
+#admin_accounts .admin-field.role .search{padding-left:12px;width:100%;min-height:45px;border-radius:13px;background:#0d0d0f}
+#admin_accounts .admin-result-count{margin-left:auto;align-self:center;color:#aaa;font-size:12px;white-space:nowrap}
+#admin_accounts .admin-result-count b{color:#fff;font-size:15px}
+#admin_accounts .admin-table-wrap{overflow:auto;margin-top:8px}
+#admin_accounts .admin-account-cell{display:flex;align-items:center;gap:11px;min-width:230px}
+#admin_accounts .admin-avatar{flex:0 0 40px;width:40px;height:40px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(135deg,#f3253b,#94152c);box-shadow:0 7px 18px rgba(243,37,59,.2);color:#fff;font-weight:950;font-size:16px}
+#admin_accounts .admin-account-name{font-weight:900;color:#f5f5f5}
+#admin_accounts .admin-email{margin-top:3px;word-break:break-word}
+#admin_accounts .admin-role{display:inline-flex;align-items:center;gap:7px;font-weight:750}
+#admin_accounts .admin-role-icon{font-size:16px}
+#admin_accounts .admin-footnote{display:flex;align-items:flex-start;gap:9px;margin-top:14px;padding:12px 14px;border-radius:13px;background:rgba(255,155,69,.07);border:1px solid rgba(255,155,69,.16)}
+@media(max-width:700px){
+ #admin_accounts .admin-hero{padding:20px 17px;align-items:flex-start}
+ #admin_accounts .admin-hero:after{right:-18px;top:9px;font-size:92px}
+ #admin_accounts .admin-hero .muted{max-width:73%;font-size:14px}
+ #admin_accounts .admin-refresh{min-width:auto;padding:12px 13px;z-index:1}
+ #admin_accounts .admin-refresh .refresh-text{display:none}
+ #admin_accounts .admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px}
+ #admin_accounts .admin-stat{min-height:112px;padding:14px}
+ #admin_accounts .admin-stat .label{font-size:10px}
+ #admin_accounts .admin-stat .value{font-size:34px}
+ #admin_accounts .admin-stat-icon{width:35px;height:35px}
+ #admin_accounts .admin-accounts-card{padding:14px 12px}
+ #admin_accounts .admin-field,#admin_accounts .admin-field.role{flex:1 1 100%;min-width:0}
+ #admin_accounts .admin-result-count{width:100%;margin:0;padding:2px 2px 0}
+ #admin_accounts .admin-table-wrap{overflow:visible}
+ #admin_accounts .admin-table{min-width:0!important;display:block}
+ #admin_accounts .admin-table thead{display:none}
+ #admin_accounts .admin-table tbody{display:grid;gap:10px}
+ #admin_accounts .admin-table tr{display:grid;grid-template-columns:1fr auto;gap:10px 12px;padding:15px 13px;border:1px solid rgba(255,255,255,.075);border-radius:16px;background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012))}
+ #admin_accounts .admin-table td{display:block;padding:0!important;border:0!important}
+ #admin_accounts .admin-table td:first-child{grid-column:1/-1}
+ #admin_accounts .admin-table td:nth-child(2),#admin_accounts .admin-table td:nth-child(3){display:flex;align-items:center}
+ #admin_accounts .admin-table td:nth-child(4),#admin_accounts .admin-table td:nth-child(5){font-size:12px;color:#aaa}
+ #admin_accounts .admin-table td:nth-child(4):before{content:"Alta: ";color:#666}
+ #admin_accounts .admin-table td:nth-child(5):before{content:"Clientes: ";color:#666}
+ #admin_accounts .admin-table td:last-child{grid-column:1/-1;margin-top:3px}
+ #admin_accounts .admin-table td:last-child .btn{flex:1;padding:10px 8px;font-size:11px}
+ #admin_accounts .admin-table td:last-child>div{width:100%}
+ #admin_accounts .admin-footnote{font-size:11px}
+}
 .green{color:var(--green)}.red{color:var(--red)}.blue{color:var(--blue)}.orange{color:var(--orange)}.purple{color:var(--purple)}
 .dashboard{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-top:14px}
 .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -2156,36 +2226,44 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 
 
 <section id="admin_accounts" class="section">
-  <div class="header">
+  <div class="header admin-hero">
     <div>
+      <div class="admin-eyebrow">● Panel de control VICBANGFIT</div>
       <h1>Administración de cuentas</h1>
-      <div class="muted">Control global de clientes y entrenadores de VICBANGFIT.</div>
+      <div class="muted">Tu centro de control para gestionar clientes y entrenadores.</div>
     </div>
-    <button class="btn" type="button" onclick="loadAdminAccounts()">↻ Actualizar</button>
+    <button class="btn admin-refresh" type="button" onclick="loadAdminAccounts()"><span class="refresh-icon">↻</span><span class="refresh-text">Actualizar</span></button>
   </div>
-  <div class="grid4" style="margin-bottom:14px">
-    <div class="card kpi"><div class="label">CUENTAS TOTALES</div><div class="value" id="adminTotalAccounts">—</div></div>
-    <div class="card kpi"><div class="label">CLIENTES</div><div class="value" id="adminClientCount">—</div></div>
-    <div class="card kpi"><div class="label">ENTRENADORES</div><div class="value" id="adminTrainerCount">—</div></div>
-    <div class="card kpi"><div class="label">DADOS DE BAJA</div><div class="value" id="adminInactiveCount">—</div></div>
+  <div class="grid4 admin-stats">
+    <div class="card kpi admin-stat admin-stat-total"><div class="admin-stat-top"><div class="label">CUENTAS TOTALES</div><span class="admin-stat-icon">👥</span></div><div class="value" id="adminTotalAccounts">—</div></div>
+    <div class="card kpi admin-stat admin-stat-clients"><div class="admin-stat-top"><div class="label">CLIENTES</div><span class="admin-stat-icon">💪</span></div><div class="value" id="adminClientCount">—</div></div>
+    <div class="card kpi admin-stat admin-stat-trainers"><div class="admin-stat-top"><div class="label">ENTRENADORES</div><span class="admin-stat-icon">🏋️</span></div><div class="value" id="adminTrainerCount">—</div></div>
+    <div class="card kpi admin-stat admin-stat-inactive"><div class="admin-stat-top"><div class="label">DADOS DE BAJA</div><span class="admin-stat-icon">⏸️</span></div><div class="value" id="adminInactiveCount">—</div></div>
   </div>
-  <div class="card">
-    <div class="row" style="gap:10px;flex-wrap:wrap">
-      <input id="adminAccountSearch" class="search" style="flex:1;min-width:220px" placeholder="Buscar por nombre o email..." oninput="renderAdminAccounts()">
-      <select id="adminAccountRoleFilter" class="search" style="min-width:150px" onchange="renderAdminAccounts()">
+  <div class="card admin-accounts-card">
+    <div class="admin-toolbar">
+      <div class="admin-field">
+        <label for="adminAccountSearch">Buscar una cuenta</label>
+        <div class="admin-field-wrap"><span class="field-icon">🔎</span><input id="adminAccountSearch" class="search" placeholder="Nombre, email o código..." oninput="renderAdminAccounts()"></div>
+      </div>
+      <div class="admin-field role">
+        <label for="adminAccountRoleFilter">Filtrar por rol</label>
+        <select id="adminAccountRoleFilter" class="search" onchange="renderAdminAccounts()">
         <option value="">Todos</option>
         <option value="client">Clientes</option>
         <option value="trainer">Entrenadores</option>
         <option value="pending_trainer">Solicitudes entrenador</option>
-      </select>
+        </select>
+      </div>
+      <div class="admin-result-count"><b id="adminVisibleCount">—</b> resultados</div>
     </div>
-    <div style="overflow:auto;margin-top:12px">
-      <table class="table" style="min-width:760px">
+    <div class="admin-table-wrap">
+      <table class="table admin-table" style="min-width:760px">
         <thead><tr><th>CUENTA</th><th>ROL</th><th>ESTADO</th><th>ALTA</th><th>CLIENTES</th><th>ACCIONES</th></tr></thead>
         <tbody id="adminAccountsTable"><tr><td colspan="6" class="muted">Cargando cuentas…</td></tr></tbody>
       </table>
     </div>
-    <div class="muted tiny" style="margin-top:12px">“Dar de baja” bloquea el acceso a VICBANGFIT sin borrar sus datos. “Eliminar” borra definitivamente la cuenta y sus datos asociados.</div>
+    <div class="muted tiny admin-footnote"><span>💡</span><span><b>Recuerda:</b> “Dar de baja” bloquea el acceso sin borrar los datos. “Eliminar” borra definitivamente la cuenta y sus datos asociados.</span></div>
   </div>
 </section>
 
@@ -4725,9 +4803,9 @@ function adminRoleLabel(account){
  if(account?.trainer_request_status==='rejected')return '<span class="pill orange">Solicitud rechazada</span>';
  if(account?.role==='trainer'){
   const code=escHtml(account.trainer_code||'Sin código');
-  return `Entrenador<div class="muted tiny" style="margin-top:4px">Código: <b>${code}</b></div>`;
+  return `<div><span class="admin-role"><span class="admin-role-icon">🏋️</span>Entrenador</span><div class="muted tiny" style="margin-top:4px">Código: <b>${code}</b></div></div>`;
  }
- return 'Cliente';
+ return '<span class="admin-role"><span class="admin-role-icon">💪</span>Cliente</span>';
 }
 function adminDate(value){
   if(!value)return '—';
@@ -4765,6 +4843,7 @@ function renderAdminAccounts(){
   const cc=document.getElementById('adminClientCount'); if(cc)cc.textContent=clients;
   const tc=document.getElementById('adminTrainerCount'); if(tc)tc.textContent=trainers;
   const ic=document.getElementById('adminInactiveCount'); if(ic)ic.textContent=inactive;
+  const vc=document.getElementById('adminVisibleCount'); if(vc)vc.textContent=filtered.length;
 
   table.innerHTML=filtered.length?filtered.map(a=>{
     const self=a.id===currentProfile?.id;
@@ -4778,8 +4857,10 @@ function renderAdminAccounts(){
     const actions=self
       ?'<span class="muted tiny">Cuenta principal</span>'
       :`<div style="display:flex;gap:6px;flex-wrap:wrap">${primary}<button class="btn ${active?'ghost':'dark'}" type="button" onclick="adminAccountAction('${a.id}','${active?'deactivate':'activate'}')">${active?'Dar de baja':'Reactivar'}</button><button class="btn danger" type="button" onclick="adminAccountAction('${a.id}','delete')">Eliminar</button></div>`;
+    const displayName=escHtml(a.full_name||'Sin nombre');
+    const initial=escHtml((a.full_name||a.email||'?').trim().charAt(0).toUpperCase()||'?');
     return `<tr>
-      <td><b>${escHtml(a.full_name||'Sin nombre')}</b>${adminBadge}<div class="muted tiny">${escHtml(a.email||'')}</div></td>
+      <td><div class="admin-account-cell"><span class="admin-avatar">${initial}</span><div><div class="admin-account-name">${displayName}${adminBadge}</div><div class="muted tiny admin-email">${escHtml(a.email||'')}</div></div></div></td>
       <td>${adminRoleLabel(a)}</td>
       <td>${status}</td>
       <td>${adminDate(a.created_at)}</td>
