@@ -2299,9 +2299,9 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
       <div><b>Objetivo</b><div class="muted" id="clientGoal">—</div></div>
       <div style="margin-top:12px"><b>Próximo check-in</b><div class="muted" id="clientNextCheckin">Sin programar</div></div>
       <div class="checkin-schedule-box">
-        <label for="clientNextCheckinInput">Programar fecha y hora</label>
+        <label for="clientNextCheckinInput">Programar día del check-in</label>
         <div class="checkin-schedule-row">
-          <input id="clientNextCheckinInput" type="datetime-local">
+          <input id="clientNextCheckinInput" type="date">
           <button class="btn" type="button" onclick="saveClientNextCheckin()">Guardar</button>
           <button class="btn ghost" type="button" onclick="clearClientNextCheckin()">Quitar</button>
         </div>
@@ -4824,6 +4824,10 @@ async function loadAdminAccounts(){
     return;
   }
   adminAccounts=Array.isArray(data?.accounts)?data.accounts:[];
+  await Promise.all(adminAccounts.map(async account=>{
+    const path=String(account.avatar_url||'').trim();
+    account.avatar_display_url=path?await profileAvatarSignedUrl(path):'';
+  }));
   renderAdminAccounts();
 }
 function renderAdminAccounts(){
@@ -4860,7 +4864,7 @@ function renderAdminAccounts(){
       :`<div style="display:flex;gap:6px;flex-wrap:wrap">${primary}<button class="btn ${active?'ghost':'dark'}" type="button" onclick="adminAccountAction('${a.id}','${active?'deactivate':'activate'}')">${active?'Dar de baja':'Reactivar'}</button><button class="btn danger" type="button" onclick="adminAccountAction('${a.id}','delete')">Eliminar</button></div>`;
     const displayName=escHtml(a.full_name||'Sin nombre');
     const initial=escHtml((a.full_name||a.email||'?').trim().charAt(0).toUpperCase()||'?');
-    const photo=escHtml(a.avatar_url||'');
+    const photo=escHtml(a.avatar_display_url||'');
     return `<tr>
       <td><div class="admin-account-cell"><span class="admin-avatar">${initial}${photo?`<img src="${photo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</span><div><div class="admin-account-name">${displayName}${adminBadge}</div><div class="muted tiny admin-email">${escHtml(a.email||'')}</div></div></div></td>
       <td>${adminRoleLabel(a)}</td>
@@ -5173,7 +5177,7 @@ function openClient(i){
   document.getElementById("clientWaist").textContent=c.waist!=null?String(c.waist).replace('.',',')+" cm":"—";
   document.getElementById("clientPlan").textContent="Cargando…";
   document.getElementById("clientNextCheckin").textContent=c.nextCheckinAt
-    ?new Date(c.nextCheckinAt).toLocaleString("es-ES",{weekday:"short",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})
+    ?checkinDateTimeLabel(c.nextCheckinAt)
     :"Sin programar";
   const nextInput=document.getElementById("clientNextCheckinInput");
   if(nextInput)nextInput.value=checkinLocalInputValue(c.nextCheckinAt);
@@ -5214,11 +5218,7 @@ async function saveClientServices(){
 
 
 function checkinLocalInputValue(iso){
- if(!iso)return '';
- const d=new Date(iso);
- if(Number.isNaN(d.getTime()))return '';
- const pad=n=>String(n).padStart(2,'0');
- return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+ return checkinDateISOFromTimestamp(iso)||'';
 }
 function checkinDateISOFromTimestamp(iso){
  if(!iso)return null;
@@ -5237,21 +5237,24 @@ function checkinWeekBoundsForISO(dateIso){
 }
 function checkinDateTimeLabel(iso){
  if(!iso)return 'Sin programar';
- const d=new Date(iso);
- if(Number.isNaN(d.getTime()))return 'Sin programar';
- return d.toLocaleString('es-ES',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+ const dateIso=checkinDateISOFromTimestamp(iso);
+ if(!dateIso)return 'Sin programar';
+ const [y,m,d]=dateIso.split('-').map(Number);
+ return new Date(y,m-1,d,12).toLocaleDateString('es-ES',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
 }
 async function saveClientNextCheckin(){
  if(currentProfile?.role!=='trainer'||!activeTrainerClientId)return;
  const input=document.getElementById('clientNextCheckinInput');
  const msg=document.getElementById('clientNextCheckinMsg');
  if(msg){msg.textContent='';msg.classList.remove('auth-success')}
- if(!input?.value){if(msg)msg.textContent='Selecciona una fecha y una hora.';return}
- const local=new Date(input.value);
- if(Number.isNaN(local.getTime())){if(msg)msg.textContent='La fecha no es válida.';return}
- if(local.getTime()<Date.now()-60000){if(msg)msg.textContent='El próximo check-in debe ser una fecha futura.';return}
+ if(!input?.value){if(msg)msg.textContent='Selecciona el día del check-in.';return}
+ const dateIso=input.value;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(dateIso)){if(msg)msg.textContent='La fecha no es válida.';return}
+ if(dateIso<nutritionToday()){if(msg)msg.textContent='El próximo check-in debe ser hoy o una fecha futura.';return}
  try{
-  const iso=local.toISOString();
+  // Se guarda al mediodía local para conservar el día elegido en cualquier zona horaria.
+  const [y,m,d]=dateIso.split('-').map(Number);
+  const iso=new Date(y,m-1,d,12,0,0,0).toISOString();
   if(msg)msg.textContent='Guardando y enviando aviso…';
   const {data,error}=await sb.functions.invoke('trainer-schedule-checkin',{
    body:{client_id:activeTrainerClientId,scheduled_at:iso,action:'schedule'}
@@ -8483,7 +8486,6 @@ async function loadClientCheckinStatus(){
 
   if(scheduled){
    const scheduledDate=checkinDateISOFromTimestamp(scheduled);
-   const bounds=checkinWeekBoundsForISO(scheduledDate);
    const {data:done,error:cErr}=await sb.from('checkins')
     .select('id,checkin_date')
     .eq('client_id',currentProfile.id)
@@ -8499,15 +8501,15 @@ async function loadClientCheckinStatus(){
    }
 
    const today=nutritionToday();
-   if(bounds && today<bounds.start){
+   if(today<scheduledDate){
     value.textContent='Programado';
     if(meta){meta.textContent=checkinDateTimeLabel(scheduled);meta.classList.remove('orange');meta.classList.add('green')}
-   }else if(bounds && today>bounds.end){
+   }else if(today>scheduledDate){
     value.textContent='Atrasado';
     if(meta){meta.textContent=checkinDateTimeLabel(scheduled);meta.classList.remove('green');meta.classList.add('orange')}
    }else{
-    value.textContent='Pendiente';
-    if(meta){meta.textContent=checkinDateTimeLabel(scheduled);meta.classList.remove('green');meta.classList.add('orange')}
+    value.textContent='Pendiente hoy';
+    if(meta){meta.textContent='Disponible durante todo el día';meta.classList.remove('green');meta.classList.add('orange')}
    }
    return;
   }
@@ -8681,7 +8683,6 @@ async function loadClientCheckin(){
   let data=null;
   if(scheduled){
    const scheduledDate=checkinDateISOFromTimestamp(scheduled);
-   const bounds=checkinWeekBoundsForISO(scheduledDate);
    const today=nutritionToday();
 
    if(scheduleBox){
@@ -8698,11 +8699,11 @@ async function loadClientCheckin(){
    if(sErr)throw sErr;
    data=scheduledRow||null;
 
-   if(!data && bounds && today<bounds.start){
-    if(status){status.textContent=`Programado para ${checkinDateTimeLabel(scheduled)}. Podrás enviarlo cuando empiece esa semana.`;status.classList.remove('green')}
+   if(!data && today<scheduledDate){
+    if(status){status.textContent=`Programado para ${checkinDateTimeLabel(scheduled)}. Podrás enviarlo durante todo ese día.`;status.classList.remove('green')}
     if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='Aún no disponible'}
    }else if(!data){
-    if(status){status.textContent=`Pendiente · ${checkinDateTimeLabel(scheduled)}. Completa los datos y pulsa “Enviar check-in”.`;status.classList.remove('green')}
+    if(status){status.textContent=today===scheduledDate?'Pendiente hoy · Puedes enviarlo en cualquier momento del día.':`Check-in atrasado desde ${checkinDateTimeLabel(scheduled)}. Complétalo cuanto antes.`;status.classList.remove('green')}
    }
   }else{
    if(scheduleBox){scheduleBox.style.display='none';scheduleBox.innerHTML=''}
@@ -12074,22 +12075,22 @@ async function loadTrainerAlerts(){
    }
   }
 
-  // 3) Check-in: vencido o próximo en 48 h.
+  // 3) Check-in: se evalúa por día completo, nunca por una hora concreta.
   const checkedThisWeek=new Set(checkins.map(c=>c.client_id));
   for(const client of clients){
    if(!client.nextCheckinAt)continue;
-   const due=new Date(client.nextCheckinAt);
-   if(Number.isNaN(due.getTime()))continue;
-   const hours=(due-now)/3600000;
-   if(hours<0 && !checkedThisWeek.has(client.id)){
-    const lateDays=Math.max(0,Math.floor((-hours)/24));
+   const dueDate=checkinDateISOFromTimestamp(client.nextCheckinAt);
+   if(!dueDate)continue;
+   const days=alertDaysBetween(today,dueDate);
+   if(days<0 && !checkedThisWeek.has(client.id)){
+    const lateDays=Math.abs(days);
     trainerAlerts.push({
      clientId:client.id,type:'checkin',priority:'high',icon:'📸',
      title:'Check-in vencido',
-     detail:lateDays?`Lleva ${lateDays} día${lateDays===1?'':'s'} de retraso`:'La hora programada ya pasó',
+     detail:`Lleva ${lateDays} día${lateDays===1?'':'s'} de retraso`,
      action:'Ver check-ins'
     });
-   }else if(hours>=0 && hours<=48){
+   }else if(days>=0 && days<=2){
     trainerAlerts.push({
      clientId:client.id,type:'checkin',priority:'info',icon:'📸',
      title:'Check-in próximo',
@@ -13124,7 +13125,7 @@ async function buildTrainerAgenda(daysAhead=14){
    const dt=new Date(row.next_checkin_at);
    if(Number.isNaN(dt.getTime())||dt<start||dt>agendaAddDays(end,1))continue;
    events.push({
-    type:'checkin',date:agendaLocalISO(dt),time:agendaTimeFromDate(row.next_checkin_at),
+    type:'checkin',date:checkinDateISOFromTimestamp(row.next_checkin_at),time:'Todo el día',
     client_id:row.user_id,title:`Check-in · ${agendaClientName(row.user_id)}`,
     meta:'Revisión semanal programada',icon:'📸'
    });
