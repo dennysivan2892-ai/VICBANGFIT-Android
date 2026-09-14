@@ -1,4 +1,4 @@
-const CACHE='vicbangfit-v4-nutrition-weights';
+const CACHE='vicbangfit-v5-checkin-day-admin-avatars';
 const ASSETS=['./','./index.html','./manifest.json','./icon.svg'];
 
 self.addEventListener('install',event=>{
