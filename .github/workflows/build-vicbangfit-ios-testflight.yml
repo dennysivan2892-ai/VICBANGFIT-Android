@@ -1,4 +1,4 @@
-# Lanzamiento TestFlight con fotos de perfil en Administración
+# Lanzamiento TestFlight: check-in por día y fotos de perfil en Administración
 name: Subir VICBANGFIT a TestFlight
 
 on:
