@@ -1093,6 +1093,10 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 .chat-composer textarea{min-height:48px;max-height:130px;resize:vertical}
 .chat-client-page{max-width:760px;margin:auto}.chat-client-page .chat-panel{min-height:72vh}
 .message-badge-inline{display:inline-flex;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#ef2434;color:#fff;align-items:center;justify-content:center;font-size:10px;font-weight:900;margin-left:4px}
+.trainer-message-fab{position:fixed;right:20px;bottom:22px;z-index:1400;width:62px;height:62px;border:0;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#ff3655,#d90e38);color:#fff;font-size:27px;box-shadow:0 14px 38px rgba(239,36,52,.42);cursor:pointer}
+.trainer-message-fab:active{transform:scale(.96)}
+.trainer-message-fab .fab-badge{position:absolute;right:-3px;top:-5px;min-width:25px;height:25px;padding:0 7px;border-radius:999px;background:#fff;color:#d90e38;border:2px solid #d90e38;display:none;align-items:center;justify-content:center;font-size:11px;font-weight:950}
+@media(max-width:760px){.trainer-message-fab{right:16px;bottom:82px;width:58px;height:58px}}
 @media(max-width:760px){
  .chat-layout{grid-template-columns:1fr}
  .chat-panel{min-height:520px;margin-bottom:88px}
@@ -1983,6 +1987,7 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
     <button data-page="ajustes">⚙ Ajustes</button>
   </div>
 </aside>
+<button id="trainerMessageFab" class="trainer-message-fab" type="button" style="display:none" onclick="showPage('mensajes')" aria-label="Abrir mensajes">💬<span id="trainerMessageBubbleBadge" class="fab-badge">0</span></button>
 
 <main class="main">
 <section id="dashboard" class="section active">
@@ -11551,13 +11556,33 @@ function setupQuickCommsCenter(){
  if(template)template.value='suggested';
  quickCommsClientChanged();
 }
-function quickCommsClientChanged(){
+async function quickCommsClientChanged(){
  const c=quickSelectedClient();
  const suggestion=document.getElementById('quickCommsSuggestion');
- if(suggestion)suggestion.innerHTML=c
-  ?`<b>✨ Sugerencia automática:</b> ${escHtml(quickSuggestionText(c.id))}`
-  :'<b>✨ Sugerencia automática:</b> No hay cliente seleccionado.';
  const template=document.getElementById('quickCommsTemplate');
+ const textarea=document.getElementById('quickCommsMessage');
+ if(!c){
+  if(suggestion){suggestion.style.display='block';suggestion.innerHTML='<b>✨ Sugerencia automática:</b> No hay cliente seleccionado.'}
+  return;
+ }
+ const selectedId=c.id;
+ try{
+  const {count,error}=await sb.from('chat_messages').select('*',{count:'exact',head:true})
+   .eq('trainer_id',currentProfile.id).eq('client_id',c.id);
+  if(error)throw error;
+  if(document.getElementById('quickCommsClient')?.value!==selectedId)return;
+  if(Number(count||0)>0){
+   if(suggestion)suggestion.style.display='none';
+   if(template)template.value='custom';
+   if(textarea)textarea.value='';
+   renderQuickCommsPreview();
+   return;
+  }
+ }catch(error){console.error('Estado de conversación',error)}
+ if(suggestion){
+  suggestion.style.display='block';
+  suggestion.innerHTML=`<b>✨ Sugerencia automática:</b> ${escHtml(quickSuggestionText(c.id))}`;
+ }
  if(template)template.value='suggested';
  applyQuickCommsTemplate();
 }
@@ -13424,8 +13449,11 @@ async function loadTrainerMessageBadge(){
   const {data,error}=await sb.from('chat_messages').select('id,client_id,sender_id,read_at').eq('trainer_id',currentProfile.id).neq('sender_id',currentProfile.id).is('read_at',null);
   if(error)throw error;
   const count=(data||[]).length;
+  const fab=document.getElementById('trainerMessageFab');if(fab)fab.style.display='grid';
   const badge=document.getElementById('trainerMessageBadge');
   if(badge){badge.textContent=count;badge.style.display=count?'inline-flex':'none'}
+  const bubbleBadge=document.getElementById('trainerMessageBubbleBadge');
+  if(bubbleBadge){bubbleBadge.textContent=count;bubbleBadge.style.display=count?'inline-flex':'none'}
   const total=document.getElementById('trainerMessageTotal');if(total)total.textContent=`${count} sin leer`;
  }catch(error){console.error(error)}
 }
