@@ -10508,6 +10508,23 @@ function smartPlanRender(){
  const p=smartTrainingPlan;
  if(badge){badge.textContent='✨ Lista para revisar';badge.className='smart-plan-badge'}
  box.innerHTML=`
+  <div class="card" style="margin:12px 0;padding:14px;border:1px solid rgba(244,38,59,.28)">
+   <div class="row"><div><b>✏️ Ajustar nuevo bloque</b><div class="muted tiny" style="margin-top:3px">Modifica las variables y regenera la sugerencia sin cambiar la rutina anterior.</div></div></div>
+   <div class="form-grid" style="margin-top:12px">
+    <div class="field"><label>Días de entrenamiento</label><select id="smartEditDays">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===p.days.length?'selected':''}>${n} día${n===1?'':'s'}</option>`).join('')}</select></div>
+    <div class="field"><label>Duración por sesión</label><input id="smartEditMinutes" type="number" min="30" max="120" step="5" value="${p.sessionMinutes}"></div>
+    <div class="field"><label>Objetivo</label><select id="smartEditGoal"><option value="muscle" ${p.goalType==='muscle'?'selected':''}>Hipertrofia</option><option value="fatloss" ${p.goalType==='fatloss'?'selected':''}>Pérdida de grasa</option><option value="strength" ${p.goalType==='strength'?'selected':''}>Fuerza</option><option value="general" ${p.goalType==='general'?'selected':''}>Acondicionamiento</option></select></div>
+    <div class="field"><label>Nivel</label><select id="smartEditLevel"><option value="beginner" ${p.level==='beginner'?'selected':''}>Principiante</option><option value="intermediate" ${p.level==='intermediate'?'selected':''}>Intermedio</option><option value="advanced" ${p.level==='advanced'?'selected':''}>Avanzado</option></select></div>
+    <div class="field"><label>Series base</label><input id="smartEditSets" type="number" min="1" max="10" value="${p.prescription.sets}"></div>
+    <div class="field"><label>Repeticiones mínimas</label><input id="smartEditRepsMin" type="number" min="1" max="50" value="${p.prescription.repsMin}"></div>
+    <div class="field"><label>Repeticiones máximas</label><input id="smartEditRepsMax" type="number" min="1" max="50" value="${p.prescription.repsMax}"></div>
+    <div class="field"><label>RIR objetivo</label><input id="smartEditRir" type="number" min="0" max="5" value="${p.prescription.rir}"></div>
+    <div class="field wide"><label>Equipamiento disponible</label><input id="smartEditEquipment" value="${escHtml(p.equipment||'')}" placeholder="Ej. Gimnasio completo"></div>
+    <div class="field wide"><label>Preferencias</label><input id="smartEditPreferences" value="${escHtml(p.preferences||'')}" placeholder="Ej. Priorizar glúteos, evitar superseries…"></div>
+    <div class="field wide"><label>Lesiones o limitaciones</label><input id="smartEditLimitations" value="${escHtml(p.limitations||'')}" placeholder="Ej. Molestia de hombro"></div>
+   </div>
+   <button class="btn" style="margin-top:12px" type="button" onclick="smartPlanApplyAdjustments()">✨ Aplicar cambios y regenerar sugerencia</button>
+  </div>
   <div class="smart-plan-summary">
    <div><div class="label">Frecuencia</div><b>${p.days.length} días</b><div class="small">${p.availableDays} disponibles</div></div>
    <div><div class="label">Duración</div><b>${p.sessionMinutes} min</b><div class="small">por sesión</div></div>
@@ -10529,6 +10546,42 @@ function smartPlanRender(){
   </div>
   <div class="smart-plan-warning">${escHtml(p.limitationsNote)}</div>`;
 }
+function smartPlanApplyAdjustments(){
+ if(!smartTrainingPlan)return;
+ const p=smartTrainingPlan;
+ const days=smartClamp(Number(document.getElementById('smartEditDays')?.value)||p.days.length,1,6);
+ const minutes=smartSessionMinutes(document.getElementById('smartEditMinutes')?.value);
+ const goalType=document.getElementById('smartEditGoal')?.value||p.goalType;
+ const level=document.getElementById('smartEditLevel')?.value||p.level;
+ const base=smartPrescription(goalType,level);
+ const sets=smartClamp(Number(document.getElementById('smartEditSets')?.value)||base.sets,1,10);
+ const repsMin=smartClamp(Number(document.getElementById('smartEditRepsMin')?.value)||base.repsMin,1,50);
+ const repsMax=smartClamp(Number(document.getElementById('smartEditRepsMax')?.value)||base.repsMax,repsMin,50);
+ const rir=smartClamp(Number(document.getElementById('smartEditRir')?.value)??base.rir,0,5);
+ const equipment=document.getElementById('smartEditEquipment')?.value?.trim()||'';
+ const preferences=document.getElementById('smartEditPreferences')?.value?.trim()||'';
+ const limitations=document.getElementById('smartEditLimitations')?.value?.trim()||'';
+ const goalText={muscle:'Hipertrofia',fatloss:'Pérdida de grasa',strength:'Fuerza',general:'Acondicionamiento general'}[goalType]||'Acondicionamiento general';
+ Object.assign(p,{
+  availableDays:days,
+  sessionMinutes:minutes,
+  goalType,
+  goalText,
+  level,
+  levelLabel:{beginner:'Principiante',intermediate:'Intermedio',advanced:'Avanzado'}[level],
+  prescription:{...base,sets,repsMin,repsMax,rir},
+  days:smartSplit(days),
+  routineName:smartPlanTitle(goalType,days),
+  equipment,
+  equipmentNote:smartEquipmentNote(equipment),
+  preferences,
+  limitations,
+  limitationsNote:smartLimitationsNote({limitations},null)
+ });
+ smartPlanRender();
+ toast(`Sugerencia regenerada para ${days} día${days===1?'':'s'} ✓`);
+}
+
 async function loadSmartTrainingPlan(clientId){
  if(currentProfile?.role!=='trainer'||!clientId)return;
  const box=document.getElementById('smartPlanContent');
@@ -10566,6 +10619,7 @@ async function loadSmartTrainingPlan(clientId){
    equipment:o.equipment||'',
    equipmentNote:smartEquipmentNote(o.equipment||''),
    preferences:o.training_preferences||privateRow?.preferences||'',
+   limitations:o.limitations||privateRow?.injuries||'',
    limitationsNote:smartLimitationsNote(o,privateRow),
    secondaryGoals:privateRow?.secondary_goals||''
   };
