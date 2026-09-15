@@ -1,4 +1,4 @@
-# Lanzamiento TestFlight: errores en español y recálculo nutricional del entrenador
+# Lanzamiento TestFlight: estabilidad de guardados y editor de suplementos
 name: Subir VICBANGFIT a TestFlight
 
 on:
