@@ -5641,7 +5641,7 @@ function renderTrainerRoutines(){
    ${(r.days||[]).length?r.days.map(d=>`<div class="real-routine-day">
      <div class="row"><b>${escHtml(d.name||('Día '+d.day_number))}</b><span class="pill">${(d.exercises||[]).length} ejercicio${(d.exercises||[]).length===1?'':'s'}${d.cardio_enabled?' + cardio':''}</span></div>
      ${workoutScheduleText(d)?`<div class="workout-schedule-badge">🔔 ${escHtml(workoutScheduleText(d))}</div>`:''}
-     ${(d.exercises||[]).length?d.exercises.map(ex=>`<div class="real-routine-exercise"><div class="exercise-routine-line">${exerciseThumbHtml(ex)}<div class="exercise-routine-copy"><b>${escHtml(ex.name||'Ejercicio')}</b><div class="meta">${escHtml(formatRoutineSetMeta(ex.sets))}${ex.muscle_group?' · '+escHtml(ex.muscle_group):''}</div>${techniqueBadgeHtml(ex.notes)}</div></div></div>`).join(''):d.cardio_enabled?'':'<div class="muted tiny" style="margin-top:8px">Sin ejercicios.</div>'}
+     ${(d.exercises||[]).length?d.exercises.map(ex=>`<div class="real-routine-exercise"><div class="exercise-routine-line">${exerciseThumbHtml(ex)}<div class="exercise-routine-copy"><b>${escHtml(ex.name||'Ejercicio')}</b><div class="meta">${escHtml(formatRoutineSetMeta(ex.sets))}${ex.muscle_group?' · '+escHtml(ex.muscle_group):''}${ex.rest_seconds!=null?' · Descanso '+escHtml(String(ex.rest_seconds))+' s':''}</div>${techniqueBadgeHtml(ex.notes)}</div></div></div>`).join(''):d.cardio_enabled?'':'<div class="muted tiny" style="margin-top:8px">Sin ejercicios.</div>'}
      ${cardioPrescriptionHtml(d)}
     </div>`).join(''):'<div class="muted tiny">Esta rutina todavía no tiene días configurados.</div>'}
   </div>`).join('');
@@ -5715,7 +5715,7 @@ function renderClientRoutines(){
    ${(r.days||[]).length?[...(r.days||[])].sort((a,b)=>(a.day_number||0)-(b.day_number||0)).map(d=>`<div class="real-routine-day">
      <div class="row"><b>${escHtml(d.name||('Día '+d.day_number))}</b><span class="pill">${(d.exercises||[]).length} ejercicio${(d.exercises||[]).length===1?'':'s'}${d.cardio_enabled?' + cardio':''}</span></div>
      ${workoutScheduleText(d)?`<div class="workout-schedule-badge">🔔 ${escHtml(workoutScheduleText(d))}</div>`:''}
-     ${(d.exercises||[]).length?[...(d.exercises||[])].sort((a,b)=>(a.exercise_order||0)-(b.exercise_order||0)).map(ex=>`<div class="real-routine-exercise"><div class="exercise-routine-line">${exerciseThumbHtml(ex)}<div class="exercise-routine-copy"><b>${escHtml(ex.name||'Ejercicio')}</b><div class="meta">${escHtml(formatRoutineSetMeta(ex.sets))}${ex.muscle_group?' · '+escHtml(ex.muscle_group):''}</div>${techniqueBadgeHtml(ex.notes)}</div></div></div>`).join(''):d.cardio_enabled?'':'<div class="muted tiny" style="margin-top:8px">Sin ejercicios.</div>'}
+     ${(d.exercises||[]).length?[...(d.exercises||[])].sort((a,b)=>(a.exercise_order||0)-(b.exercise_order||0)).map(ex=>`<div class="real-routine-exercise"><div class="exercise-routine-line">${exerciseThumbHtml(ex)}<div class="exercise-routine-copy"><b>${escHtml(ex.name||'Ejercicio')}</b><div class="meta">${escHtml(formatRoutineSetMeta(ex.sets))}${ex.muscle_group?' · '+escHtml(ex.muscle_group):''}${ex.rest_seconds!=null?' · Descanso '+escHtml(String(ex.rest_seconds))+' s':''}</div>${techniqueBadgeHtml(ex.notes)}</div></div></div>`).join(''):d.cardio_enabled?'':'<div class="muted tiny" style="margin-top:8px">Sin ejercicios.</div>'}
      ${cardioPrescriptionHtml(d)}
      <button class="btn" style="width:100%;margin-top:12px" type="button" onclick="openWorkoutSession('${r.id}','${d.id}')">▶ ${d.cardio_enabled&&!(d.exercises||[]).length?'Abrir sesión de cardio':'Registrar este entrenamiento'}</button>
    </div>`).join(''):'<div class="muted">Esta rutina todavía no tiene días configurados.</div>'}
@@ -5735,7 +5735,7 @@ async function loadClientRoutines(){
   const dayIds=(days||[]).map(d=>d.id);
   let workoutExercises=[];
   if(dayIds.length){
-   const {data,error}=await sb.from('workout_exercises').select('id,workout_day_id,exercise_id,exercise_order,notes,is_archived').in('workout_day_id',dayIds).eq('is_archived',false).order('exercise_order',{ascending:true});
+   const {data,error}=await sb.from('workout_exercises').select('id,workout_day_id,exercise_id,exercise_order,rest_seconds,notes,is_archived').in('workout_day_id',dayIds).eq('is_archived',false).order('exercise_order',{ascending:true});
    if(error)throw error;workoutExercises=data||[];
   }
   const exerciseIds=[...new Set(workoutExercises.map(x=>x.exercise_id).filter(Boolean))];
@@ -5850,7 +5850,7 @@ function renderWorkoutSession(logs=[]){
  const body=document.getElementById('workoutSessionBody');
  body.innerHTML=`<div class="workout-session-summary"><b>${day.cardio_enabled&&!(day.exercises||[]).length?'Sesión de cardio pautada':'Registra lo que haces realmente'}</b><div class="muted tiny" style="margin-top:4px">${(day.exercises||[]).length?'Repeticiones, peso usado y RIR real. Marca “Hecha” en cada serie completada.':'Realiza el cardio según la pauta de tu entrenador y finaliza la sesión al terminar.'}</div></div>${cardioPrescriptionHtml(day)}`+
  (day.exercises||[]).map(ex=>`<div class="workout-session-exercise">
-   <div class="workout-exercise-head">${exerciseThumbHtml(ex)}<div><h3>${escHtml(ex.name||'Ejercicio')}</h3><div class="meta">${ex.muscle_group?escHtml(ex.muscle_group):''}</div>${techniqueBadgeHtml(ex.notes)}</div></div>
+   <div class="workout-exercise-head">${exerciseThumbHtml(ex)}<div><h3>${escHtml(ex.name||'Ejercicio')}</h3><div class="meta">${ex.muscle_group?escHtml(ex.muscle_group):''}${ex.rest_seconds!=null?' · Descanso '+escHtml(String(ex.rest_seconds))+' segundos':''}</div>${techniqueBadgeHtml(ex.notes)}</div></div>
    <div class="workout-log-head"><span>Serie</span><span>Reps</span><span>Kg</span><span>RIR</span><span>Estado</span></div>
    ${(ex.sets||[]).map(st=>{
     const log=logMap.get(st.id)||{};
@@ -6156,12 +6156,13 @@ function addRoutineExercise(dayEl,exerciseData=null){
  const firstSet=[...(exerciseData?.sets||[])].sort((a,b)=>(a.set_number||0)-(b.set_number||0))[0]||{};
  const setCount=(exerciseData?.sets||[]).length||3;
  const min=firstSet.target_reps_min??8,max=firstSet.target_reps_max??12,rir=firstSet.target_rir??2;
+ const restSeconds=exerciseData?.rest_seconds??90;
  const prescription=parseExercisePrescription(exerciseData?.notes||'');
  const row=document.createElement('div');row.className='routine-exercise-row';
  if(exerciseData?.id)row.dataset.weId=exerciseData.id;
  if(exerciseData?.exercise_id)row.dataset.originalExerciseId=exerciseData.exercise_id;
  row.dataset.setIds=JSON.stringify([...(exerciseData?.sets||[])].sort((a,b)=>(a.set_number||0)-(b.set_number||0)).map(s=>s.id).filter(Boolean));
- row.innerHTML=`<div class="field exercise-select"><label>Ejercicio</label><div style="display:flex;gap:8px;align-items:center"><div class="re-thumb"></div><select class="re-exercise" style="flex:1">${options}</select></div></div><div class="field"><label>Series</label><input class="re-sets" type="number" min="1" max="20" value="${setCount}"></div><div class="field"><label>Rep. mín.</label><input class="re-min" type="number" min="1" max="100" value="${min}"></div><div class="field"><label>Rep. máx.</label><input class="re-max" type="number" min="1" max="100" value="${max}"></div><div class="field"><label>RIR</label><input class="re-rir" type="number" min="0" max="10" step="0.5" value="${rir}"></div><button class="btn ghost mini-btn" type="button" onclick="this.parentElement.remove()">✕</button><div class="routine-exercise-advanced"><div class="field"><label>Técnica de entrenamiento</label><select class="re-technique">${techniqueOptions(prescription.technique)}</select></div><div class="field"><label>Configuración avanzada</label><input class="re-technique-detail" value="${escHtml(prescription.detail)}" placeholder="Ej. 3 bajadas del 20% o 30 s"></div><div class="field wide"><label>Indicaciones para el cliente</label><input class="re-notes" value="${escHtml(prescription.notes)}" placeholder="Ej. Alternar lados, 3 s de bajada, sin descanso entre ejercicios…"></div></div>`;
+ row.innerHTML=`<div class="field exercise-select"><label>Ejercicio</label><div style="display:flex;gap:8px;align-items:center"><div class="re-thumb"></div><select class="re-exercise" style="flex:1">${options}</select></div></div><div class="field"><label>Series</label><input class="re-sets" type="number" min="1" max="20" value="${setCount}"></div><div class="field"><label>Rep. mín.</label><input class="re-min" type="number" min="1" max="100" value="${min}"></div><div class="field"><label>Rep. máx.</label><input class="re-max" type="number" min="1" max="100" value="${max}"></div><div class="field"><label>RIR</label><input class="re-rir" type="number" min="0" max="10" step="0.5" value="${rir}"></div><div class="field"><label>Descanso</label><div style="display:flex;align-items:center;gap:6px"><input class="re-rest" type="number" min="0" max="900" step="15" value="${restSeconds}"><span class="muted tiny">s</span></div></div><button class="btn ghost mini-btn" type="button" onclick="this.parentElement.remove()">✕</button><div class="routine-exercise-advanced"><div class="field"><label>Técnica de entrenamiento</label><select class="re-technique">${techniqueOptions(prescription.technique)}</select></div><div class="field"><label>Configuración avanzada</label><input class="re-technique-detail" value="${escHtml(prescription.detail)}" placeholder="Ej. 3 bajadas del 20% o 30 s"></div><div class="field wide"><label>Indicaciones para el cliente</label><input class="re-notes" value="${escHtml(prescription.notes)}" placeholder="Ej. Alternar lados, 3 s de bajada, sin descanso entre ejercicios…"></div></div>`;
  dayEl.querySelector('.routine-exercises').appendChild(row);
  if(exerciseData?.exercise_id)row.querySelector('.re-exercise').value=exerciseData.exercise_id;
  const select=row.querySelector('.re-exercise');
@@ -6506,6 +6507,7 @@ async function saveRoutine(){
    min:parseInt(r.querySelector('.re-min').value||'0')||null,
    max:parseInt(r.querySelector('.re-max').value||'0')||null,
    rir:Number.isFinite(parseFloat(r.querySelector('.re-rir').value))?parseFloat(r.querySelector('.re-rir').value):null,
+   restSeconds:Number.isFinite(parseInt(r.querySelector('.re-rest')?.value,10))?parseInt(r.querySelector('.re-rest').value,10):null,
    notes:buildExercisePrescription(r.querySelector('.re-technique')?.value,r.querySelector('.re-technique-detail')?.value,r.querySelector('.re-notes')?.value)
   }))
  }));
@@ -6629,6 +6631,8 @@ async function saveRoutine(){
     const min=parseInt(r.querySelector('.re-min').value||'0')||null;
     const max=parseInt(r.querySelector('.re-max').value||'0')||null;
     const rir=parseFloat(r.querySelector('.re-rir').value);
+    const restRaw=parseInt(r.querySelector('.re-rest')?.value||'',10);
+    const rest_seconds=Number.isFinite(restRaw)?smartClamp(restRaw,0,900):null;
     const notes=buildExercisePrescription(r.querySelector('.re-technique')?.value,r.querySelector('.re-technique-detail')?.value,r.querySelector('.re-notes')?.value);
 
     let weId=r.dataset.weId||null;
@@ -6644,16 +6648,16 @@ async function saveRoutine(){
     const oldEx=weId?(oldDay?.exercises||[]).find(x=>x.id===weId):null;
     if(weId){
      const exerciseChanged=needsOrderShift||!oldEx||String(oldEx.exercise_id)!==String(exercise_id)||
-      Number(oldEx.exercise_order)!==ei+1||String(oldEx.notes||'')!==String(notes||'');
+      Number(oldEx.exercise_order)!==ei+1||Number(oldEx.rest_seconds??-1)!==Number(rest_seconds??-1)||String(oldEx.notes||'')!==String(notes||'');
      if(exerciseChanged){
       const {error:weErr}=await sb.from('workout_exercises')
-       .update({exercise_id,exercise_order:ei+1,notes,is_archived:false,updated_at:new Date().toISOString()})
+       .update({exercise_id,exercise_order:ei+1,rest_seconds,notes,is_archived:false,updated_at:new Date().toISOString()})
        .eq('id',weId).eq('workout_day_id',dayId);
       if(weErr)throw weErr;
      }
     }else{
      const {data:we,error:weErr}=await sb.from('workout_exercises')
-      .insert({workout_day_id:dayId,exercise_id,exercise_order:ei+1,notes,is_archived:false})
+      .insert({workout_day_id:dayId,exercise_id,exercise_order:ei+1,rest_seconds,notes,is_archived:false})
       .select('id').single();
      if(weErr)throw weErr;
      weId=we.id;
@@ -10519,6 +10523,7 @@ function smartPlanRender(){
     <div class="field"><label>Repeticiones mínimas</label><input id="smartEditRepsMin" type="number" min="1" max="50" value="${p.prescription.repsMin}"></div>
     <div class="field"><label>Repeticiones máximas</label><input id="smartEditRepsMax" type="number" min="1" max="50" value="${p.prescription.repsMax}"></div>
     <div class="field"><label>RIR objetivo</label><input id="smartEditRir" type="number" min="0" max="5" value="${p.prescription.rir}"></div>
+    <div class="field"><label>Descanso entre series</label><div style="display:flex;align-items:center;gap:8px"><input id="smartEditRest" type="number" min="0" max="900" step="15" value="${p.restSeconds||90}"><span class="muted tiny">segundos</span></div></div>
     <div class="field wide"><label>Equipamiento disponible</label><input id="smartEditEquipment" value="${escHtml(p.equipment||'')}" placeholder="Ej. Gimnasio completo"></div>
     <div class="field wide"><label>Preferencias</label><input id="smartEditPreferences" value="${escHtml(p.preferences||'')}" placeholder="Ej. Priorizar glúteos, evitar superseries…"></div>
     <div class="field wide"><label>Lesiones o limitaciones</label><input id="smartEditLimitations" value="${escHtml(p.limitations||'')}" placeholder="Ej. Molestia de hombro"></div>
@@ -10535,7 +10540,7 @@ function smartPlanRender(){
    ${p.days.map(d=>`<div class="smart-plan-day">
     <div class="smart-plan-day-head"><b>Día ${d.day} · ${escHtml(d.name)}</b><span class="pill">${smartDayExerciseCount(p.sessionMinutes,d)} ejercicios base</span></div>
     <div class="smart-plan-day-muscles">${escHtml(d.muscles.join(' · '))}</div>
-    <div class="smart-plan-day-meta"><span>${p.prescription.sets} series</span><span>${p.prescription.repsMin}–${p.prescription.repsMax} reps</span><span>RIR ${p.prescription.rir}</span></div>
+    <div class="smart-plan-day-meta"><span>${p.prescription.sets} series</span><span>${p.prescription.repsMin}–${p.prescription.repsMax} reps</span><span>RIR ${p.prescription.rir}</span><span>Descanso ${p.restSeconds||90} s</span></div>
    </div>`).join('')}
   </div>
   <div class="smart-plan-notes">
@@ -10559,6 +10564,8 @@ function smartPlanApplyAdjustments(){
  const repsMax=smartClamp(Number(document.getElementById('smartEditRepsMax')?.value)||base.repsMax,repsMin,50);
  const rirValue=Number(document.getElementById('smartEditRir')?.value);
  const rir=smartClamp(Number.isFinite(rirValue)?rirValue:base.rir,0,5);
+ const restValue=Number(document.getElementById('smartEditRest')?.value);
+ const restSeconds=smartClamp(Number.isFinite(restValue)?Math.round(restValue):Number(p.restSeconds)||90,0,900);
  const equipment=document.getElementById('smartEditEquipment')?.value?.trim()||'';
  const preferences=document.getElementById('smartEditPreferences')?.value?.trim()||'';
  const limitations=document.getElementById('smartEditLimitations')?.value?.trim()||'';
@@ -10571,6 +10578,7 @@ function smartPlanApplyAdjustments(){
   level,
   levelLabel:{beginner:'Principiante',intermediate:'Intermedio',advanced:'Avanzado'}[level],
   prescription:{...base,sets,repsMin,repsMax,rir},
+  restSeconds,
   days:smartSplit(days),
   routineName:smartPlanTitle(goalType,days),
   equipment,
@@ -10615,6 +10623,7 @@ async function loadSmartTrainingPlan(clientId){
    level,
    levelLabel:{beginner:'Principiante',intermediate:'Intermedio',advanced:'Avanzado'}[level],
    prescription,
+   restSeconds:90,
    days:smartSplit(recommended),
    routineName:smartPlanTitle(goalType,recommended),
    equipment:o.equipment||'',
@@ -10722,6 +10731,7 @@ async function smartPlanToRoutineBuilder(){
     used.add(ex.id);
     exercises.push({
      exercise_id:ex.id,
+     rest_seconds:p.restSeconds||90,
      sets:smartMakeSetData(p.prescription)
     });
    }
@@ -10729,7 +10739,7 @@ async function smartPlanToRoutineBuilder(){
   addRoutineDay({name:d.name,weekday:null,reminder_time:null,exercises});
  }
  modal.classList.add('open');
- setAuthMessage('routineMsg','Propuesta cargada. Revisa ejercicios, series, repeticiones y RIR antes de guardar.');
+ setAuthMessage('routineMsg','Propuesta cargada. Revisa ejercicios, series, repeticiones, RIR y descanso antes de guardar.');
 }
 
 
