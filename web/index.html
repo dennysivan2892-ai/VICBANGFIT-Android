@@ -4408,6 +4408,7 @@ async function enterApp(user){
 
  if(role==='trainer'){
   document.body.classList.remove('client-mode');
+  const messageFab=document.getElementById('trainerMessageFab');if(messageFab)messageFab.style.display='grid';
   const coachName=currentProfile.full_name||'Coach';
   const title=document.querySelector('#dashboard .header h1');
   if(title) title.textContent='Hola, '+coachName+' 👋';
@@ -4427,6 +4428,7 @@ async function enterApp(user){
  }
 
  document.body.classList.add('client-mode');
+ const messageFab=document.getElementById('trainerMessageFab');if(messageFab)messageFab.style.display='none';
  document.getElementById('clientWelcome').textContent='Hola, '+(currentProfile.full_name||user.email.split('@')[0])+' 👋';
  await loadClientOwnAvatar();
  await loadCurrentClientServices();
