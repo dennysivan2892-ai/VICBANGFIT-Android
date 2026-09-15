@@ -1,4 +1,4 @@
-# Lanzamiento TestFlight: replanificación automática de bloques de 6 a 5 días
+# Lanzamiento TestFlight: burbuja de mensajes y conversaciones sin sugerencia inicial
 name: Subir VICBANGFIT a TestFlight
 
 on:
