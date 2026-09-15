@@ -47,9 +47,6 @@ async function saveToken(token) {
 }
 
 export async function initVicbangfitPush() {
-  if (window.__vicbangfitPushInitialized) {
-    return;
-  }
   if (!Capacitor.isNativePlatform()) {
     return;
   }
@@ -68,8 +65,6 @@ export async function initVicbangfitPush() {
     console.warn('Permiso de notificaciones no concedido');
     return;
   }
-
-  window.__vicbangfitPushInitialized = true;
 
   await PushNotifications.addListener(
     'registration',
@@ -99,17 +94,17 @@ export async function initVicbangfitPush() {
 
   await PushNotifications.addListener(
     'pushNotificationActionPerformed',
-    async action => {
+    action => {
       const data = action.notification?.data || {};
 
-      try {
-        localStorage.setItem('vicbangfit_pending_push_action', JSON.stringify(data));
-      } catch (_) {}
+      if (window.showPage) {
+        if (data.type === 'pr' || data.exercise_id) {
+          window.showPage('notificaciones');
 
-      if (window.handleVicbangfitPushAction) {
-        await window.handleVicbangfitPushAction(data);
-      } else {
-        window.__vicPendingPushAction = data;
+          if (window.loadNotifications) {
+            window.loadNotifications();
+          }
+        }
       }
     }
   );
