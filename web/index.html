@@ -1643,6 +1643,7 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 .supp-library-item{padding:12px;border-radius:13px;background:#0b0b0b;border:1px solid #292929}
 .supp-library-item h4{margin:0;font-size:13px}
 .supp-library-item p{margin:6px 0 0;font-size:9px;color:#9a9a9a;line-height:1.45}
+.supplement-builder-card{width:min(760px,100%);max-height:min(92vh,920px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
 .supp-editor-list{display:grid;gap:10px;margin-top:12px}
 .supp-editor-item{padding:13px;border-radius:14px;background:#0d0d0d;border:1px solid #303030}
 .supp-editor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
@@ -2307,7 +2308,7 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
         <label for="clientNextCheckinInput">Programar día del check-in</label>
         <div class="checkin-schedule-row">
           <input id="clientNextCheckinInput" type="date">
-          <button class="btn" type="button" onclick="saveClientNextCheckin()">Guardar</button>
+          <button id="saveClientNextCheckinBtn" class="btn" type="button" onclick="saveClientNextCheckin()">Guardar</button>
           <button class="btn ghost" type="button" onclick="clearClientNextCheckin()">Quitar</button>
         </div>
         <div id="clientNextCheckinMsg" class="auth-error" style="margin-top:7px"></div>
@@ -3757,7 +3758,7 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 
 
 <div id="supplementBuilderModal" class="client-modal" onclick="if(event.target===this)closeSupplementBuilder()">
-  <div class="client-modal-card" style="width:min(760px,100%)">
+  <div class="client-modal-card supplement-builder-card">
     <div class="row">
       <div><h2 id="suppBuilderTitle">🧪 Crear plan de suplementación</h2><div class="muted tiny">El entrenador revisa y decide qué incluir. Las propuestas automáticas son orientativas.</div></div>
       <button class="btn ghost" type="button" onclick="closeSupplementBuilder()">✕</button>
@@ -4021,8 +4022,13 @@ function stopPlanningDataRealtime(){
  if(planningDataChannel){try{sb.removeChannel(planningDataChannel)}catch(_){ }planningDataChannel=null}
  if(planningRefreshTimer){clearTimeout(planningRefreshTimer);planningRefreshTimer=null}
 }
+let vicDataMutationDepth=0;
+function vicBeginDataMutation(){vicDataMutationDepth++}
+function vicEndDataMutation(){setTimeout(()=>{vicDataMutationDepth=Math.max(0,vicDataMutationDepth-1)},1200)}
+function vicDataMutationActive(){return vicDataMutationDepth>0}
+
 function schedulePlanningDataRefresh(clientId){
- if(currentProfile?.role!=='trainer'||!clientId)return;
+ if(currentProfile?.role!=='trainer'||!clientId||vicDataMutationActive())return;
  if(planningRefreshTimer)clearTimeout(planningRefreshTimer);
  planningRefreshTimer=setTimeout(async()=>{
   planningRefreshTimer=null;
@@ -4056,6 +4062,7 @@ function startPlanningDataRealtime(){
    if(clientId&&clients.some(c=>c.id===clientId))schedulePlanningDataRefresh(clientId);
   })
   .on('postgres_changes',{event:'*',schema:'public',table:'nutrition_plans',filter:`trainer_id=eq.${currentProfile.id}`},payload=>{
+   if(vicDataMutationActive())return;
    const clientId=payload.new?.client_id||payload.old?.client_id;if(clientId)schedulePlanningDataRefresh(clientId);
    loadTrainerNutrition().catch(console.error);
   })
@@ -5282,7 +5289,8 @@ function checkinDateTimeLabel(iso){
  return new Date(y,m-1,d,12).toLocaleDateString('es-ES',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
 }
 async function saveClientNextCheckin(){
- if(currentProfile?.role!=='trainer'||!activeTrainerClientId)return;
+ if(currentProfile?.role!=='trainer'||!activeTrainerClientId||vicDataMutationActive())return;
+ const btn=document.getElementById('saveClientNextCheckinBtn');
  const input=document.getElementById('clientNextCheckinInput');
  const msg=document.getElementById('clientNextCheckinMsg');
  if(msg){msg.textContent='';msg.classList.remove('auth-success')}
@@ -5290,6 +5298,7 @@ async function saveClientNextCheckin(){
  const dateIso=input.value;
  if(!/^\d{4}-\d{2}-\d{2}$/.test(dateIso)){if(msg)msg.textContent='La fecha no es válida.';return}
  if(dateIso<nutritionToday()){if(msg)msg.textContent='El próximo check-in debe ser hoy o una fecha futura.';return}
+ vicBeginDataMutation();if(btn){btn.disabled=true;btn.textContent='Guardando…'}
  try{
   // Se guarda al mediodía local para conservar el día elegido en cualquier zona horaria.
   const [y,m,d]=dateIso.split('-').map(Number);
@@ -5311,6 +5320,8 @@ async function saveClientNextCheckin(){
   toast(sent>0?'Check-in programado + aviso enviado 🔔':'Check-in programado ✓');
  }catch(error){
   console.error(error);if(msg)msg.textContent=vicError(error,'No se pudo programar el check-in.');
+ }finally{
+  if(btn){btn.disabled=false;btn.textContent='Guardar'}vicEndDataMutation();
  }
 }
 async function clearClientNextCheckin(){
@@ -8327,7 +8338,7 @@ async function archiveNutritionPlan(planId){
  if(error){console.error(error);toast('No se pudo quitar el plan');return}toast('Plan quitado de activos');await loadTrainerNutrition();
 }
 async function saveNutritionPlan(){
- const btn=document.getElementById('saveNutritionBtn');const msg=document.getElementById('nutritionBuilderMsg');msg.textContent='';
+ const btn=document.getElementById('saveNutritionBtn');if(!btn||btn.disabled||vicDataMutationActive())return;const msg=document.getElementById('nutritionBuilderMsg');msg.textContent='';
  const clientId=document.getElementById('nutritionClient').value;const name=document.getElementById('nutritionPlanName').value.trim()||'Plan nutricional';
  const meals=[...document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor')].map((el,i)=>({id:el.dataset.mealId||null,order:i+1,name:el.querySelector('.nutrition-meal-name').value.trim(),time:el.querySelector('.nutrition-meal-time').value||null,notes:el.querySelector('.nutrition-meal-notes')?.value.trim()||null,foods:el.querySelector('.nutrition-meal-foods').value.split('\n').map(nutritionParseFoodLine).filter(Boolean)})).filter(m=>m.name);
  if(!clientId){msg.textContent='Selecciona un cliente.';return}if(!meals.length){msg.textContent='Añade al menos una comida.';return}
@@ -8337,7 +8348,7 @@ async function saveNutritionPlan(){
   msg.classList.remove('auth-success');
   return;
  }
- btn.disabled=true;btn.textContent='Guardando…';
+ btn.disabled=true;btn.textContent='Guardando…';vicBeginDataMutation();
  try{
   const oldPlanId=nutritionEditingPlanId;
   const planPayload={trainer_id:currentProfile.id,client_id:clientId,name,status:'active',target_calories:Number(document.getElementById('nutritionCalories').value)||null,target_protein_g:Number(document.getElementById('nutritionProtein').value)||null,target_carbs_g:Number(document.getElementById('nutritionCarbs').value)||null,target_fat_g:Number(document.getElementById('nutritionFat').value)||null,notes:document.getElementById('nutritionNotes').value.trim()||null};
@@ -8479,6 +8490,7 @@ async function saveNutritionPlan(){
  finally{
   document.getElementById('nutritionClient').disabled=false;
   if(nutritionBuilderSafetyLast.blocked){btn.disabled=false;btn.textContent='⛔ Corrige conflictos'}else{btn.disabled=false;btn.textContent='Guardar plan'}
+  vicEndDataMutation();
  }
 }
 
@@ -14310,7 +14322,9 @@ function addSupplementEditor(data={}){
  </div>`;
  box.querySelector('.supp-frequency').value=data.frequency||'daily';
  box.querySelector('.supp-evidence-select').value=evidence;
- document.getElementById('suppEditorList').appendChild(box);
+ const holder=document.getElementById('suppEditorList');
+ holder.appendChild(box);
+ requestAnimationFrame(()=>box.scrollIntoView({behavior:'smooth',block:'nearest'}));
 }
 
 function supplementEditorAutofill(input){
@@ -14350,13 +14364,13 @@ function collectSupplementEditors(){
 }
 
 async function saveSupplementPlan(){
- if(currentProfile?.role!=='trainer')return;
+ if(currentProfile?.role!=='trainer'||vicDataMutationActive())return;
  const btn=document.getElementById('suppSaveBtn'),msg=document.getElementById('suppBuilderMsg');
  const clientId=document.getElementById('suppClient').value;
  const items=collectSupplementEditors();
  if(!clientId){msg.textContent='Selecciona un cliente.';return}
  if(!items.length){msg.textContent='Añade al menos un suplemento.';return}
- btn.disabled=true;btn.textContent='Guardando…';msg.textContent='';
+ btn.disabled=true;btn.textContent='Guardando…';msg.textContent='';vicBeginDataMutation();
  try{
   const payload={trainer_id:currentProfile.id,client_id:clientId,name:document.getElementById('suppPlanName').value.trim()||'Plan de suplementación',goal:document.getElementById('suppGoal').value,status:'active',notes:document.getElementById('suppPlanNotes').value.trim()||null};
   let planId=supplementEditingPlanId;
@@ -14382,7 +14396,7 @@ async function saveSupplementPlan(){
   msg.textContent='Plan de suplementación guardado correctamente.';msg.classList.add('auth-success');
   toast('Plan de suplementación guardado ✓');await loadTrainerSupplements();setTimeout(()=>closeSupplementBuilder(),500);
  }catch(error){console.error(error);msg.textContent=vicError(error,'No se pudo guardar el plan.')}
- finally{btn.disabled=false;btn.textContent='Guardar plan'}
+ finally{btn.disabled=false;btn.textContent='Guardar plan';vicEndDataMutation()}
 }
 
 async function archiveSupplementPlan(planId){
