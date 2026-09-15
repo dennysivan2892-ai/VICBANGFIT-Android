@@ -1,4 +1,4 @@
-# Lanzamiento TestFlight: ajustes de nuevo bloque, descanso entre series y apertura de notificaciones
+# Lanzamiento TestFlight: replanificación automática de bloques de 6 a 5 días
 name: Subir VICBANGFIT a TestFlight
 
 on:
