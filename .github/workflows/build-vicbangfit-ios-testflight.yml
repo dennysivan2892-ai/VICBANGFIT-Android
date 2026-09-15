@@ -1,4 +1,4 @@
-# Lanzamiento TestFlight: burbuja de mensajes y conversaciones sin sugerencia inicial
+# Lanzamiento TestFlight: corrección de visibilidad y caché de la burbuja de mensajes
 name: Subir VICBANGFIT a TestFlight
 
 on:
