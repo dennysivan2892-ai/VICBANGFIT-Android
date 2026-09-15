@@ -10557,7 +10557,8 @@ function smartPlanApplyAdjustments(){
  const sets=smartClamp(Number(document.getElementById('smartEditSets')?.value)||base.sets,1,10);
  const repsMin=smartClamp(Number(document.getElementById('smartEditRepsMin')?.value)||base.repsMin,1,50);
  const repsMax=smartClamp(Number(document.getElementById('smartEditRepsMax')?.value)||base.repsMax,repsMin,50);
- const rir=smartClamp(Number(document.getElementById('smartEditRir')?.value)??base.rir,0,5);
+ const rirValue=Number(document.getElementById('smartEditRir')?.value);
+ const rir=smartClamp(Number.isFinite(rirValue)?rirValue:base.rir,0,5);
  const equipment=document.getElementById('smartEditEquipment')?.value?.trim()||'';
  const preferences=document.getElementById('smartEditPreferences')?.value?.trim()||'';
  const limitations=document.getElementById('smartEditLimitations')?.value?.trim()||'';
