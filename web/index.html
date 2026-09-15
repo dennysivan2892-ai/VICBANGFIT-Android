@@ -8825,7 +8825,9 @@ async function saveClientCheckin(){
   let error,savedCheckin=null;
   if(clientEditingCheckin?.id){({error}=await sb.from('checkins').update(payload).eq('id',clientEditingCheckin.id).eq('client_id',currentProfile.id))}
   else{
-   const result=await sb.from('checkins').insert(payload).select('id').single();
+   // Un cliente solo puede tener un check-in por fecha. Si ya existe, se actualiza
+   // para evitar el error técnico de clave duplicada al reintentar el envío.
+   const result=await sb.from('checkins').upsert(payload,{onConflict:'client_id,checkin_date'}).select('id').single();
    error=result.error;savedCheckin=result.data||null;
   }
   if(error)throw error;
