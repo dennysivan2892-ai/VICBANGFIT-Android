@@ -5634,7 +5634,7 @@ function renderTrainerRoutines(){
     <div class="meta" style="margin-top:5px"><b>${escHtml(r.client_name||'Cliente')}</b>${r.goal?' · '+escHtml(r.goal):''} · ${escHtml(routineBlockMeta(r))}</div>
     <div class="real-routine-actions">
       ${r.status==='active'?`<button class="btn" type="button" onclick="createNextRoutineBlock('${r.id}')">↗ Crear siguiente bloque</button>`:''}
-      ${r.status==='draft'&&r.previous_routine_id?`<button class="btn dark" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar borrador</button><button class="btn" type="button" onclick="activateRoutineBlock('${r.id}')">✓ Activar bloque</button>`:`<button class="btn dark" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar</button>`}
+      ${r.status==='draft'&&r.previous_routine_id?`<button class="btn" type="button" onclick="replanRoutineDraft('${r.id}')">✨ Replanificar días</button><button class="btn dark" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar borrador</button><button class="btn" type="button" onclick="activateRoutineBlock('${r.id}')">✓ Activar bloque</button>`:`<button class="btn dark" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar</button>`}
       <button class="btn danger" type="button" onclick="deleteRoutine('${r.id}')">🗄 Archivar</button>
     </div>
    </div>
@@ -6240,6 +6240,62 @@ async function activateRoutineBlock(routineId){
  }catch(error){
   console.error('activate routine block',error);
   toast(error?.message||'No se pudo activar el bloque');
+ }
+}
+
+async function replanRoutineDraft(routineId){
+ if(currentProfile?.role!=='trainer')return;
+ const routine=trainerRoutines.find(r=>r.id===routineId);
+ if(!routine||routine.status!=='draft'||!routine.previous_routine_id){toast('Solo se puede replanificar un bloque en borrador');return}
+ const currentDays=Math.max(1,Math.min(6,(routine.days||[]).length||3));
+ const answer=prompt('¿Cuántos días de entrenamiento quieres para este nuevo bloque? Escribe un número del 1 al 6.',String(currentDays));
+ if(answer===null)return;
+ const days=Number(answer);
+ if(!Number.isInteger(days)||days<1||days>6){toast('Escribe un número de días entre 1 y 6');return}
+ try{
+  toast(`Generando propuesta de ${days} días…`);
+  await loadSmartTrainingPlan(routine.client_id);
+  if(!smartTrainingPlan)throw new Error('Faltan datos del cliente para generar la propuesta');
+  const p=smartTrainingPlan;
+  p.availableDays=days;
+  p.days=smartSplit(days);
+  p.routineName=smartPlanTitle(p.goalType,days);
+  p.restSeconds=Number(p.restSeconds)||90;
+
+  editingRoutineId=routineId;
+  setupRoutineModal('edit');
+  const modal=document.getElementById('routineBuilderModal');
+  document.getElementById('routineClient').innerHTML=clients.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+  document.getElementById('routineClient').value=routine.client_id;
+  document.getElementById('routineName').value=String(routine.name||p.routineName).replace(/\d+\s*días/i,`${days} días`);
+  document.getElementById('routineGoal').value=routine.goal||p.goalText||'';
+  const saveBtn=document.getElementById('saveRoutineBtn');
+  if(saveBtn)saveBtn.textContent=`Guardar borrador Bloque ${Number(routine.block_number)||2}`;
+  setAuthMessage('routineMsg','');
+  await loadRoutineExerciseLibrary();
+
+  routineDayCounter=0;
+  document.getElementById('routineDays').innerHTML='';
+  const used=new Set();
+  for(const d of p.days){
+   const maxEx=smartDayExerciseCount(p.sessionMinutes,d);
+   const exercises=[];
+   for(const muscle of d.muscles.slice(0,maxEx)){
+    const ex=smartFindExerciseByMuscle(muscle,used,p.level,d.day);
+    if(ex){
+     used.add(ex.id);
+     exercises.push({exercise_id:ex.id,rest_seconds:p.restSeconds,sets:smartMakeSetData(p.prescription)});
+    }
+   }
+   addRoutineDay({name:d.name,weekday:null,reminder_time:null,exercises});
+  }
+  modal.classList.add('open');
+  setAuthMessage('routineMsg',`Nueva propuesta de ${days} días preparada. Revísala y pulsa “Guardar borrador”; el bloque anterior seguirá protegido.`);
+ }catch(error){
+  console.error('replan routine draft',error);
+  editingRoutineId=null;
+  setupRoutineModal('create');
+  toast(error?.message||'No se pudo replanificar el borrador');
  }
 }
 
