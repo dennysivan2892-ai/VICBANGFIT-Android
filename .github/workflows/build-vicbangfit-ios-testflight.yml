@@ -8,6 +8,10 @@ on:
       - main
     paths:
       - ".github/workflows/build-vicbangfit-ios-testflight.yml"
+      - "web/**"
+      - "package.json"
+      - "package-lock.json"
+      - "capacitor.config.*"
 
 permissions:
   contents: read
@@ -159,4 +163,3 @@ jobs:
             --file "$IPA_PATH" \
             --apiKey "$APPSTORE_KEY_ID" \
             --apiIssuer "$APPSTORE_ISSUER_ID"
-
