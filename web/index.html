@@ -244,7 +244,8 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 .technique-badge{display:inline-flex;align-items:center;margin-top:5px;padding:4px 8px;border-radius:999px;background:#27200c;border:1px solid #6d5614;color:#ffd45e;font-size:11px;font-weight:800}
 .routine-exercise-row:first-of-type{border-top:0}.routine-exercise-row .field{margin:0}.mini-btn{padding:10px 11px}
 .real-routine-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-.real-routine-card{padding:17px}.real-routine-card h3{font-size:20px;margin:0}.real-routine-head{margin-bottom:12px}.real-routine-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.real-routine-actions .btn{padding:9px 12px}.btn.danger{background:#351014;border:1px solid #6a1b26;color:#ff7b86}.real-routine-day{background:#0c0c0c;border:1px solid #282828;border-radius:12px;padding:12px;margin-top:10px}.real-routine-exercise{padding:9px 0;border-top:1px solid #242424}.real-routine-exercise:first-of-type{border-top:0}.real-routine-exercise b{display:block;margin-bottom:3px}
+.real-routine-card{padding:17px}.real-routine-card h3{font-size:20px;margin:0}.real-routine-head{margin-bottom:12px}.real-routine-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.real-routine-actions .btn{padding:9px 12px}.btn.danger{background:#351014;border:1px solid #6a1b26;color:#ff7b86}.real-routine-day{background:linear-gradient(145deg,#0d1115,#090909);border:1px solid #334252;border-radius:16px;padding:0;margin-top:14px;overflow:hidden;box-shadow:0 12px 28px #0004}.real-routine-day-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;background:linear-gradient(135deg,#142333,#10161d);border-bottom:1px solid #314353}.real-routine-day-title{display:flex;align-items:center;gap:10px;min-width:0}.real-routine-day-number{display:inline-flex;align-items:center;justify-content:center;min-width:64px;padding:7px 10px;border-radius:10px;background:#2f9bff;color:#06131e;font-size:11px;font-weight:950;letter-spacing:.05em}.real-routine-day-name{font-size:16px;font-weight:900;color:#fff}.real-routine-day-body{padding:4px 14px 14px}.real-routine-exercise{padding:12px 0;border-top:1px solid #242d35}.real-routine-exercise:first-of-type{border-top:0}.real-routine-exercise b{display:block;margin-bottom:3px}
+.trainer-client-scope{display:none;margin:0 0 14px;padding:12px 14px;border:1px solid #31506a;border-radius:14px;background:linear-gradient(135deg,#102132,#0c1117);align-items:center;justify-content:space-between;gap:12px}.trainer-client-scope.show{display:flex}.trainer-client-scope b{color:#65b7ff}.trainer-client-scope .btn{padding:8px 11px;font-size:11px}
 .exercise-routine-line{display:flex;align-items:center;gap:11px}
 .exercise-thumb{width:52px;height:52px;border-radius:11px;object-fit:cover;border:1px solid #2d2d2d;background:#111;flex:0 0 52px}
 .exercise-thumb.placeholder{display:grid;place-items:center;font-size:22px;color:#7d7d7d}
@@ -2326,9 +2327,9 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
       </div>
 
       <div class="client-real-actions">
-        <button class="btn dark" onclick="showPage('entrenamientos')">🏋 Rutinas</button>
-        <button class="btn dark" onclick="showPage('nutricion')">🥗 Nutrición</button>
-        <button class="btn dark" onclick="showPage('suplementacion')">🧪 Suplementación</button>
+        <button class="btn dark" onclick="openTrainerClientSection('entrenamientos')">🏋 Rutinas</button>
+        <button class="btn dark" onclick="openTrainerClientSection('nutricion')">🥗 Nutrición</button>
+        <button class="btn dark" onclick="openTrainerClientSection('suplementacion')">🧪 Suplementación</button>
         <button class="btn dark" onclick="showPage('checkins')">📸 Check-ins</button>
         <button class="btn dark" onclick="showPage('progreso')">📊 Progreso</button>
       </div>
@@ -2731,15 +2732,17 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 </section>
 
 <section id="entrenamientos" class="section">
-  <div class="header"><div><h1>Entrenamientos</h1><div class="muted">Rutinas reales guardadas y asignadas a tus clientes.</div></div><button class="btn" onclick="openRoutineBuilder()">＋ Crear rutina</button></div>
+  <div class="header"><div><h1 id="trainerRoutinesTitle">Entrenamientos</h1><div id="trainerRoutinesSubtitle" class="muted">Rutinas reales guardadas y asignadas a tus clientes.</div></div><button class="btn" onclick="openRoutineBuilder()">＋ Crear rutina</button></div>
+  <div id="trainerRoutinesScope" class="trainer-client-scope"></div>
   <div id="trainerRoutinesList" class="real-routine-list"><div class="empty-state card">Cargando rutinas…</div></div>
 </section>
 
 <section id="nutricion" class="section">
   <div class="header">
-    <div><h1>Nutrición real</h1><div class="muted">Planes, comidas y adherencia guardados en Supabase.</div></div>
+    <div><h1 id="trainerNutritionTitle">Nutrición real</h1><div id="trainerNutritionSubtitle" class="muted">Planes, comidas y adherencia guardados en Supabase.</div></div>
     <div class="header-actions"><button class="btn dark" type="button" onclick="loadTrainerNutrition()">↻ Actualizar</button><button class="btn dark" type="button" onclick="openMonthlyNutritionReviewForSelected()">📈 Revisión mensual</button><button class="btn" type="button" onclick="openNutritionBuilder()">＋ Crear plan</button></div>
   </div>
+  <div id="trainerNutritionScope" class="trainer-client-scope"></div>
   <div class="grid4">
     <div class="card kpi"><div class="label">PLANES ACTIVOS</div><div class="value" id="nutritionActivePlans">—</div><div class="green">Clientes con plan</div></div>
     <div class="card kpi"><div class="label">COMIDAS HOY</div><div class="value" id="nutritionMealsToday">—</div><div class="green">Realizadas / previstas</div></div>
@@ -2808,10 +2811,11 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 
 <section id="suplementacion" class="section">
   <div class="header">
-    <div><h1>🧪 Suplementación deportiva</h1><div class="muted">Planes, horarios y adherencia de suplementación guardados en Supabase.</div></div>
+    <div><h1 id="trainerSupplementsTitle">🧪 Suplementación deportiva</h1><div id="trainerSupplementsSubtitle" class="muted">Planes, horarios y adherencia de suplementación guardados en Supabase.</div></div>
     <div class="header-actions"><button class="btn dark" type="button" onclick="loadTrainerSupplements()">↻ Actualizar</button><button class="btn" type="button" onclick="openSupplementBuilder()">＋ Crear plan</button></div>
   </div>
 
+  <div id="trainerSupplementsScope" class="trainer-client-scope"></div>
   <div class="grid4">
     <div class="card kpi"><div class="label">PLANES ACTIVOS</div><div class="value" id="suppActivePlans">—</div><div class="green">Clientes con plan</div></div>
     <div class="card kpi"><div class="label">TOMAS HOY</div><div class="value" id="suppTakenToday">—</div><div class="green">Realizadas / previstas</div></div>
@@ -4782,6 +4786,10 @@ function showPage(id,vicOptions={}){
     const required={client_workout:'training',client_nutrition:'nutrition',client_supplements:'supplements'}[id];
     if(required&&!clientServiceEnabled(required)){toast('Este servicio no está incluido en tu plan actual.');id='client_home'}
   }
+  if(currentProfile?.role==='trainer' && ['entrenamientos','nutricion','suplementacion'].includes(id)){
+    if(vicOptions?.trainerClientScope!==true)trainerContentClientId=null;
+    renderTrainerContentScope(id);
+  }
   // Si la app acaba de abrirse desde un aviso de alta, las cargas internas no pueden pisar Admin.
   if(currentProfile?.is_admin && vicAdminPushLockActive() && id!=='admin_accounts' && !vicOptions?.vicForce){
     if(vicOptions?.vicUserNavigation || vicOptions?.vicFromBack)vicClearAdminPushLock();
@@ -5221,6 +5229,37 @@ function renderClientTable(){
 }
 let activeTrainerClientId=null;
 let trainerClientPanelLoadToken=0;
+let trainerContentClientId=null;
+
+function trainerContentClient(){
+ return clients.find(c=>String(c.id)===String(trainerContentClientId))||null;
+}
+function renderTrainerContentScope(page){
+ const cfg={
+  entrenamientos:{title:'trainerRoutinesTitle',subtitle:'trainerRoutinesSubtitle',scope:'trainerRoutinesScope',single:'Rutinas',all:'Entrenamientos',copy:'Rutinas reales guardadas y asignadas a tus clientes.'},
+  nutricion:{title:'trainerNutritionTitle',subtitle:'trainerNutritionSubtitle',scope:'trainerNutritionScope',single:'Nutrición',all:'Nutrición real',copy:'Planes, comidas y adherencia guardados en Supabase.'},
+  suplementacion:{title:'trainerSupplementsTitle',subtitle:'trainerSupplementsSubtitle',scope:'trainerSupplementsScope',single:'Suplementación',all:'🧪 Suplementación deportiva',copy:'Planes, horarios y adherencia de suplementación guardados en Supabase.'}
+ }[page];
+ if(!cfg)return;
+ const client=trainerContentClient(),title=document.getElementById(cfg.title),subtitle=document.getElementById(cfg.subtitle),scope=document.getElementById(cfg.scope);
+ if(title)title.textContent=client?`${cfg.single} de ${client.name}`:cfg.all;
+ if(subtitle)subtitle.textContent=client?`Mostrando únicamente la planificación asignada a ${client.name}.`:cfg.copy;
+ if(scope){
+  scope.classList.toggle('show',!!client);
+  scope.innerHTML=client?`<div>👤 Estás viendo solo el contenido de <b>${escHtml(client.name)}</b></div><button class="btn dark" type="button" onclick="showAllTrainerContent('${page}')">Ver todos</button>`:'';
+ }
+}
+function openTrainerClientSection(page){
+ if(currentProfile?.role!=='trainer'||!activeTrainerClientId)return;
+ trainerContentClientId=activeTrainerClientId;
+ showPage(page,{trainerClientScope:true});
+}
+function showAllTrainerContent(page){
+ trainerContentClientId=null;
+ showPage(page,{trainerClientScope:false,vicUserNavigation:true});
+}
+window.openTrainerClientSection=openTrainerClientSection;
+window.showAllTrainerContent=showAllTrainerContent;
 
 function openClient(i){
   const c=clients[i];
@@ -5713,17 +5752,20 @@ function renderTrainerRoutines(){
     </div>
    </div>
    ${(r.days||[]).length?r.days.map(d=>`<div class="real-routine-day">
-     <div class="row"><b>${escHtml(d.name||('Día '+d.day_number))}</b><span class="pill">${(d.exercises||[]).length} ejercicio${(d.exercises||[]).length===1?'':'s'}${d.cardio_enabled?' + cardio':''}</span></div>
+     <div class="real-routine-day-head"><div class="real-routine-day-title"><span class="real-routine-day-number">DÍA ${Number(d.day_number)||1}</span><span class="real-routine-day-name">${escHtml(d.name||'Entrenamiento')}</span></div><span class="pill">${(d.exercises||[]).length} ejercicio${(d.exercises||[]).length===1?'':'s'}${d.cardio_enabled?' + cardio':''}</span></div>
+     <div class="real-routine-day-body">
      ${workoutScheduleText(d)?`<div class="workout-schedule-badge">🔔 ${escHtml(workoutScheduleText(d))}</div>`:''}
      ${(d.exercises||[]).length?d.exercises.map(ex=>`<div class="real-routine-exercise"><div class="exercise-routine-line">${exerciseThumbHtml(ex)}<div class="exercise-routine-copy"><b>${escHtml(ex.name||'Ejercicio')}</b><div class="meta">${escHtml(formatRoutineSetMeta(ex.sets))}${ex.muscle_group?' · '+escHtml(ex.muscle_group):''}${ex.rest_seconds!=null?' · Descanso '+escHtml(String(ex.rest_seconds))+' s':''}</div>${techniqueBadgeHtml(ex.notes)}</div></div></div>`).join(''):d.cardio_enabled?'':'<div class="muted tiny" style="margin-top:8px">Sin ejercicios.</div>'}
-     ${cardioPrescriptionHtml(d)}
+     ${cardioPrescriptionHtml(d)}</div>
     </div>`).join(''):'<div class="muted tiny">Esta rutina todavía no tiene días configurados.</div>'}
   </div>`).join('');
 }
 async function loadTrainerRoutines(){
  if(currentProfile?.role!=="trainer")return;
  const el=document.getElementById('trainerRoutinesList');if(el)el.innerHTML='<div class="empty-state card">Cargando rutinas…</div>';
- const {data:routines,error:rErr}=await sb.from('routines').select('id,client_id,name,goal,status,start_date,end_date,block_number,previous_routine_id,notes,created_at').eq('trainer_id',currentProfile.id).neq('status','archived').order('created_at',{ascending:false});
+ let routinesQuery=sb.from('routines').select('id,client_id,name,goal,status,start_date,end_date,block_number,previous_routine_id,notes,created_at').eq('trainer_id',currentProfile.id).neq('status','archived');
+ if(trainerContentClientId)routinesQuery=routinesQuery.eq('client_id',trainerContentClientId);
+ const {data:routines,error:rErr}=await routinesQuery.order('created_at',{ascending:false});
  if(rErr){console.error(rErr);if(el)el.innerHTML='<div class="empty-state card">No se pudieron cargar las rutinas.</div>';return}
  const base=routines||[];
  if(!base.length){trainerRoutines=[];renderTrainerRoutines();return}
@@ -5787,11 +5829,12 @@ function renderClientRoutines(){
     <div class="meta" style="margin-top:5px">${r.goal?escHtml(r.goal):'Objetivo por definir'} · ${escHtml(routineBlockMeta(r))}</div>
    </div>
    ${(r.days||[]).length?[...(r.days||[])].sort((a,b)=>(a.day_number||0)-(b.day_number||0)).map(d=>`<div class="real-routine-day">
-     <div class="row"><b>${escHtml(d.name||('Día '+d.day_number))}</b><span class="pill">${(d.exercises||[]).length} ejercicio${(d.exercises||[]).length===1?'':'s'}${d.cardio_enabled?' + cardio':''}</span></div>
+     <div class="real-routine-day-head"><div class="real-routine-day-title"><span class="real-routine-day-number">DÍA ${Number(d.day_number)||1}</span><span class="real-routine-day-name">${escHtml(d.name||'Entrenamiento')}</span></div><span class="pill">${(d.exercises||[]).length} ejercicio${(d.exercises||[]).length===1?'':'s'}${d.cardio_enabled?' + cardio':''}</span></div>
+     <div class="real-routine-day-body">
      ${workoutScheduleText(d)?`<div class="workout-schedule-badge">🔔 ${escHtml(workoutScheduleText(d))}</div>`:''}
      ${(d.exercises||[]).length?[...(d.exercises||[])].sort((a,b)=>(a.exercise_order||0)-(b.exercise_order||0)).map(ex=>`<div class="real-routine-exercise"><div class="exercise-routine-line">${exerciseThumbHtml(ex)}<div class="exercise-routine-copy"><b>${escHtml(ex.name||'Ejercicio')}</b><div class="meta">${escHtml(formatRoutineSetMeta(ex.sets))}${ex.muscle_group?' · '+escHtml(ex.muscle_group):''}${ex.rest_seconds!=null?' · Descanso '+escHtml(String(ex.rest_seconds))+' s':''}</div>${techniqueBadgeHtml(ex.notes)}</div></div></div>`).join(''):d.cardio_enabled?'':'<div class="muted tiny" style="margin-top:8px">Sin ejercicios.</div>'}
      ${cardioPrescriptionHtml(d)}
-     <button class="btn" style="width:100%;margin-top:12px" type="button" onclick="openWorkoutSession('${r.id}','${d.id}')">▶ ${d.cardio_enabled&&!(d.exercises||[]).length?'Abrir sesión de cardio':'Registrar este entrenamiento'}</button>
+     <button class="btn" style="width:100%;margin-top:12px" type="button" onclick="openWorkoutSession('${r.id}','${d.id}')">▶ ${d.cardio_enabled&&!(d.exercises||[]).length?'Abrir sesión de cardio':'Registrar este entrenamiento'}</button></div>
    </div>`).join(''):'<div class="muted">Esta rutina todavía no tiene días configurados.</div>'}
   </div>`).join('');
 }
@@ -6159,6 +6202,7 @@ async function openRoutineBuilder(){
  editingRoutineId=null;setupRoutineModal('create');
  const modal=document.getElementById('routineBuilderModal');
  document.getElementById('routineClient').innerHTML=clients.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+ if(trainerContentClientId && clients.some(c=>String(c.id)===String(trainerContentClientId)))document.getElementById('routineClient').value=trainerContentClientId;
  document.getElementById('routineName').value='';document.getElementById('routineGoal').value='';setAuthMessage('routineMsg','');
  try{await loadRoutineExerciseLibrary()}catch(error){console.error(error);setAuthMessage('routineMsg','No se pudo cargar la biblioteca de ejercicios.');return}
  routineDayCounter=0;document.getElementById('routineDays').innerHTML='';addRoutineDay();modal.classList.add('open');
@@ -8160,7 +8204,7 @@ function fillNutritionClients(selectedId=''){
 function openNutritionBuilder(clientId=''){
  if(currentProfile?.role!=='trainer')return;document.getElementById('nutritionClient').disabled=false;
  if(!clients.some(c=>c.services?.nutrition!==false)){toast('No hay clientes con nutrición activa');return}
- resetNutritionBuilder();fillNutritionClients(clientId||clients[0]?.id);
+ resetNutritionBuilder();fillNutritionClients(clientId||trainerContentClientId||clients[0]?.id);
  document.getElementById('nutritionBuilderModal').style.display='grid';
  initNutritionBuilderSafetyListeners();setTimeout(()=>validateNutritionBuilderSafety().catch(console.error),0);
 }
@@ -8589,7 +8633,9 @@ async function saveNutritionPlan(){
 async function loadTrainerNutrition(){
  if(currentProfile?.role!=='trainer')return;const list=document.getElementById('trainerNutritionList');if(!list)return;list.innerHTML='<div class="card empty-state">Cargando planes nutricionales…</div>';
  try{
-  const {data:plans,error:pErr}=await sb.from('nutrition_plans').select('id,trainer_id,client_id,name,status,target_calories,target_protein_g,target_carbs_g,target_fat_g,notes,created_at').eq('trainer_id',currentProfile.id).eq('status','active').order('created_at',{ascending:false});if(pErr)throw pErr;
+  let plansQuery=sb.from('nutrition_plans').select('id,trainer_id,client_id,name,status,target_calories,target_protein_g,target_carbs_g,target_fat_g,notes,created_at').eq('trainer_id',currentProfile.id).eq('status','active');
+  if(trainerContentClientId)plansQuery=plansQuery.eq('client_id',trainerContentClientId);
+  const {data:plans,error:pErr}=await plansQuery.order('created_at',{ascending:false});if(pErr)throw pErr;
   trainerNutritionPlans=plans||[];const planIds=trainerNutritionPlans.map(p=>p.id);const clientIds=[...new Set(trainerNutritionPlans.map(p=>p.client_id))];
   const historyDates=nutritionLastDates(7);const historyStart=historyDates[0];const today=nutritionToday();
   let profiles=[],meals=[],foods=[],logs=[],safetyRows=[];
@@ -14547,7 +14593,9 @@ async function loadTrainerSupplements(){
  const list=document.getElementById('trainerSupplementList');if(!list)return;
  list.innerHTML='<div class="card empty-state">Cargando planes de suplementación…</div>';
  try{
-  const {data:plans,error:pErr}=await sb.from('supplement_plans').select('*').eq('trainer_id',currentProfile.id).eq('status','active').order('created_at',{ascending:false});if(pErr)throw pErr;
+  let plansQuery=sb.from('supplement_plans').select('*').eq('trainer_id',currentProfile.id).eq('status','active');
+  if(trainerContentClientId)plansQuery=plansQuery.eq('client_id',trainerContentClientId);
+  const {data:plans,error:pErr}=await plansQuery.order('created_at',{ascending:false});if(pErr)throw pErr;
   trainerSupplementPlans=plans||[];
   const planIds=trainerSupplementPlans.map(p=>p.id),clientIds=[...new Set(trainerSupplementPlans.map(p=>p.client_id))];
   let items=[],profiles=[],logs=[];
