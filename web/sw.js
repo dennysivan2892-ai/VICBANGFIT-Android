@@ -1,4 +1,4 @@
-const CACHE='vicbangfit-v6-message-bubble';
+const CACHE='vicbangfit-v7-premium-gold-global';
 const ASSETS=['./','./index.html','./manifest.json','./icon.svg'];
 
 self.addEventListener('install',event=>{
