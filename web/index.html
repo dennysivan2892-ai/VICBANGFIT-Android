@@ -2076,6 +2076,26 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     bottom:calc(96px + env(safe-area-inset-bottom))!important;
   }
 }
+/* Cobertura visual de todos los módulos y tarjetas actuales */
+:where([class$="-card"],[class*="-card "],.nutrition-meal,.real-routine-day,.real-routine-exercise,.supp-item,.client-detail-row,.exercise,.workout-day){
+  border-color:rgba(216,173,74,.42)!important;
+  background:radial-gradient(circle at 92% -12%,rgba(216,173,74,.10),transparent 38%),linear-gradient(145deg,#181713,#090909)!important;
+  box-shadow:0 12px 30px rgba(0,0,0,.40),inset 0 1px 0 rgba(255,224,154,.055)!important;
+}
+:where([class$="-card"],[class*="-card "],.nutrition-meal,.real-routine-day,.supp-item)::selection{background:rgba(216,173,74,.34)}
+:where(.client-card,.real-routine-card,.nutrition-plan-card,.supp-plan-card,.smart-plan-card,.client-summary-card,.client-detail-card){
+  position:relative;overflow:hidden
+}
+:where(.client-card,.real-routine-card,.nutrition-plan-card,.supp-plan-card,.smart-plan-card,.client-summary-card,.client-detail-card)::before{
+  content:"";position:absolute;left:18px;right:18px;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.72;pointer-events:none
+}
+:where(.real-routine-day-head,.nutrition-plan-head,.supp-plan-head,.client-priority-head,.smart-plan-head){
+  border-color:rgba(216,173,74,.24)!important
+}
+:where(.client-plan-label,.nutrition-auto-badge,.smart-plan-badge,.supp-status,.routine-day-number-badge){
+  color:var(--gold-light)!important
+}
 /* ===== FIN TEMA GLOBAL VICBANGFIT PREMIUM GOLD ===== */
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0/dist/umd/supabase.min.js"></script>
