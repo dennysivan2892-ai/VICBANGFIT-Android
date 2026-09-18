@@ -1889,6 +1889,82 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
   }
 }
 
+/* ===== BARRA INFERIOR PREMIUM NEGRA Y DORADA ===== */
+@media(max-width:900px){
+  :root{--nav-gold:#d8ad4a;--nav-gold-light:#ffe09a;--nav-gold-dark:#7b5718}
+  .mobilebar,body.client-mode .client-mobilebar{
+    left:10px!important;right:10px!important;bottom:calc(58px + env(safe-area-inset-bottom))!important;
+    height:74px;padding:7px 7px 8px!important;gap:4px!important;justify-content:flex-start!important;
+    overflow-x:auto;overflow-y:hidden;border:1px solid rgba(216,173,74,.42)!important;border-radius:22px;
+    background:radial-gradient(circle at 50% -25%,rgba(216,173,74,.15),transparent 45%),linear-gradient(180deg,rgba(27,27,25,.98),rgba(7,7,7,.99))!important;
+    box-shadow:0 18px 42px rgba(0,0,0,.72),inset 0 1px 0 rgba(255,255,255,.07),0 0 0 1px rgba(0,0,0,.75);
+    backdrop-filter:blur(18px) saturate(130%);-webkit-backdrop-filter:blur(18px) saturate(130%);scrollbar-width:none
+  }
+  .mobilebar::-webkit-scrollbar,body.client-mode .client-mobilebar::-webkit-scrollbar{display:none}
+  .mobilebar button,body.client-mode .client-mobilebar button{
+    position:relative;flex:1 0 66px!important;min-width:66px!important;height:58px;padding:4px 5px 3px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1px solid transparent!important;
+    border-radius:16px;background:transparent!important;color:#888983!important;line-height:1;font-size:10px!important;
+    font-weight:750;letter-spacing:.01em;transition:color .18s ease,background .18s ease,border-color .18s ease,transform .18s ease;
+    -webkit-tap-highlight-color:transparent
+  }
+  .mobilebar .nav-icon,body.client-mode .client-mobilebar .nav-icon{
+    display:grid;place-items:center;min-height:24px;color:#aaa9a2;font-size:20px;line-height:1;filter:grayscale(.25);
+    transition:transform .18s ease,color .18s ease,filter .18s ease
+  }
+  .mobilebar .nav-label,body.client-mode .client-mobilebar .nav-label{
+    display:block;max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+  }
+  .mobilebar button.active,body.client-mode .client-mobilebar button.active{
+    color:var(--nav-gold-light)!important;border-color:rgba(216,173,74,.46)!important;
+    background:linear-gradient(180deg,rgba(216,173,74,.19),rgba(123,87,24,.08))!important;
+    box-shadow:inset 0 1px 0 rgba(255,224,154,.14),0 7px 18px rgba(0,0,0,.34);transform:translateY(-1px)
+  }
+  .mobilebar button.active:after,body.client-mode .client-mobilebar button.active:after{
+    content:"";position:absolute;left:50%;bottom:2px;width:18px;height:2px;transform:translateX(-50%);border-radius:999px;
+    background:linear-gradient(90deg,var(--nav-gold-dark),var(--nav-gold-light),var(--nav-gold-dark));box-shadow:0 0 9px rgba(255,211,109,.7)
+  }
+  .mobilebar button.active .nav-icon,body.client-mode .client-mobilebar button.active .nav-icon{
+    color:var(--nav-gold-light);filter:none;transform:scale(1.08)
+  }
+  .mobilebar .mobile-logout,body.client-mode .client-mobilebar .client-mobile-logout{color:#d67878!important}
+  .mobilebar .mobile-logout .nav-icon,body.client-mode .client-mobilebar .client-mobile-logout .nav-icon{color:#d67878}
+  body.client-mode .main,body:not(.client-mode) .main{padding-bottom:calc(150px + env(safe-area-inset-bottom))!important}
+
+  /* Al escribir, el teclado tiene prioridad y la navegación no queda flotando. */
+  body.keyboard-open .mobilebar,
+  body.keyboard-open .client-mobilebar,
+  body.keyboard-open .trainer-message-fab{
+    opacity:0!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+    transform:translateY(18px)!important;
+    transition:opacity .16s ease,transform .16s ease,visibility .16s ease!important;
+  }
+  body.keyboard-open .main{
+    padding-bottom:18px!important;
+  }
+  body.keyboard-open .chat-composer:focus-within{
+    position:fixed!important;
+    left:10px;
+    right:10px;
+    bottom:calc(8px + env(safe-area-inset-bottom));
+    z-index:1600!important;
+    padding:9px!important;
+    border:1px solid rgba(216,173,74,.48)!important;
+    border-radius:18px;
+    background:linear-gradient(180deg,rgba(25,25,23,.99),rgba(10,10,10,.99))!important;
+    box-shadow:0 16px 38px rgba(0,0,0,.72),inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  body.keyboard-open .chat-composer:focus-within textarea{
+    min-height:50px;
+    max-height:96px;
+    border-color:rgba(216,173,74,.62)!important;
+    border-radius:13px!important;
+    resize:none;
+  }
+}
+
 
 /* ===== FOTOS DE PERFIL DE CLIENTES ===== */
 .avatar img,
@@ -3709,25 +3785,25 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 
 
 <div class="client-mobilebar">
-  <button type="button" onclick="showPage('client_home')">⌂<br>Inicio</button>
-  <button type="button" data-client-service="training" onclick="showPage('client_workout')">🏋<br>Entreno</button>
-  <button type="button" data-client-service="nutrition" onclick="showPage('client_nutrition')">🥗<br>Nutrición</button>
-  <button type="button" onclick="showPage('client_progress')">📊<br>Progreso</button>
-  <button type="button" onclick="showPage('client_messages')">💬<br>Mensajes</button>
-  <button class="client-mobile-logout" type="button" onclick="logoutUser()">↪<br>Salir</button>
+  <button type="button" onclick="showPage('client_home')"><span class="nav-icon">⌂</span><span class="nav-label">Inicio</span></button>
+  <button type="button" data-client-service="training" onclick="showPage('client_workout')"><span class="nav-icon">🏋</span><span class="nav-label">Entreno</span></button>
+  <button type="button" data-client-service="nutrition" onclick="showPage('client_nutrition')"><span class="nav-icon">🥗</span><span class="nav-label">Nutrición</span></button>
+  <button type="button" onclick="showPage('client_progress')"><span class="nav-icon">📊</span><span class="nav-label">Progreso</span></button>
+  <button type="button" onclick="showPage('client_messages')"><span class="nav-icon">💬</span><span class="nav-label">Mensajes</span></button>
+  <button class="client-mobile-logout" type="button" onclick="logoutUser()"><span class="nav-icon">↪</span><span class="nav-label">Salir</span></button>
 </div>
 
 <div class="mobilebar">
-<button class="active" data-page="dashboard">⌂<br>Inicio</button>
-<button data-page="clientes">♙<br>Clientes</button>
-<button id="adminAccountsMobileNav" data-page="admin_accounts" style="display:none">👑<br>Admin</button>
-<button data-page="entrenamientos">🏋<br>Rutinas</button>
-<button data-page="nutricion">🥗<br>Nutrición</button>
-<button data-page="suplementacion">🧪<br>Suplementos</button>
-<button data-page="ejercicios">💪<br>Ejercicios</button>
-<button data-page="progreso">📈<br>Progreso</button>
+<button class="active" data-page="dashboard"><span class="nav-icon">⌂</span><span class="nav-label">Inicio</span></button>
+<button data-page="clientes"><span class="nav-icon">♙</span><span class="nav-label">Clientes</span></button>
+<button id="adminAccountsMobileNav" data-page="admin_accounts" style="display:none"><span class="nav-icon">👑</span><span class="nav-label">Admin</span></button>
+<button data-page="entrenamientos"><span class="nav-icon">🏋</span><span class="nav-label">Rutinas</span></button>
+<button data-page="nutricion"><span class="nav-icon">🥗</span><span class="nav-label">Nutrición</span></button>
+<button data-page="suplementacion"><span class="nav-icon">🧪</span><span class="nav-label">Suplementos</span></button>
+<button data-page="ejercicios"><span class="nav-icon">💪</span><span class="nav-label">Ejercicios</span></button>
+<button data-page="progreso"><span class="nav-icon">📈</span><span class="nav-label">Progreso</span></button>
 
-  <button class="mobile-logout" type="button" onclick="logoutUser()">↪<br>Salir</button>
+  <button class="mobile-logout" type="button" onclick="logoutUser()"><span class="nav-icon">↪</span><span class="nav-label">Salir</span></button>
 </div>
 <div id="checkinPhotoModal" class="client-modal" onclick="if(event.target===this)closeCheckinPhoto()">
   <div class="client-modal-card checkin-photo-modal-card">
@@ -14721,6 +14797,40 @@ document.addEventListener('DOMContentLoaded', function () {
 document.addEventListener('input',function(e){
  if(e.target?.id==='privateClientTags')renderPrivateTagsPreview();
 });
+</script>
+
+<script>
+/* Ajuste visual para el teclado móvil: oculta la navegación y acerca el editor. */
+(function(){
+  const editableSelector='input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),textarea,select,[contenteditable="true"]';
+  let keyboardTimer;
+  function isMobileLayout(){return window.matchMedia('(max-width: 900px)').matches}
+  function setKeyboardState(open){
+    if(!isMobileLayout())open=false;
+    document.body.classList.toggle('keyboard-open',!!open);
+    if(open){
+      clearTimeout(keyboardTimer);
+      keyboardTimer=setTimeout(()=>{
+        const active=document.activeElement;
+        active?.closest?.('.chat-composer')?.scrollIntoView?.({block:'nearest',behavior:'smooth'});
+      },120);
+    }
+  }
+  document.addEventListener('focusin',e=>{
+    if(e.target?.matches?.(editableSelector))setKeyboardState(true);
+  });
+  document.addEventListener('focusout',()=>{
+    clearTimeout(keyboardTimer);
+    keyboardTimer=setTimeout(()=>{
+      setKeyboardState(!!document.activeElement?.matches?.(editableSelector));
+    },180);
+  });
+  window.visualViewport?.addEventListener('resize',()=>{
+    const active=document.activeElement;
+    const editing=!!active?.matches?.(editableSelector);
+    setKeyboardState(editing);
+  });
+})();
 </script>
 
 
