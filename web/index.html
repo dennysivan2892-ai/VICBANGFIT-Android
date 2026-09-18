@@ -2002,6 +2002,81 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
   .client-own-avatar{width:70px;height:70px;min-width:70px}
 }
 
+/* ===== TEMA GLOBAL VICBANGFIT PREMIUM GOLD 2026-09-18 ===== */
+:root{
+  --gold:#d8ad4a;--gold-light:#ffe09a;--gold-dark:#7b5718;
+  --gold-line:rgba(216,173,74,.34);--gold-line-strong:rgba(216,173,74,.56);
+  --premium-panel:linear-gradient(145deg,rgba(24,24,22,.98),rgba(8,8,8,.99));
+  --premium-panel-soft:linear-gradient(145deg,rgba(29,27,21,.82),rgba(10,10,10,.98));
+  --premium-shadow:0 14px 34px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.045);
+}
+html,body{background:radial-gradient(circle at 88% 4%,rgba(216,173,74,.055),transparent 24%),#070707}
+.sidebar{background:radial-gradient(circle at 50% 0,rgba(216,173,74,.08),transparent 30%),linear-gradient(180deg,#11100d,#070707);border-right-color:var(--gold-line)}
+.profile-mini,.card,.client-card,.workout-day,.metric,.client-own-profile,.nutrition-plan-card,.supp-plan-card,.routine-card,.meal-card,.exercise-card,.client-modal-card,.auth-card{
+  background:var(--premium-panel)!important;
+  border-color:var(--gold-line)!important;
+  box-shadow:var(--premium-shadow)!important;
+}
+.card:hover,.client-card:hover,.nutrition-plan-card:hover,.supp-plan-card:hover,.routine-card:hover{
+  border-color:var(--gold-line-strong)!important;
+}
+.header h1,.card h2,.card h3,.client-card h4{letter-spacing:-.025em}
+.nav button:hover,.nav button.active{
+  color:var(--gold-light)!important;
+  background:linear-gradient(90deg,rgba(216,173,74,.18),rgba(216,173,74,.035))!important;
+  box-shadow:inset 3px 0 0 var(--gold);
+}
+.tabs,.auth-tabs{background:rgba(8,8,8,.86)!important;border:1px solid var(--gold-line)!important}
+.tab,.client-nav button{
+  border-color:rgba(216,173,74,.24)!important;background:#11110f!important;color:#b8b6ae!important
+}
+.tab.active,.client-nav button.active,.auth-tabs button.active{
+  color:var(--gold-light)!important;border-color:var(--gold-line-strong)!important;
+  background:linear-gradient(180deg,rgba(216,173,74,.19),rgba(216,173,74,.075))!important;
+  box-shadow:inset 0 1px 0 rgba(255,224,154,.15)
+}
+.field input,.field select,.field textarea,.auth-field input,.auth-field select,.search,
+input:not([type="checkbox"]):not([type="radio"]),select,textarea{
+  background:linear-gradient(180deg,#10100f,#090909)!important;border-color:rgba(216,173,74,.25)!important;color:#f6f3eb
+}
+.field input:focus,.field select:focus,.field textarea:focus,.auth-field input:focus,.auth-field select:focus,
+input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:focus{
+  outline:none!important;border-color:var(--gold-line-strong)!important;
+  box-shadow:0 0 0 3px rgba(216,173,74,.10)!important
+}
+.btn.dark,.btn.ghost{
+  background:linear-gradient(180deg,#22211d,#111)!important;border:1px solid rgba(216,173,74,.30)!important;color:#eee9dc!important
+}
+.btn.dark:hover,.btn.ghost:hover{border-color:var(--gold-line-strong)!important;color:var(--gold-light)!important}
+.pill{background:rgba(216,173,74,.10)!important;border:1px solid rgba(216,173,74,.25);color:#e8d7aa}
+.table th{color:#c3aa70}.table th,.table td{border-bottom-color:rgba(216,173,74,.15)}
+.bar,.macrobar,.supp-adherence{background:#242017!important}
+.bar i,.macrobar i,.supp-adherence i{
+  background:linear-gradient(90deg,var(--gold-dark),var(--gold),var(--gold-light))!important
+}
+.quick{
+  background:var(--premium-panel-soft)!important;border-color:var(--gold-line)!important;
+  box-shadow:var(--premium-shadow)!important
+}
+.quick:hover,.quick:focus-visible{border-color:var(--gold-line-strong)!important;box-shadow:0 14px 32px #0009,0 0 0 1px rgba(216,173,74,.16)!important}
+.client-side .big-avatar,.avatar,.client-own-avatar,.table-avatar{border-color:var(--gold)!important;box-shadow:0 0 0 3px rgba(216,173,74,.09)}
+.client-hero,.admin-hero,.nutrition-hero,.supp-hero,.routine-hero{
+  background:radial-gradient(circle at 86% 0,rgba(216,173,74,.12),transparent 34%),var(--premium-panel)!important;
+  border-color:var(--gold-line)!important;box-shadow:var(--premium-shadow)!important
+}
+.toast{background:#11100d!important;border-color:var(--gold-line-strong)!important;box-shadow:var(--premium-shadow)}
+@media(max-width:900px){
+  .mobilebar,body.client-mode .client-mobilebar{
+    bottom:calc(12px + env(safe-area-inset-bottom))!important;
+  }
+  body.client-mode .main,body:not(.client-mode) .main{
+    padding-bottom:calc(112px + env(safe-area-inset-bottom))!important;
+  }
+  .trainer-message-fab{
+    bottom:calc(96px + env(safe-area-inset-bottom))!important;
+  }
+}
+/* ===== FIN TEMA GLOBAL VICBANGFIT PREMIUM GOLD ===== */
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0/dist/umd/supabase.min.js"></script>
   <script type="module">
