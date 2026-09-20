@@ -14352,22 +14352,19 @@ function stepsPlatform(){return window.Capacitor?.getPlatform?.()||'web'}
 function stepsHealthPlugin(){
   const cap=window.Capacitor;
   if(!cap||cap.getPlatform?.()==='web')return null;
+  // HealthKit requiere que el perfil de firma de Apple tenga activada la
+  // capacidad HealthKit. Hasta que se renueve ese perfil, no intentamos abrir
+  // permisos en iOS para evitar un cierre inesperado.
+  if(cap.getPlatform?.()==='ios')return null;
   if(vicHealthFitnessPlugin)return vicHealthFitnessPlugin;
-  if(cap.Plugins?.HealthFitness){vicHealthFitnessPlugin=cap.Plugins.HealthFitness;return vicHealthFitnessPlugin}
+  if(cap.Plugins?.Health){vicHealthFitnessPlugin=cap.Plugins.Health;return vicHealthFitnessPlugin}
   try{
-    if(cap.isPluginAvailable?.('HealthFitness')&&cap.registerPlugin){
-      vicHealthFitnessPlugin=cap.registerPlugin('HealthFitness');
+    if(cap.isPluginAvailable?.('Health')&&cap.registerPlugin){
+      vicHealthFitnessPlugin=cap.registerPlugin('Health');
       return vicHealthFitnessPlugin;
     }
-  }catch(error){console.warn('HealthFitness no disponible',error)}
+  }catch(error){console.warn('Health no disponible',error)}
   return null;
-}
-function stepsPermissionPayload(){
-  const off=JSON.stringify({IsActive:false,AccessType:'READ'});
-  return {
-    customPermissions:JSON.stringify([{Variable:'STEPS',AccessType:'READ'}]),
-    allVariables:off,fitnessVariables:off,healthVariables:off,profileVariables:off,workoutVariables:off
-  };
 }
 function stepsNativeISO(d){return d.toISOString().split('.')[0]+'Z'}
 function stepsDateFromValue(value){
@@ -14479,14 +14476,14 @@ function renderClientSteps(target,rows){
   if(connect)connect.textContent=platform==='android'?'Conectar Health Connect':platform==='ios'?'Conectar Salud del iPhone':'Conectar pasos del móvil';
   const status=document.getElementById('clientStepsHealthStatus');
   if(status){
-    if(!plugin&&platform!=='web')status.textContent='La pantalla de pasos ya está lista. Falta incluir el módulo de salud en la próxima compilación de la app.';
+    if(platform==='ios')status.textContent='La conexión con Salud del iPhone se activará cuando Apple apruebe el permiso HealthKit de VICBANGFIT.';
+    else if(!plugin&&platform!=='web')status.textContent='Esta versión no incluye todavía el conector de Health Connect. Actualiza VICBANGFIT a la última versión.';
     else if(platform==='web')status.textContent='La conexión automática de pasos funciona dentro de la app instalada en Android o iPhone.';
     else if(last)status.textContent=`✓ Pasos sincronizados desde ${stepsSourceLabel(last.source)}. Solo se guarda el total diario; no se guarda ubicación ni recorrido.`;
     else status.textContent='Conecta una vez los pasos del móvil para autorizar la lectura de tus totales diarios.';
   }
 }
 async function connectClientSteps(){
-  localStorage.setItem('vicbangfit_steps_connected','1');
   await syncClientSteps(true);
 }
 async function syncClientSteps(interactive=false){
@@ -14500,15 +14497,24 @@ async function syncClientSteps(interactive=false){
   vicStepsSyncInFlight=true;
   const buttons=['clientStepsConnectBtn','clientStepsSyncBtn'].map(id=>document.getElementById(id));buttons.forEach(b=>{if(b)b.disabled=true});
   try{
-    if(status)status.textContent='Solicitando acceso a tus pasos…';
-    await plugin.requestHealthPermissions(stepsPermissionPayload());
+    if(status)status.textContent='Comprobando Health Connect…';
+    const availability=await plugin.isAvailable();
+    if(!availability?.available){
+      throw new Error(availability?.reason||'Health Connect no está disponible en este móvil.');
+    }
+    if(status)status.textContent='Solicitando permiso para leer tus pasos…';
+    const authorization=await plugin.requestAuthorization({read:['steps'],write:[]});
+    if(!authorization?.readAuthorized?.includes('steps')){
+      localStorage.removeItem('vicbangfit_steps_connected');
+      throw new Error('No se concedió permiso para leer los pasos. Puedes activarlo desde Health Connect.');
+    }
     localStorage.setItem('vicbangfit_steps_connected','1');
     const start=stepsShiftDate(-7),end=stepsShiftDate(1);start.setHours(0,0,0,0);end.setHours(23,59,59,0);
     if(status)status.textContent='Sincronizando pasos del móvil…';
-    const result=await plugin.getData({parameters:JSON.stringify({
-      Variable:'STEPS',StartDate:stepsNativeISO(start),EndDate:stepsNativeISO(end),TimeUnit:'DAY',OperationType:'SUM',TimeUnitLength:1,AdvancedQueryReturnType:'ALL_DATA',AdvancedQueryResultType:'RAW_DATA'
-    })});
-    const daily=stepsParseNativeResult(result).filter(r=>r.step_date>=stepsDateISO(stepsShiftDate(-7))&&r.step_date<=stepsDateISO());
+    const result=await plugin.queryAggregated({
+      dataType:'steps',startDate:start.toISOString(),endDate:end.toISOString(),bucket:'day',aggregation:'sum'
+    });
+    const daily=stepsParseNativeResult(result?.samples||result).filter(r=>r.step_date>=stepsDateISO(stepsShiftDate(-7))&&r.step_date<=stepsDateISO());
     if(!daily.length)throw new Error('El sistema de salud no devolvió pasos todavía.');
     const source=stepsPlatform()==='android'?'health_connect':stepsPlatform()==='ios'?'healthkit':'health';
     const now=new Date().toISOString();
