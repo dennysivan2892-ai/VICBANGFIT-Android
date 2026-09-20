@@ -41,6 +41,19 @@ jobs:
 
       - name: Crear proyecto Android
         run: npx cap add android
+      - name: Configurar Android para Health Connect
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("android/variables.gradle")
+          s = p.read_text()
+          old = "minSdkVersion = 24"
+          new = "minSdkVersion = 26"
+          if old not in s and new not in s:
+              raise SystemExit("No se encontró minSdkVersion en android/variables.gradle")
+          p.write_text(s.replace(old, new, 1))
+          PY
       - name: Poner logo 3D VICBANGFIT
         run: |
           for d in android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi; do
