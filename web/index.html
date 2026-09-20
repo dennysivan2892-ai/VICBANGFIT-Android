@@ -14352,10 +14352,6 @@ function stepsPlatform(){return window.Capacitor?.getPlatform?.()||'web'}
 function stepsHealthPlugin(){
   const cap=window.Capacitor;
   if(!cap||cap.getPlatform?.()==='web')return null;
-  // HealthKit requiere que el perfil de firma de Apple tenga activada la
-  // capacidad HealthKit. Hasta que se renueve ese perfil, no intentamos abrir
-  // permisos en iOS para evitar un cierre inesperado.
-  if(cap.getPlatform?.()==='ios')return null;
   if(vicHealthFitnessPlugin)return vicHealthFitnessPlugin;
   if(cap.Plugins?.Health){vicHealthFitnessPlugin=cap.Plugins.Health;return vicHealthFitnessPlugin}
   try{
@@ -14476,8 +14472,7 @@ function renderClientSteps(target,rows){
   if(connect)connect.textContent=platform==='android'?'Conectar Health Connect':platform==='ios'?'Conectar Salud del iPhone':'Conectar pasos del móvil';
   const status=document.getElementById('clientStepsHealthStatus');
   if(status){
-    if(platform==='ios')status.textContent='La conexión con Salud del iPhone se activará cuando Apple apruebe el permiso HealthKit de VICBANGFIT.';
-    else if(!plugin&&platform!=='web')status.textContent='Esta versión no incluye todavía el conector de Health Connect. Actualiza VICBANGFIT a la última versión.';
+    if(!plugin&&platform!=='web')status.textContent='Esta versión no incluye todavía el conector de salud. Actualiza VICBANGFIT a la última versión.';
     else if(platform==='web')status.textContent='La conexión automática de pasos funciona dentro de la app instalada en Android o iPhone.';
     else if(last)status.textContent=`✓ Pasos sincronizados desde ${stepsSourceLabel(last.source)}. Solo se guarda el total diario; no se guarda ubicación ni recorrido.`;
     else status.textContent='Conecta una vez los pasos del móvil para autorizar la lectura de tus totales diarios.';
@@ -14497,10 +14492,10 @@ async function syncClientSteps(interactive=false){
   vicStepsSyncInFlight=true;
   const buttons=['clientStepsConnectBtn','clientStepsSyncBtn'].map(id=>document.getElementById(id));buttons.forEach(b=>{if(b)b.disabled=true});
   try{
-    if(status)status.textContent='Comprobando Health Connect…';
+    if(status)status.textContent=stepsPlatform()==='ios'?'Comprobando Salud del iPhone…':'Comprobando Health Connect…';
     const availability=await plugin.isAvailable();
     if(!availability?.available){
-      throw new Error(availability?.reason||'Health Connect no está disponible en este móvil.');
+      throw new Error(availability?.reason||(stepsPlatform()==='ios'?'Salud no está disponible en este iPhone.':'Health Connect no está disponible en este móvil.'));
     }
     if(status)status.textContent='Solicitando permiso para leer tus pasos…';
     const authorization=await plugin.requestAuthorization({read:['steps'],write:[]});
