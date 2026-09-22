@@ -6881,6 +6881,83 @@ async function verifyRoutineSavedState(routineId,expectedDays){
  }
 }
 
+function routineDayPayloadFromEditor(d,di,routineId){
+ const dayName=d.querySelector('.routine-day-name').value.trim()||`Día ${di+1}`;
+ const weekdayRaw=d.querySelector('.routine-weekday')?.value||'';
+ const weekday=weekdayRaw?parseInt(weekdayRaw,10):null;
+ const reminder_time=weekday?(d.querySelector('.routine-reminder-time')?.value||'18:00'):null;
+ const cardio_enabled=d.querySelector('.routine-cardio-enabled')?.value==='1';
+ const speedRaw=d.querySelector('.routine-cardio-speed')?.value||'';
+ const inclineRaw=d.querySelector('.routine-cardio-incline')?.value||'';
+ return {
+  routine_id:routineId,day_number:di+1,name:dayName,weekday,reminder_time,
+  cardio_enabled,
+  cardio_machine:cardio_enabled?(d.querySelector('.routine-cardio-machine')?.value||'cinta'):null,
+  cardio_minutes:cardio_enabled?Math.max(1,parseInt(d.querySelector('.routine-cardio-minutes')?.value||'20',10)):null,
+  cardio_intensity:cardio_enabled?(d.querySelector('.routine-cardio-intensity')?.value||'moderada'):null,
+  cardio_timing:cardio_enabled?(d.querySelector('.routine-cardio-timing')?.value||'despues'):null,
+  cardio_speed:cardio_enabled&&speedRaw!==''?parseFloat(speedRaw):null,
+  cardio_incline:cardio_enabled&&inclineRaw!==''?parseFloat(inclineRaw):null,
+  cardio_resistance:cardio_enabled?(d.querySelector('.routine-cardio-resistance')?.value.trim()||null):null,
+  cardio_notes:cardio_enabled?(d.querySelector('.routine-cardio-notes')?.value.trim()||null):null,
+  is_archived:false
+ };
+}
+
+async function createRoutineContentsBulk(routineId,dayEls){
+ const dayPayloads=dayEls.map((d,di)=>routineDayPayloadFromEditor(d,di,routineId));
+ const {data:savedDays,error:daysError}=await sb.from('workout_days')
+  .insert(dayPayloads).select('id,day_number');
+ if(daysError)throw daysError;
+ const dayIdByNumber=new Map((savedDays||[]).map(d=>[Number(d.day_number),d.id]));
+ if(dayIdByNumber.size!==dayEls.length)throw new Error('No se pudieron crear todos los días de la rutina.');
+
+ const exercisePayloads=[];
+ dayEls.forEach((d,di)=>{
+  const dayId=dayIdByNumber.get(di+1);
+  d.dataset.dayId=dayId;
+  [...d.querySelectorAll('.routine-exercise-row')].forEach((r,ei)=>{
+   const restRaw=parseInt(r.querySelector('.re-rest')?.value||'',10);
+   exercisePayloads.push({
+    workout_day_id:dayId,
+    exercise_id:r.querySelector('.re-exercise').value,
+    exercise_order:ei+1,
+    rest_seconds:Number.isFinite(restRaw)?smartClamp(restRaw,0,900):null,
+    notes:buildExercisePrescription(r.querySelector('.re-technique')?.value,r.querySelector('.re-technique-detail')?.value,r.querySelector('.re-notes')?.value),
+    is_archived:false
+   });
+  });
+ });
+ const {data:savedExercises,error:exercisesError}=await sb.from('workout_exercises')
+  .insert(exercisePayloads).select('id,workout_day_id,exercise_order');
+ if(exercisesError)throw exercisesError;
+ if((savedExercises||[]).length!==exercisePayloads.length)throw new Error('No se pudieron crear todos los ejercicios de la rutina.');
+ const exerciseIdByPosition=new Map((savedExercises||[]).map(ex=>[`${ex.workout_day_id}:${ex.exercise_order}`,ex.id]));
+
+ const setPayloads=[];
+ dayEls.forEach((d,di)=>{
+  const dayId=dayIdByNumber.get(di+1);
+  [...d.querySelectorAll('.routine-exercise-row')].forEach((r,ei)=>{
+   const workoutExerciseId=exerciseIdByPosition.get(`${dayId}:${ei+1}`);
+   if(!workoutExerciseId)throw new Error(`No se pudo preparar el ejercicio ${ei+1} del Día ${di+1}.`);
+   r.dataset.weId=workoutExerciseId;
+   r.dataset.originalExerciseId=r.querySelector('.re-exercise').value;
+   const sets=Math.max(1,parseInt(r.querySelector('.re-sets').value||'1',10));
+   const min=parseInt(r.querySelector('.re-min').value||'0',10)||null;
+   const max=parseInt(r.querySelector('.re-max').value||'0',10)||null;
+   const rir=parseFloat(r.querySelector('.re-rir').value);
+   for(let setNumber=1;setNumber<=sets;setNumber++)setPayloads.push({
+    workout_exercise_id:workoutExerciseId,set_number:setNumber,
+    target_reps_min:min,target_reps_max:max,target_rir:Number.isFinite(rir)?rir:null,is_archived:false
+   });
+  });
+ });
+ for(let start=0;start<setPayloads.length;start+=400){
+  const {error:setsError}=await sb.from('workout_sets').insert(setPayloads.slice(start,start+400));
+  if(setsError)throw setsError;
+ }
+}
+
 async function saveRoutine(){
  const btn=document.getElementById('saveRoutineBtn');
  const client_id=document.getElementById('routineClient').value;
@@ -6924,6 +7001,7 @@ async function saveRoutine(){
 
  try{
   let routineId=targetRoutineId;
+  let createdInBulk=false;
 
   if(wasEditing){
    const routineChanged=String(existingRoutine?.client_id||'')!==String(client_id)||
@@ -6949,9 +7027,11 @@ async function saveRoutine(){
     .select('id').single();
    if(rErr)throw rErr;
    routineId=routine.id;
+   await createRoutineContentsBulk(routineId,dayEls);
+   createdInBulk=true;
   }
 
-  for(let di=0;di<dayEls.length;di++){
+  if(!createdInBulk)for(let di=0;di<dayEls.length;di++){
    const d=dayEls[di];
    const dayName=d.querySelector('.routine-day-name').value.trim()||`Día ${di+1}`;
    const weekdayRaw=d.querySelector('.routine-weekday')?.value||'';
