@@ -3935,7 +3935,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
   <div class="client-modal-card routine-builder">
     <div class="row"><div><h2 id="routineModalTitle">Crear rutina</h2><div id="routineModalCopy" class="muted tiny">Asigna una rutina real a uno de tus clientes.</div></div><button class="btn ghost" type="button" onclick="closeRoutineBuilder()">✕</button></div>
     <div class="routine-toolbar">
-      <div class="field"><label>Cliente</label><select id="routineClient"></select></div>
+      <div class="field"><label>Cliente</label><select id="routineClient" onchange="routineSyncVolumeProfileForClient()"></select></div>
       <div class="field"><label>Nombre de la rutina</label><input id="routineName" placeholder="Ej. Hipertrofia 4 días"></div>
       <div class="field"><label>Objetivo</label><input id="routineGoal" placeholder="Ej. Ganancia muscular"></div>
     </div>
@@ -3944,13 +3944,14 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
       <div class="routine-system-grid">
         <div class="field"><label>Días</label><select id="routineAutoDays"><option value="1">1 día</option><option value="2">2 días</option><option value="3">3 días</option><option value="4" selected>4 días</option><option value="5">5 días</option><option value="6">6 días</option></select></div>
         <div class="field"><label>Sistema</label><select id="routineAutoSystem"><option value="recommended">Recomendado</option><option value="fullbody">Full Body</option><option value="upper_lower">Torso / Pierna</option><option value="ppl">Push / Pull / Legs</option><option value="bodypart">División por músculos</option><option value="specialization">Especialización muscular</option></select></div>
+        <div class="field"><label>Perfil de volumen</label><select id="routineAutoVolumeProfile" onchange="routineUpdateVolumeProfileCopy()"><option value="male">Hombre</option><option value="female_lower">Mujer · pierna y glúteos</option><option value="female_balanced">Mujer · equilibrada</option></select></div>
         <div class="field"><label>Prioridad 1</label><select id="routineAutoPriorityOne"><option value="">Sin prioridad</option><option>Pecho</option><option>Espalda</option><option>Hombros</option><option>Bíceps</option><option>Tríceps</option><option>Cuádriceps</option><option>Femoral</option><option>Glúteos</option><option>Gemelos</option><option>Abdominales</option></select></div>
         <div class="field"><label>Frecuencia</label><select id="routineAutoFrequencyOne"><option value="1">F1</option><option value="2" selected>F2</option><option value="3">F3</option></select></div>
         <div class="field"><label>Series extra prioridad 1</label><select id="routineAutoBonusOne"><option value="1">+1 serie semanal</option><option value="2" selected>+2 series semanales</option></select></div>
         <div class="field"><label>Prioridad 2</label><select id="routineAutoPriorityTwo"><option value="">Sin segunda prioridad</option><option>Pecho</option><option>Espalda</option><option>Hombros</option><option>Bíceps</option><option>Tríceps</option><option>Cuádriceps</option><option>Femoral</option><option>Glúteos</option><option>Gemelos</option><option>Abdominales</option></select></div>
         <div class="field"><label>Frecuencia</label><select id="routineAutoFrequencyTwo"><option value="1">F1</option><option value="2" selected>F2</option><option value="3">F3</option></select></div>
         <div class="field"><label>Series extra prioridad 2</label><select id="routineAutoBonusTwo"><option value="1">+1 serie semanal</option><option value="2" selected>+2 series semanales</option></select></div>
-        <div class="field"><label>Volumen semanal base</label><div class="input-like">Grandes: 15 · Pequeños: 8–10</div></div>
+        <div class="field"><label>Volumen semanal base</label><div id="routineAutoVolumeCopy" class="input-like">Hombre · grandes: 15 · pequeños: 8</div></div>
         <div class="field"><label>Crear propuesta</label><button class="btn" style="width:100%" type="button" onclick="generateRoutineStructureFromBuilder()">✨ Generar estructura</button></div>
       </div>
     </div>
@@ -6377,6 +6378,30 @@ function setupRoutineModal(mode){
  const save=document.getElementById('saveRoutineBtn');if(save)save.textContent=isEdit?'Guardar cambios':'Guardar rutina';
  const systemBox=document.getElementById('routineSystemBox');if(systemBox)systemBox.style.display=isEdit?'none':'block';
 }
+function routineVolumeProfileCopy(profile){
+ if(profile==='female_lower')return 'Mujer · prioridad en pierna y glúteos; torso reducido';
+ if(profile==='female_balanced')return 'Mujer · volumen equilibrado de cuerpo completo';
+ return 'Hombre · grandes: 15 · pequeños: 8';
+}
+function routineUpdateVolumeProfileCopy(){
+ const profile=document.getElementById('routineAutoVolumeProfile')?.value||'male';
+ const copy=document.getElementById('routineAutoVolumeCopy');
+ if(copy)copy.textContent=routineVolumeProfileCopy(profile);
+}
+async function routineSyncVolumeProfileForClient(){
+ const clientId=document.getElementById('routineClient')?.value;
+ const select=document.getElementById('routineAutoVolumeProfile');
+ if(!clientId||!select||currentProfile?.role!=='trainer')return;
+ try{
+  const {data,error}=await sb.from('client_onboarding_assessments').select('sex').eq('trainer_id',currentProfile.id).eq('client_id',clientId).maybeSingle();
+  if(error)throw error;
+  select.value=data?.sex==='female'?'female_lower':'male';
+ }catch(error){
+  console.warn('routine volume profile',error);
+  select.value='male';
+ }
+ routineUpdateVolumeProfileCopy();
+}
 async function openRoutineBuilder(){
  if(currentProfile?.role!=="trainer"){toast('Solo el entrenador puede crear rutinas');return}
  if(!clients.length){toast('Primero añade un cliente');showPage('clientes');return}
@@ -6384,6 +6409,7 @@ async function openRoutineBuilder(){
  const modal=document.getElementById('routineBuilderModal');
  document.getElementById('routineClient').innerHTML=clients.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
  if(trainerContentClientId && clients.some(c=>String(c.id)===String(trainerContentClientId)))document.getElementById('routineClient').value=trainerContentClientId;
+ await routineSyncVolumeProfileForClient();
  document.getElementById('routineName').value='';document.getElementById('routineGoal').value='';setAuthMessage('routineMsg','');
  try{await loadRoutineExerciseLibrary()}catch(error){console.error(error);setAuthMessage('routineMsg','No se pudo cargar la biblioteca de ejercicios.');return}
  routineDayCounter=0;document.getElementById('routineDays').innerHTML='';
@@ -6420,18 +6446,19 @@ function generateRoutineStructureFromBuilder(){
  if(currentProfile?.role!=='trainer')return;
  const days=smartClamp(Number(document.getElementById('routineAutoDays')?.value)||4,1,6);
  const system=document.getElementById('routineAutoSystem')?.value||'recommended';
+ const volumeProfile=document.getElementById('routineAutoVolumeProfile')?.value||'male';
  const priorities=routineBuilderPriorities();
  const existing=document.querySelectorAll('#routineDays .routine-day-editor').length;
  if(existing>1&&!confirm('Esto sustituirá la estructura que aparece ahora en el editor. ¿Continuar?'))return;
  const goalType=smartGoalType(document.getElementById('routineGoal')?.value||'Hipertrofia');
  const prescription=smartPrescription(goalType,'intermediate');
- const split=smartSplit(days,system,priorities);
+ const split=smartSplit(days,system,priorities,volumeProfile);
  routineDayCounter=0;document.getElementById('routineDays').innerHTML='';
  split.forEach(d=>{
-  const exercises=smartBuildDayExercises(d,split,'intermediate',prescription,90,priorities);
+  const exercises=smartBuildDayExercises(d,split,'intermediate',prescription,90,priorities,volumeProfile);
   addRoutineDay({name:d.name,exercises});
  });
- smartRenderVolumeSummary(split,priorities);
+ smartRenderVolumeSummary(split,priorities,volumeProfile);
  if(!document.getElementById('routineName').value.trim())document.getElementById('routineName').value=`${smartSystemLabel(system)} · ${days} días`;
  setAuthMessage('routineMsg',`Propuesta ${smartSystemLabel(system)} creada. Revisa ejercicios, series, RIR y descansos antes de guardar.`);
  toast(`Estructura ${smartSystemLabel(system)} generada ✓`);
@@ -6620,7 +6647,7 @@ async function replanRoutineDraft(routineId){
   if(!smartTrainingPlan)throw new Error('Faltan datos del cliente para generar la propuesta');
   const p=smartTrainingPlan;
   p.availableDays=days;
-  p.days=smartSplit(days);
+  p.days=smartSplit(days,p.system||'recommended',p.priorities||[],p.volumeProfile||'male');
   p.routineName=smartPlanTitle(p.goalType,days);
   p.restSeconds=Number(p.restSeconds)||90;
 
@@ -6639,10 +6666,10 @@ async function replanRoutineDraft(routineId){
   routineDayCounter=0;
   document.getElementById('routineDays').innerHTML='';
   for(const d of p.days){
-   const exercises=smartBuildDayExercises(d,p.days,p.level,p.prescription,p.restSeconds,p.priorities);
+   const exercises=smartBuildDayExercises(d,p.days,p.level,p.prescription,p.restSeconds,p.priorities,p.volumeProfile);
    addRoutineDay({name:d.name,weekday:null,reminder_time:null,exercises});
   }
-  smartRenderVolumeSummary(p.days,p.priorities);
+  smartRenderVolumeSummary(p.days,p.priorities,p.volumeProfile);
   modal.classList.add('open');
   setAuthMessage('routineMsg',`Nueva propuesta de ${days} días preparada. Revísala y pulsa “Guardar borrador”; el bloque anterior seguirá protegido.`);
  }catch(error){
@@ -10965,7 +10992,7 @@ function smartBaseSplit(days){
 function smartSystemLabel(system){
  return {recommended:'Recomendado',fullbody:'Full Body',upper_lower:'Torso / Pierna',ppl:'Push / Pull / Legs',bodypart:'División por músculos',specialization:'Especialización muscular'}[system]||'Recomendado';
 }
-function smartSplit(days,system='recommended',priorities=[]){
+function smartSplit(days,system='recommended',priorities=[],volumeProfile='male'){
  const count=smartClamp(Number(days)||3,1,6);
  const cycles={
   fullbody:[['Full Body A',['Pecho','Espalda','Cuádriceps','Femoral','Hombros','Abdominales']],['Full Body B',['Espalda','Pecho','Glúteos','Cuádriceps','Bíceps','Tríceps']],['Full Body C',['Pecho','Espalda','Femoral','Glúteos','Hombros','Abdominales']]],
@@ -10975,7 +11002,17 @@ function smartSplit(days,system='recommended',priorities=[]){
   specialization:[['Prioridad A',[]],['Torso',['Pecho','Espalda','Hombros']],['Pierna',['Cuádriceps','Femoral','Glúteos','Gemelos']],['Prioridad B',[]],['Torso complementario',['Espalda','Pecho','Bíceps','Tríceps']],['Pierna complementaria',['Femoral','Cuádriceps','Glúteos','Abdominales']]]
  };
  let rows;
- if(system==='recommended')rows=smartBaseSplit(count).map(d=>[d.name,[...d.muscles]]);
+ if(system==='recommended'&&volumeProfile==='female_lower'){
+  const femaleCycles={
+   1:[['Full body · énfasis inferior',['Glúteos','Cuádriceps','Femoral','Espalda','Hombros']]],
+   2:[['Pierna y glúteos',['Glúteos','Cuádriceps','Femoral','Gemelos']],['Torso + glúteos',['Espalda','Hombros','Pecho','Bíceps','Tríceps','Glúteos']]],
+   3:[['Pierna A',['Cuádriceps','Glúteos','Femoral','Gemelos']],['Torso completo',['Espalda','Hombros','Pecho','Bíceps','Tríceps']],['Pierna B',['Glúteos','Femoral','Cuádriceps','Abdominales']]],
+   4:[['Pierna A',['Cuádriceps','Glúteos','Femoral','Gemelos']],['Torso A',['Espalda','Hombros','Pecho','Bíceps','Tríceps']],['Pierna B',['Glúteos','Femoral','Cuádriceps','Abdominales']],['Torso B + glúteos',['Espalda','Hombros','Pecho','Bíceps','Tríceps','Glúteos']]],
+   5:[['Pierna A',['Cuádriceps','Glúteos','Femoral']],['Torso A',['Espalda','Hombros','Pecho','Bíceps','Tríceps']],['Glúteos',['Glúteos','Femoral','Abdominales']],['Torso B',['Espalda','Hombros','Pecho','Bíceps','Tríceps']],['Pierna B',['Glúteos','Cuádriceps','Femoral','Gemelos']]],
+   6:[['Pierna A',['Cuádriceps','Glúteos','Femoral']],['Torso A',['Espalda','Hombros','Pecho','Bíceps','Tríceps']],['Glúteos A',['Glúteos','Femoral','Abdominales']],['Torso B',['Espalda','Hombros','Pecho','Bíceps','Tríceps']],['Pierna B',['Cuádriceps','Glúteos','Gemelos']],['Glúteos B',['Glúteos','Femoral','Abdominales']]]
+  };
+  rows=femaleCycles[count].map(x=>[x[0],[...x[1]]]);
+ }else if(system==='recommended')rows=smartBaseSplit(count).map(d=>[d.name,[...d.muscles]]);
  else{
   const cycle=cycles[system]||cycles.fullbody;
   rows=Array.from({length:count},(_,i)=>{const src=cycle[i%cycle.length];return [`${src[0]}${i>=cycle.length?' '+(Math.floor(i/cycle.length)+1):''}`,[...src[1]]]});
@@ -11043,15 +11080,23 @@ function smartDayExerciseCount(sessionMinutes,day){
  return Math.min(base,day.muscles.length);
 }
 const SMART_BIG_MUSCLES=new Set(['Pecho','Espalda','Cuádriceps','Femoral','Glúteos']);
-function smartWeeklySeries(muscle,priorities=[]){
- const base=SMART_BIG_MUSCLES.has(muscle)?15:9;
+const SMART_FEMALE_LOWER_VOLUME={Pecho:6,Espalda:8,Hombros:8,Bíceps:4,Tríceps:4,Cuádriceps:10,Femoral:10,Glúteos:15,Gemelos:6,Abdominales:6};
+const SMART_FEMALE_BALANCED_VOLUME={Pecho:10,Espalda:10,Hombros:6,Bíceps:6,Tríceps:6,Cuádriceps:10,Femoral:10,Glúteos:12,Gemelos:6,Abdominales:6};
+function smartVolumeProfileLabel(profile){
+ return profile==='female_lower'?'Mujer · pierna y glúteos':profile==='female_balanced'?'Mujer · equilibrada':'Hombre';
+}
+function smartWeeklySeries(muscle,priorities=[],volumeProfile='male'){
+ let base;
+ if(volumeProfile==='female_lower')base=SMART_FEMALE_LOWER_VOLUME[muscle]??6;
+ else if(volumeProfile==='female_balanced')base=SMART_FEMALE_BALANCED_VOLUME[muscle]??6;
+ else base=SMART_BIG_MUSCLES.has(muscle)?15:8;
  const priority=(priorities||[]).find(p=>p?.muscle===muscle);
  return base+(priority?smartClamp(Number(priority.bonus)||1,1,2):0);
 }
-function smartSessionSeries(muscle,day,days,priorities=[]){
+function smartSessionSeries(muscle,day,days,priorities=[],volumeProfile='male'){
  const occurrences=(days||[]).filter(d=>d.muscles.includes(muscle));
  const index=occurrences.findIndex(d=>d.day===day.day);
- const total=smartWeeklySeries(muscle,priorities);
+ const total=smartWeeklySeries(muscle,priorities,volumeProfile);
  const base=Math.floor(total/Math.max(1,occurrences.length));
  return base+(index>=0&&index<(total%Math.max(1,occurrences.length))?1:0);
 }
@@ -11063,17 +11108,17 @@ function smartExerciseSlots(muscle,series){
  if(SMART_BIG_MUSCLES.has(muscle))return Math.max(1,Math.ceil(series/3));
  return Math.max(1,Math.ceil(series/3));
 }
-function smartPlannedExerciseCount(day,days,priorities=[]){
- return day.muscles.reduce((total,muscle)=>total+smartExerciseSlots(muscle,smartSessionSeries(muscle,day,days,priorities)),0);
+function smartPlannedExerciseCount(day,days,priorities=[],volumeProfile='male'){
+ return day.muscles.reduce((total,muscle)=>total+smartExerciseSlots(muscle,smartSessionSeries(muscle,day,days,priorities,volumeProfile)),0);
 }
-function smartDayTotalSets(day,days,priorities=[]){
- return day.muscles.reduce((total,muscle)=>total+smartSessionSeries(muscle,day,days,priorities),0);
+function smartDayTotalSets(day,days,priorities=[],volumeProfile='male'){
+ return day.muscles.reduce((total,muscle)=>total+smartSessionSeries(muscle,day,days,priorities,volumeProfile),0);
 }
-function smartBuildDayExercises(day,days,level,prescription,restSeconds,priorities=[]){
+function smartBuildDayExercises(day,days,level,prescription,restSeconds,priorities=[],volumeProfile='male'){
  const exercises=[];
  const dayUsed=new Set();
  for(const muscle of day.muscles){
-  const sessionSeries=smartSessionSeries(muscle,day,days,priorities);
+  const sessionSeries=smartSessionSeries(muscle,day,days,priorities,volumeProfile);
   const distribution=smartSetDistribution(sessionSeries,smartExerciseSlots(muscle,sessionSeries));
   for(const setCount of distribution){
    const ex=smartFindExerciseByMuscle(muscle,dayUsed,level,day.day);
@@ -11084,10 +11129,10 @@ function smartBuildDayExercises(day,days,level,prescription,restSeconds,prioriti
  }
  return exercises;
 }
-function smartRenderVolumeSummary(days,priorities=[]){
+function smartRenderVolumeSummary(days,priorities=[],volumeProfile='male'){
  const box=document.getElementById('routineVolumeSummary');if(!box)return;
  const muscles=[...new Set((days||[]).flatMap(d=>d.muscles))];
- box.innerHTML=`<b>📊 Volumen semanal propuesto</b><div class="muted tiny" style="margin:3px 0 7px">Grandes: 15 series · pequeños: 9 series · prioridades: +1/+2 según tu elección.</div><div>${muscles.map(m=>`${escHtml(m)}: <b>${smartWeeklySeries(m,priorities)} series</b> ✓`).join(' · ')}</div>`;
+ box.innerHTML=`<b>📊 Volumen semanal propuesto</b><div class="muted tiny" style="margin:3px 0 7px">${escHtml(smartVolumeProfileLabel(volumeProfile))} · prioridades: +1/+2 según tu elección.</div><div>${muscles.map(m=>`${escHtml(m)}: <b>${smartWeeklySeries(m,priorities,volumeProfile)} series</b> ✓`).join(' · ')}</div>`;
  box.classList.add('active');
 }
 function smartPlanRender(){
@@ -11110,6 +11155,7 @@ function smartPlanRender(){
    <div class="form-grid" style="margin-top:12px">
     <div class="field"><label>Días de entrenamiento</label><select id="smartEditDays">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===p.days.length?'selected':''}>${n} día${n===1?'':'s'}</option>`).join('')}</select></div>
     <div class="field"><label>Sistema de entrenamiento</label><select id="smartEditSystem"><option value="recommended" ${p.system==='recommended'?'selected':''}>Recomendado según días</option><option value="fullbody" ${p.system==='fullbody'?'selected':''}>Full Body</option><option value="upper_lower" ${p.system==='upper_lower'?'selected':''}>Torso / Pierna</option><option value="ppl" ${p.system==='ppl'?'selected':''}>Push / Pull / Legs</option><option value="bodypart" ${p.system==='bodypart'?'selected':''}>División por músculos</option><option value="specialization" ${p.system==='specialization'?'selected':''}>Especialización muscular</option></select></div>
+    <div class="field"><label>Perfil de volumen</label><select id="smartEditVolumeProfile"><option value="male" ${p.volumeProfile==='male'?'selected':''}>Hombre</option><option value="female_lower" ${p.volumeProfile==='female_lower'?'selected':''}>Mujer · pierna y glúteos</option><option value="female_balanced" ${p.volumeProfile==='female_balanced'?'selected':''}>Mujer · equilibrada</option></select></div>
     <div class="field"><label>Duración por sesión</label><input id="smartEditMinutes" type="number" min="30" max="120" step="5" value="${p.sessionMinutes}"></div>
     <div class="field"><label>Objetivo</label><select id="smartEditGoal"><option value="muscle" ${p.goalType==='muscle'?'selected':''}>Hipertrofia</option><option value="fatloss" ${p.goalType==='fatloss'?'selected':''}>Pérdida de grasa</option><option value="strength" ${p.goalType==='strength'?'selected':''}>Fuerza</option><option value="general" ${p.goalType==='general'?'selected':''}>Acondicionamiento</option></select></div>
     <div class="field"><label>Nivel</label><select id="smartEditLevel"><option value="beginner" ${p.level==='beginner'?'selected':''}>Principiante</option><option value="intermediate" ${p.level==='intermediate'?'selected':''}>Intermedio</option><option value="advanced" ${p.level==='advanced'?'selected':''}>Avanzado</option></select></div>
@@ -11136,12 +11182,12 @@ function smartPlanRender(){
    <div><div class="label">Series base</div><b>${p.prescription.sets}</b><div class="small">${p.prescription.repsMin}–${p.prescription.repsMax} reps</div></div>
    <div><div class="label">Esfuerzo</div><b>RIR ${p.prescription.rir}</b><div class="small">${escHtml(p.levelLabel)}</div></div>
   </div>
-  <div class="routine-volume-summary active"><b>📊 Series efectivas semanales</b><div class="muted tiny" style="margin:3px 0 6px">Base: 15 en músculos grandes y 9 en pequeños.</div>${[...new Set(p.days.flatMap(d=>d.muscles))].map(m=>`${escHtml(m)}: <b>${smartWeeklySeries(m,p.priorities)} series</b>`).join(' · ')}</div>
+  <div class="routine-volume-summary active"><b>📊 Series efectivas semanales</b><div class="muted tiny" style="margin:3px 0 6px">${escHtml(smartVolumeProfileLabel(p.volumeProfile))}</div>${[...new Set(p.days.flatMap(d=>d.muscles))].map(m=>`${escHtml(m)}: <b>${smartWeeklySeries(m,p.priorities,p.volumeProfile)} series</b>`).join(' · ')}</div>
   <div class="smart-plan-days">
    ${p.days.map(d=>`<div class="smart-plan-day">
-    <div class="smart-plan-day-head"><b>Día ${d.day} · ${escHtml(d.name)}</b><span class="pill">${smartPlannedExerciseCount(d,p.days,p.priorities)} ejercicios base</span></div>
+    <div class="smart-plan-day-head"><b>Día ${d.day} · ${escHtml(d.name)}</b><span class="pill">${smartPlannedExerciseCount(d,p.days,p.priorities,p.volumeProfile)} ejercicios base</span></div>
     <div class="smart-plan-day-muscles">${escHtml(d.muscles.join(' · '))}</div>
-    <div class="smart-plan-day-meta"><span>${smartDayTotalSets(d,p.days,p.priorities)} series totales</span><span>${p.prescription.repsMin}–${p.prescription.repsMax} reps</span><span>RIR ${p.prescription.rir}</span><span>Descanso ${p.restSeconds||90} s</span></div>
+    <div class="smart-plan-day-meta"><span>${smartDayTotalSets(d,p.days,p.priorities,p.volumeProfile)} series totales</span><span>${p.prescription.repsMin}–${p.prescription.repsMax} reps</span><span>RIR ${p.prescription.rir}</span><span>Descanso ${p.restSeconds||90} s</span></div>
    </div>`).join('')}
   </div>
   <div class="smart-plan-notes">
@@ -11157,6 +11203,7 @@ function smartPlanApplyAdjustments(){
  const p=smartTrainingPlan;
  const days=smartClamp(Number(document.getElementById('smartEditDays')?.value)||p.days.length,1,6);
  const system=document.getElementById('smartEditSystem')?.value||p.system||'recommended';
+ const volumeProfile=document.getElementById('smartEditVolumeProfile')?.value||p.volumeProfile||'male';
  const minutes=smartSessionMinutes(document.getElementById('smartEditMinutes')?.value);
  const goalType=document.getElementById('smartEditGoal')?.value||p.goalType;
  const level=document.getElementById('smartEditLevel')?.value||p.level;
@@ -11186,8 +11233,9 @@ function smartPlanApplyAdjustments(){
   prescription:{...base,sets,repsMin,repsMax,rir},
   restSeconds,
   system,
+  volumeProfile,
   priorities,
-  days:smartSplit(days,system,priorities),
+  days:smartSplit(days,system,priorities,volumeProfile),
   routineName:smartPlanTitle(goalType,days),
   equipment,
   equipmentNote:smartEquipmentNote(equipment),
@@ -11222,6 +11270,7 @@ async function loadSmartTrainingPlan(clientId){
   const sessionMinutes=smartSessionMinutes(o.session_minutes);
   const prescription=smartPrescription(goalType,level);
   const privateRow=privateRes.data||null;
+  const volumeProfile=o.sex==='female'?'female_lower':'male';
   smartTrainingPlan={
    clientId,
    goalText,
@@ -11233,8 +11282,9 @@ async function loadSmartTrainingPlan(clientId){
    prescription,
    restSeconds:90,
    system:'recommended',
+   volumeProfile,
    priorities:[],
-   days:smartSplit(recommended,'recommended',[]),
+   days:smartSplit(recommended,'recommended',[],volumeProfile),
    routineName:smartPlanTitle(goalType,recommended),
    equipment:o.equipment||'',
    equipmentNote:smartEquipmentNote(o.equipment||''),
@@ -11332,10 +11382,10 @@ async function smartPlanToRoutineBuilder(){
  routineDayCounter=0;
  document.getElementById('routineDays').innerHTML='';
  for(const d of p.days){
-  const exercises=smartBuildDayExercises(d,p.days,p.level,p.prescription,p.restSeconds||90,p.priorities);
+  const exercises=smartBuildDayExercises(d,p.days,p.level,p.prescription,p.restSeconds||90,p.priorities,p.volumeProfile);
   addRoutineDay({name:d.name,weekday:null,reminder_time:null,exercises});
  }
- smartRenderVolumeSummary(p.days,p.priorities);
+ smartRenderVolumeSummary(p.days,p.priorities,p.volumeProfile);
  modal.classList.add('open');
  setAuthMessage('routineMsg','Propuesta cargada. Revisa ejercicios, series, repeticiones, RIR y descanso antes de guardar.');
 }
@@ -11450,7 +11500,8 @@ function initialTrainingSuggestion(fields){
  const level=smartLevel(fields.training_experience);
  const available=Number(fields.days_per_week)||3;
  const days=smartRecommendedDays(available,level);
- const split=smartSplit(days).map(x=>x.name).join(' · ');
+ const volumeProfile=fields.sex==='female'?'female_lower':'male';
+ const split=smartSplit(days,'recommended',[],volumeProfile).map(x=>x.name).join(' · ');
  const goal=initialGoalKind(fields.primary_goal);
  const p=smartPrescription(goal==='fatloss'?'fatloss':goal==='muscle'?'muscle':goal==='strength'?'strength':'general',level);
  const limitation=String(fields.limitations||'').trim();
