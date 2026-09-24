@@ -4049,8 +4049,9 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
         <div class="field"><label>Proteína (g)</label><input id="monthlyReviewProtein" type="number" min="0" step="1"></div>
         <div class="field"><label>Hidratos (g)</label><input id="monthlyReviewCarbs" type="number" min="0" step="1"></div>
         <div class="field"><label>Grasas (g)</label><input id="monthlyReviewFat" type="number" min="0" step="1"></div>
+        <div class="field"><label>Tipo de revisión</label><select id="monthlyReviewDietMode"><option value="renew" selected>Renovar 40–60 % de los alimentos</option><option value="quantities">Mantener alimentos y ajustar cantidades</option><option value="full">Crear una dieta completamente nueva</option></select></div>
       </div>
-      <div class="monthly-review-note">La app propone un punto de partida. <b>El entrenador mantiene libertad total</b> para cambiar calorías, proteína, hidratos, grasas, alimentos y cantidades antes de guardar.</div>
+      <div class="monthly-review-note">La revisión recomendada cambia de forma significativa carbohidratos, proteínas, grasas y verduras. También valora fibra, saciedad, digestibilidad, carga glucémica, densidad calórica y método de preparación. <b>El entrenador mantiene libertad total</b> antes de guardar.</div>
       <div class="field" style="margin-top:12px"><label>Decisión / observaciones del entrenador</label><textarea id="monthlyReviewCoachNotes" placeholder="Ej. Mantener proteína, reducir hidratos y vigilar el hambre durante dos semanas."></textarea></div>
       <div class="modal-actions"><button class="btn ghost" type="button" onclick="closeMonthlyNutritionReview()">Cancelar</button><button class="btn" type="button" onclick="monthlyNutritionCreateNextPlan()">Crear dieta diferente para el siguiente mes →</button></div>
     </div>
@@ -7862,6 +7863,9 @@ let nutritionMealEditorSeq=0;
 let trainerNutritionPlans=[];
 let monthlyNutritionReviewState=null;
 let nutritionAutoPreviousFoods=new Set();
+let nutritionAutoRevisionMode='initial';
+let nutritionAutoCalorieDirection='same';
+let nutritionAutoRevisionPickCounter=0;
 
 function monthlyNutritionFmt(value,unit=''){const n=Number(value);return Number.isFinite(n)?`${String(Math.round(n*10)/10).replace('.',',')}${unit}`:'—'}
 function monthlyNutritionDelta(first,last,unit=''){const a=Number(first),b=Number(last);if(!Number.isFinite(a)||!Number.isFinite(b))return 'Sin comparación suficiente';const d=Math.round((b-a)*10)/10;return `${d>0?'+':''}${String(d).replace('.',',')}${unit} desde el inicio`}
@@ -7895,20 +7899,45 @@ async function openMonthlyNutritionReview(planId){
   else if(loss&&weightPct!=null&&weightPct<-4){kcalDelta=100;reason='La pérdida acumulada ha sido rápida. La app propone recuperar 100 kcal para favorecer rendimiento y adherencia.'}
   else if(gain&&weightPct!=null&&weightPct<0.25){kcalDelta=150;reason='Para ganancia muscular, el peso apenas ha aumentado. La app propone añadir 150 kcal, sujeto a la valoración del entrenador.'}
   else if((energy!=null&&energy<5)||(hunger!=null&&hunger>8)){kcalDelta=100;reason='La energía o el hambre aconsejan evitar un recorte adicional. La app propone añadir 100 kcal y revisar la respuesta.'}
-  const newKcal=Math.max(0,oldKcal+kcalDelta),newP=oldP,newF=oldF,newC=Math.max(0,Math.round((newKcal-newP*4-newF*9)/4));monthlyNutritionReviewState={plan,month:(plansRes.data||[]).length+1,reason};
+  const newKcal=Math.max(0,oldKcal+kcalDelta),newP=oldP,newF=oldF,newC=Math.max(0,Math.round((newKcal-newP*4-newF*9)/4));monthlyNutritionReviewState={plan,month:(plansRes.data||[]).length+1,reason,oldKcal,oldP,oldC:Number(plan.target_carbs_g)||0,oldF};
   const client=clients.find(c=>String(c.id)===String(plan.client_id));document.getElementById('monthlyReviewSubtitle').textContent=`${client?.name||'Cliente'} · comparación inicial frente a revisión actual`;
   document.getElementById('monthlyReviewWeight').textContent=`${monthlyNutritionFmt(firstWeight,' kg')} → ${monthlyNutritionFmt(lastWeight,' kg')}`;document.getElementById('monthlyReviewWeightDelta').textContent=monthlyNutritionDelta(firstWeight,lastWeight,' kg');document.getElementById('monthlyReviewWaist').textContent=`${monthlyNutritionFmt(firstWaist,' cm')} → ${monthlyNutritionFmt(lastWaist,' cm')}`;document.getElementById('monthlyReviewWaistDelta').textContent=monthlyNutritionDelta(firstWaist,lastWaist,' cm');
   document.getElementById('monthlyReviewAdherence').textContent=adherence==null?'—':adherence+'%';document.getElementById('monthlyReviewAdherenceMeta').textContent=expected?`${logs.length}/${expected} comidas en ${activeDays} días`:'Sin comidas configuradas';document.getElementById('monthlyReviewWellbeing').textContent=`${monthlyNutritionFmt(energy,'/10')} · ${monthlyNutritionFmt(hunger,'/10')} · ${monthlyNutritionFmt(sleep,' h')}`;
   document.getElementById('monthlyReviewRecommendation').innerHTML=`<b>Recomendación de VICBANGFIT</b><br>${nutritionEsc(reason)}<br><span class="muted tiny">Propuesta: ${newKcal||'—'} kcal · ${newP||'—'} g proteína · ${newC||'—'} g hidratos · ${newF||'—'} g grasas.</span>`;
   document.getElementById('monthlyReviewCalories').value=newKcal||'';document.getElementById('monthlyReviewProtein').value=newP||'';document.getElementById('monthlyReviewCarbs').value=newC||'';document.getElementById('monthlyReviewFat').value=newF||'';document.getElementById('monthlyReviewCoachNotes').value='';loading.style.display='none';content.style.display='block';
+  document.getElementById('monthlyReviewDietMode').value='renew';
  }catch(error){console.error(error);loading.textContent='No se pudo cargar la revisión mensual. Comprueba la conexión e inténtalo de nuevo.'}
 }
 async function monthlyNutritionCreateNextPlan(){
  const s=monthlyNutritionReviewState;if(!s?.plan)return;const value=id=>Number(document.getElementById(id).value)||0,vals={kcal:value('monthlyReviewCalories'),p:value('monthlyReviewProtein'),c:value('monthlyReviewCarbs'),f:value('monthlyReviewFat')},coachNotes=document.getElementById('monthlyReviewCoachNotes').value.trim();
- try{const old=await loadNutritionPlanDetails(s.plan.id);nutritionAutoPreviousFoods=new Set(old.meals.flatMap(m=>(m.foods||[]).map(f=>nutritionSafetyNorm(f.food_name))))}catch(error){console.error(error);nutritionAutoPreviousFoods=new Set()}
+ const mode=document.getElementById('monthlyReviewDietMode')?.value||'renew';let oldDetails=null;
+ try{oldDetails=await loadNutritionPlanDetails(s.plan.id);nutritionAutoPreviousFoods=new Set(oldDetails.meals.flatMap(m=>(m.foods||[]).map(f=>nutritionSafetyNorm(f.food_name))))}catch(error){console.error(error);nutritionAutoPreviousFoods=new Set()}
+ nutritionAutoRevisionMode=mode;nutritionAutoCalorieDirection=vals.kcal<Number(s.oldKcal||s.plan.target_calories||0)?'lower':vals.kcal>Number(s.oldKcal||s.plan.target_calories||0)?'higher':'same';nutritionAutoRevisionPickCounter=0;
  closeMonthlyNutritionReview();openNutritionBuilder(s.plan.client_id);
  document.getElementById('nutritionPlanName').value=`Plan nutricional · Mes ${s.month}`;document.getElementById('nutritionCalories').value=vals.kcal||'';document.getElementById('nutritionProtein').value=vals.p||'';document.getElementById('nutritionCarbs').value=vals.c||'';document.getElementById('nutritionFat').value=vals.f||'';document.getElementById('nutritionNotes').value=`Revisión mensual: ${s.reason}${coachNotes?` Decisión del entrenador: ${coachNotes}`:''}`;
- document.getElementById('nutritionMealEditors').innerHTML='';nutritionMealEditorSeq=0;nutritionAutoVarietyCounter+=2;await generateNutritionMealsFromTargets();nutritionAutoPreviousFoods=new Set();const summary=document.getElementById('nutritionAutoMealSummary');if(summary){summary.innerHTML+=`<div class="nutrition-auto-profile">✓ Nueva propuesta mensual generada priorizando alimentos distintos al plan anterior. Puedes cambiar cualquier alimento o cantidad antes de guardar.</div>`;summary.classList.add('show')}
+ document.getElementById('nutritionMealEditors').innerHTML='';nutritionMealEditorSeq=0;nutritionAutoVarietyCounter+=2;
+ if(mode==='quantities'&&oldDetails)nutritionAutoLoadAdjustedPreviousMeals(oldDetails,vals,s);
+ else await generateNutritionMealsFromTargets();
+ nutritionAutoPreviousFoods=new Set();nutritionAutoRevisionMode='initial';nutritionAutoCalorieDirection='same';
+ const summary=document.getElementById('nutritionAutoMealSummary');if(summary){const modeText=mode==='quantities'?'Se han mantenido los alimentos y ajustado sus cantidades.':mode==='full'?'Se ha creado una dieta completamente nueva, incluyendo verduras y preparaciones.':'Se ha renovado aproximadamente el 40–60 % de los alimentos, incluyendo verduras y preparaciones.';summary.innerHTML+=`<div class="nutrition-auto-profile">✓ ${modeText} Puedes cambiar cualquier alimento o cantidad antes de guardar.</div>`;summary.classList.add('show')}
+}
+function nutritionAutoLoadAdjustedPreviousMeals(oldDetails,vals,state){
+ const old={p:Number(state.oldP)||Number(oldDetails.plan.target_protein_g)||1,c:Number(state.oldC)||Number(oldDetails.plan.target_carbs_g)||1,f:Number(state.oldF)||Number(oldDetails.plan.target_fat_g)||1,kcal:Number(state.oldKcal)||Number(oldDetails.plan.target_calories)||1};
+ const ratios={protein:smartClamp(vals.p/old.p,.55,1.6),carb:smartClamp(vals.c/old.c,.45,1.65),fat:smartClamp(vals.f/old.f,.45,1.65),other:smartClamp(vals.kcal/old.kcal,.65,1.35)};
+ const meals=oldDetails.meals||[];const splits=nutritionAutoSplits(meals.length||4);
+ document.getElementById('nutritionMealEditors').innerHTML='';nutritionMealEditorSeq=0;
+ meals.forEach((meal,i)=>{
+  const foods=(meal.foods||[]).map(food=>{
+   const meta=nutritionSwapFindFood(food.food_name);const ratio=meta?.cat==='protein'?ratios.protein:meta?.cat==='carb'?ratios.carb:meta?.cat==='fat'?ratios.fat:meta?.cat==='fruit'?ratios.carb:1;
+   const amount=food.amount==null?null:nutritionAutoRound5(Number(food.amount)*ratio,0,9999);
+   const prepared=food.prepared_amount==null?null:Math.round(Number(food.prepared_amount)*ratio);
+   return {...food,amount,prepared_amount:prepared};
+  });
+  const pct=splits[i]||1/Math.max(1,meals.length),p=Math.round(vals.p*pct),c=Math.round(vals.c*pct),f=Math.round(vals.f*pct),kcal=Math.round(p*4+c*4+f*9);
+  addNutritionMealEditor({name:meal.name,time:meal.target_time,notes:`Objetivo aprox.: ${p} g proteína · ${c} g carbohidratos · ${f} g grasa · ${kcal} kcal`,foods});
+ });
+ const summary=document.getElementById('nutritionAutoMealSummary');if(summary){summary.innerHTML=`Cantidades recalculadas por categoría para aproximarse a ${Math.round(vals.kcal)} kcal, ${Math.round(vals.p)} g de proteína, ${Math.round(vals.c)} g de carbohidratos y ${Math.round(vals.f)} g de grasa. Verduras y alimentos sin equivalencia se conservan para revisión manual.`;summary.classList.add('show')}
+ scheduleNutritionBuilderSafety();
 }
 
 function nutritionEsc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -8112,21 +8141,29 @@ let nutritionSubstitutionFoods=new Map();
 let nutritionSubstitutionCurrentId=null;
 
 const nutritionSubstitutionCatalog=[
- {name:'Arroz en crudo',cat:'carb',p:7,c:78,f:1},
- {name:'Patata',cat:'carb',p:2,c:17,f:.1},
- {name:'Boniato',cat:'carb',p:1.6,c:20,f:.1},
- {name:'Pasta en crudo',cat:'carb',p:13,c:75,f:1.5},
- {name:'Avena',cat:'carb',p:13,c:60,f:7},
- {name:'Pan integral',cat:'carb',p:9,c:49,f:3},
- {name:'Tortitas de arroz',cat:'carb',p:8,c:80,f:3},
- {name:'Quinoa en crudo',cat:'carb',p:14,c:64,f:6},
+ {name:'Arroz en crudo',cat:'carb',p:7,c:78,f:1,gi:'medio',fiber:1,quality:2},
+ {name:'Arroz basmati en crudo',cat:'carb',p:8,c:77,f:1,gi:'medio-bajo',fiber:1,quality:4},
+ {name:'Arroz integral en crudo',cat:'carb',p:8,c:73,f:2.7,gi:'medio',fiber:3.5,quality:4},
+ {name:'Patata',cat:'carb',p:2,c:17,f:.1,gi:'variable',fiber:2.2,quality:5},
+ {name:'Boniato',cat:'carb',p:1.6,c:20,f:.1,gi:'medio',fiber:3,quality:5},
+ {name:'Pasta en crudo',cat:'carb',p:13,c:75,f:1.5,gi:'medio-bajo',fiber:3,quality:4},
+ {name:'Pasta integral en crudo',cat:'carb',p:13,c:67,f:2.5,gi:'medio-bajo',fiber:8,quality:5},
+ {name:'Avena',cat:'carb',p:13,c:60,f:7,gi:'medio-bajo',fiber:10,quality:5},
+ {name:'Pan integral',cat:'carb',p:9,c:49,f:3,gi:'medio',fiber:7,quality:4},
+ {name:'Tortitas de arroz',cat:'carb',p:8,c:80,f:3,gi:'alto',fiber:3,quality:1},
+ {name:'Quinoa en crudo',cat:'carb',p:14,c:64,f:6,gi:'medio-bajo',fiber:7,quality:5},
+ {name:'Cuscús integral en crudo',cat:'carb',p:13,c:65,f:2,gi:'medio',fiber:7,quality:4},
 
  {name:'Pechuga de pollo',cat:'protein',p:23,c:0,f:2},
  {name:'Pechuga de pavo',cat:'protein',p:24,c:0,f:1.5},
  {name:'Pescado blanco',cat:'protein',p:20,c:0,f:2},
+ {name:'Merluza',cat:'protein',p:18,c:0,f:2},
+ {name:'Bacalao fresco',cat:'protein',p:18,c:0,f:.7},
+ {name:'Gambas',cat:'protein',p:20,c:1,f:1.5},
  {name:'Atún al natural',cat:'protein',p:24,c:0,f:1},
  {name:'Ternera magra',cat:'protein',p:22,c:0,f:7},
  {name:'Claras de huevo',cat:'protein',p:11,c:1,f:.2},
+ {name:'Huevos enteros',cat:'protein',p:13,c:1,f:11},
  {name:'Yogur griego 0%',cat:'protein',p:10,c:4,f:.4},
  {name:'Tofu',cat:'protein',p:12,c:2,f:7},
  {name:'Tempeh',cat:'protein',p:19,c:8,f:11},
@@ -8146,11 +8183,22 @@ const nutritionSubstitutionCatalog=[
  {name:'Manzana',cat:'fruit',p:.3,c:14,f:.2},
  {name:'Naranja',cat:'fruit',p:.9,c:12,f:.1},
  {name:'Frutos rojos',cat:'fruit',p:.7,c:12,f:.3},
+ {name:'Kiwi',cat:'fruit',p:1.1,c:15,f:.5},
+ {name:'Pera',cat:'fruit',p:.4,c:15,f:.1},
+ {name:'Piña',cat:'fruit',p:.5,c:13,f:.1},
 
  {name:'Verduras',cat:'veg',p:2,c:6,f:.3},
  {name:'Brócoli',cat:'veg',p:2.8,c:7,f:.4},
  {name:'Calabacín',cat:'veg',p:1.2,c:3.1,f:.3},
- {name:'Ensalada variada',cat:'veg',p:.8,c:3,f:.2}
+ {name:'Ensalada variada',cat:'veg',p:.8,c:3,f:.2},
+ {name:'Judías verdes',cat:'veg',p:1.8,c:7,f:.2},
+ {name:'Espinacas',cat:'veg',p:2.9,c:3.6,f:.4},
+ {name:'Coliflor',cat:'veg',p:1.9,c:5,f:.3},
+ {name:'Pimientos',cat:'veg',p:1,c:6,f:.3},
+ {name:'Berenjena',cat:'veg',p:1,c:6,f:.2},
+ {name:'Espárragos',cat:'veg',p:2.2,c:3.9,f:.1},
+ {name:'Champiñones',cat:'veg',p:3.1,c:3.3,f:.3},
+ {name:'Zanahoria',cat:'veg',p:.9,c:10,f:.2}
 ];
 
 function nutritionSwapNormalize(value){
@@ -8521,11 +8569,18 @@ function nutritionAutoAsTemplate(food){
  const lim=nutritionAutoLimits(food.cat,food.name);
  return {name:food.name,p:food.p,c:food.c,f:food.f,min:lim.min,max:lim.max};
 }
+function nutritionAutoWasPrevious(food){
+ const key=nutritionSafetyNorm(food?.name||food);
+ return [...nutritionAutoPreviousFoods].some(prev=>prev===key||prev.includes(key)||key.includes(prev));
+}
+function nutritionAutoQualityOrder(cat){
+ const rows=nutritionSubstitutionCatalog.filter(x=>x.cat===cat);
+ if(nutritionAutoCalorieDirection!=='lower')return rows;
+ return [...rows].sort((a,b)=>(Number(b.quality)||0)-(Number(a.quality)||0)||(Number(b.fiber)||0)-(Number(a.fiber)||0));
+}
 function nutritionAutoPickSafe(cat,profile,preferred=[],avoidNames=new Set()){
- const ordered=[
-  ...preferred.map(n=>nutritionAutoCatalogFood(n)).filter(Boolean),
-  ...nutritionSubstitutionCatalog.filter(x=>x.cat===cat)
- ];
+ const preferredFoods=preferred.map(n=>nutritionAutoCatalogFood(n)).filter(Boolean),qualityFoods=nutritionAutoQualityOrder(cat);
+ const ordered=nutritionAutoCalorieDirection==='lower'?[...qualityFoods,...preferredFoods]:[...preferredFoods,...qualityFoods];
  const seen=new Set();
  const allowed=[];
  for(const food of ordered){
@@ -8534,9 +8589,15 @@ function nutritionAutoPickSafe(cat,profile,preferred=[],avoidNames=new Set()){
   seen.add(key);
   if(nutritionFoodAllowed(food.name,profile))allowed.push(food);
  }
- // Primero intenta no repetir un alimento ya usado en otra comida del mismo plan.
- const fresh=allowed.find(food=>!avoidNames.has(nutritionSafetyNorm(food.name))&&!nutritionAutoPreviousFoods.has(nutritionSafetyNorm(food.name)))||allowed.find(food=>!avoidNames.has(nutritionSafetyNorm(food.name)));
- const chosen=fresh||allowed[0]||null;
+ const available=allowed.filter(food=>!avoidNames.has(nutritionSafetyNorm(food.name)));
+ const fresh=available.filter(food=>!nutritionAutoWasPrevious(food));
+ const retained=available.filter(food=>nutritionAutoWasPrevious(food));
+ let chosen=null;
+ if(nutritionAutoRevisionMode==='full')chosen=fresh[0]||available[0];
+ else if(nutritionAutoRevisionMode==='renew'){
+  // Alterna conservar/cambiar para renovar aproximadamente la mitad del plan.
+  chosen=(nutritionAutoRevisionPickCounter++%2===0?fresh[0]||retained[0]:retained[0]||fresh[0])||available[0];
+ }else chosen=available[0]||allowed[0]||null;
  return nutritionAutoAsTemplate(chosen);
 }
 function nutritionAutoAdaptTemplate(template,profile,used={carb:new Set(),protein:new Set(),fat:new Set(),fixed:new Set()}){
@@ -8547,9 +8608,14 @@ function nutritionAutoAdaptTemplate(template,profile,used={carb:new Set(),protei
   const cat=original?.cat||'';
   const originalKey=nutritionSafetyNorm(item.name);
   let picked=null;
-  if(original && nutritionFoodAllowed(original.name,profile) && !used.fixed.has(originalKey))picked=original;
+  const candidates=cat?nutritionAutoQualityOrder(cat).filter(food=>nutritionFoodAllowed(food.name,profile)&&!used.fixed.has(nutritionSafetyNorm(food.name))):[];
+  const fresh=candidates.filter(food=>!nutritionAutoWasPrevious(food));
+  const retained=candidates.filter(food=>nutritionAutoWasPrevious(food));
+  if(nutritionAutoRevisionMode==='full')picked=fresh[0]||null;
+  else if(nutritionAutoRevisionMode==='renew')picked=(nutritionAutoRevisionPickCounter++%2===0?fresh[0]||retained[0]:retained[0]||fresh[0])||null;
+  else if(original && nutritionFoodAllowed(original.name,profile) && !used.fixed.has(originalKey))picked=original;
   if(!picked && cat){
-   picked=nutritionSubstitutionCatalog.find(food=>food.cat===cat && nutritionFoodAllowed(food.name,profile) && !used.fixed.has(nutritionSafetyNorm(food.name)))||null;
+   picked=candidates[0]||null;
   }
   if(!picked && original && nutritionFoodAllowed(original.name,profile))picked=original;
   if(!picked)return null;
@@ -8584,9 +8650,24 @@ function nutritionAutoAddMacro(total,food,grams){
  const q=(Number(grams)||0)/100;
  total.p+=food.p*q;total.c+=food.c*q;total.f+=food.f*q;
 }
-function nutritionAutoFoodLine(name,grams,unit='g'){
+function nutritionAutoPreparation(name,mealName=''){
+ const n=nutritionSafetyNorm(name),meal=nutritionSafetyNorm(mealName);
+ if(/aceite/.test(n))return 'en crudo, cantidad medida';
+ if(/patata|boniato/.test(n))return meal.includes('cena')?'al horno o air fryer':'hervido o al horno';
+ if(/arroz|quinoa|cuscus/.test(n))return 'hervido';
+ if(/pasta/.test(n))return 'hervida al dente';
+ if(/pollo|pavo|ternera|seitan|tofu|tempeh/.test(n))return meal.includes('cena')?'al horno o a la plancha':'a la plancha';
+ if(/pescado|merluza|bacalao|salmon/.test(n))return meal.includes('cena')?'al horno o al vapor':'a la plancha';
+ if(/gambas/.test(n))return 'a la plancha';
+ if(/brocoli|coliflor|judias verdes|esparragos|zanahoria/.test(n))return 'al vapor o salteado';
+ if(/calabacin|berenjena|pimiento|champinon|espinaca/.test(n))return 'a la plancha o salteado';
+ if(/ensalada/.test(n))return 'en crudo';
+ return '';
+}
+function nutritionAutoFoodLine(name,grams,unit='g',mealName=''){
  const q=Math.max(0,Math.round(Number(grams)||0));
- return q>0?`${name} ${q} ${unit}`:'';
+ const preparation=nutritionAutoPreparation(name,mealName);
+ return q>0?`${name}${preparation?` (${preparation})`:''} ${q} ${unit}`:'';
 }
 let nutritionAutoVarietyCounter=0;
 function nutritionAutoMealTemplates(count){
@@ -8648,25 +8729,25 @@ function nutritionAutoSplits(count){
 function nutritionAutoBuildMeal(template,pTarget,cTarget,fTarget){
  const foods=[];const total={p:0,c:0,f:0};
  for(const item of template.fixed||[]){
-  foods.push(nutritionAutoFoodLine(item.name,item.g));
+  foods.push(nutritionAutoFoodLine(item.name,item.g,'g',template.name));
   nutritionAutoAddMacro(total,item,item.g);
  }
  const carbNeed=Math.max(0,cTarget-total.c);
  const carbG=nutritionAutoRound5(carbNeed/(template.carb.c/100),template.carb.min,template.carb.max);
  if(carbG){
-  foods.push(nutritionAutoFoodLine(template.carb.name,carbG));
+  foods.push(nutritionAutoFoodLine(template.carb.name,carbG,'g',template.name));
   nutritionAutoAddMacro(total,template.carb,carbG);
  }
  const proteinNeed=Math.max(0,pTarget-total.p);
  const proteinG=nutritionAutoRound5(proteinNeed/(template.protein.p/100),template.protein.min,template.protein.max);
  if(proteinG){
-  foods.push(nutritionAutoFoodLine(template.protein.name,proteinG));
+  foods.push(nutritionAutoFoodLine(template.protein.name,proteinG,'g',template.name));
   nutritionAutoAddMacro(total,template.protein,proteinG);
  }
  const fatNeed=Math.max(0,fTarget-total.f);
  const fatG=nutritionAutoRound5(fatNeed/(template.fat.f/100),template.fat.min,template.fat.max);
  if(fatG>=5){
-  foods.push(nutritionAutoFoodLine(template.fat.name,fatG));
+  foods.push(nutritionAutoFoodLine(template.fat.name,fatG,'g',template.name));
   nutritionAutoAddMacro(total,template.fat,fatG);
  }
  return foods.filter(Boolean);
@@ -8702,7 +8783,8 @@ async function generateNutritionMealsFromTargets(){
  });
  if(summary){
   const profileInfo=nutritionProfileActiveText(safetyProfile);
-  summary.innerHTML=`Se han creado <b>${count} comidas variadas y editables</b> a partir de ${Math.round(calories)} kcal, ${Math.round(protein)} g de proteína, ${Math.round(carbs)} g de carbohidratos y ${Math.round(fat)} g de grasa. <b>Las cantidades en gramos se interpretan como peso en crudo antes de cocinar</b>, salvo que el alimento indique expresamente “cocido” o “cocinado”. El generador rota combinaciones y no repite la fuente principal de proteína, carbohidrato ni grasa dentro del mismo plan, salvo que las alergias, intolerancias o preferencias del cliente dejen sin alternativas seguras. Si vuelves a generar, obtendrás otra combinación equivalente.${profileInfo?`<div class="nutrition-auto-profile">✓ Perfil nutricional aplicado: ${nutritionEsc(profileInfo)}</div>`:''}`;
+  const criteria=nutritionAutoCalorieDirection==='lower'?'Al reducir calorías se han priorizado opciones con mayor saciedad, fibra y densidad calórica favorable, sin usar el índice glucémico como único criterio.':'Se han valorado variedad, fibra, saciedad, digestibilidad, carga glucémica y densidad calórica.';
+  summary.innerHTML=`Se han creado <b>${count} comidas variadas y editables</b> a partir de ${Math.round(calories)} kcal, ${Math.round(protein)} g de proteína, ${Math.round(carbs)} g de carbohidratos y ${Math.round(fat)} g de grasa. ${criteria} Se han incluido métodos de preparación y cantidades medidas de aceites. <b>Las cantidades en gramos se interpretan como peso en crudo antes de cocinar</b>, salvo indicación expresa. El generador rota carbohidratos, proteínas, grasas, frutas y verduras, respetando las restricciones del cliente.${profileInfo?`<div class="nutrition-auto-profile">✓ Perfil nutricional aplicado: ${nutritionEsc(profileInfo)}</div>`:''}`;
   summary.classList.add('show');
  }
  toast(`${count} comidas generadas`);
