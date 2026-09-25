@@ -2042,6 +2042,8 @@ html,body{background:radial-gradient(circle at 88% 4%,rgba(216,173,74,.055),tran
 input:not([type="checkbox"]):not([type="radio"]),select,textarea{
   background:linear-gradient(180deg,#10100f,#090909)!important;border-color:rgba(216,173,74,.25)!important;color:#f6f3eb
 }
+select{color-scheme:dark}
+select option,select optgroup{background:#10100f!important;color:#f6f3eb!important}
 .field input:focus,.field select:focus,.field textarea:focus,.auth-field input:focus,.auth-field select:focus,
 input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:focus{
   outline:none!important;border-color:var(--gold-line-strong)!important;
@@ -2063,6 +2065,8 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 }
 .quick:hover,.quick:focus-visible{border-color:var(--gold-line-strong)!important;box-shadow:0 14px 32px #0009,0 0 0 1px rgba(216,173,74,.16)!important}
 .client-side .big-avatar,.avatar,.client-own-avatar,.table-avatar{border-color:var(--gold)!important;box-shadow:0 0 0 3px rgba(216,173,74,.09)}
+.client-plan-avatar{overflow:hidden;border:2px solid var(--gold)!important;background:#111!important;color:var(--gold-light)!important;box-shadow:0 0 0 3px rgba(216,173,74,.09)}
+.client-plan-avatar img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
 .client-hero,.admin-hero,.nutrition-hero,.supp-hero,.routine-hero{
   background:radial-gradient(circle at 86% 0,rgba(216,173,74,.12),transparent 34%),var(--premium-panel)!important;
   border-color:var(--gold-line)!important;box-shadow:var(--premium-shadow)!important
@@ -5204,7 +5208,7 @@ async function loadTrainerClients(){
   };
 });
  await Promise.all(clients.map(async c=>{c.avatarUrl=c.avatarPath?await profileAvatarSignedUrl(c.avatarPath):''}));
- renderDashboard();renderClientTable();renderChecks();await loadTrainerDashboardStats();
+ renderClientTable();renderChecks();await loadTrainerDashboardStats();
 }
 
 
@@ -5268,7 +5272,13 @@ async function loadDashboardPaymentKpi(){
  }catch(error){console.error(error);revenue.textContent='—';meta.textContent='No disponible'}
 }
 
-async function loadTrainerDashboardStats(){
+let trainerDashboardStatsPromise=null;
+function loadTrainerDashboardStats(){
+ if(trainerDashboardStatsPromise)return trainerDashboardStatsPromise;
+ trainerDashboardStatsPromise=loadTrainerDashboardStatsOnce().finally(()=>{trainerDashboardStatsPromise=null});
+ return trainerDashboardStatsPromise;
+}
+async function loadTrainerDashboardStatsOnce(){
  if(currentProfile?.role!=='trainer')return;
  loadDashboardPaymentKpi();
  const ids=clients.map(c=>c.id);
@@ -5924,7 +5934,7 @@ function renderTrainerRoutines(){
  const el=document.getElementById('trainerRoutinesList');if(!el)return;
  if(!trainerRoutines.length){el.innerHTML='<div class="empty-state card">Todavía no hay rutinas guardadas. Pulsa “+ Crear rutina”.</div>';return}
  el.innerHTML=trainerRoutines.map(r=>`<div class="card real-routine-card">
-   <div class="client-plan-identity"><div class="client-plan-avatar">👤</div><div class="client-plan-copy"><div class="client-plan-label">Rutina de</div><div class="client-plan-name">${escHtml(r.client_name||'Cliente')}</div><div class="client-plan-detail">${escHtml(r.name||'Rutina')} · ${escHtml(routineBlockMeta(r))}</div></div></div>
+   <div class="client-plan-identity">${profileAvatarHtml({name:r.client_name,avatarUrl:r.client_avatar_url},'client-plan-avatar')}<div class="client-plan-copy"><div class="client-plan-label">Rutina de</div><div class="client-plan-name">${escHtml(r.client_name||'Cliente')}</div><div class="client-plan-detail">${escHtml(r.name||'Rutina')} · ${escHtml(routineBlockMeta(r))}</div></div></div>
    <div class="real-routine-head">
     <div class="row"><h3>${escHtml(r.name)}</h3><span class="pill ${r.status==='active'?'green':''}">${escHtml(routineBlockStatusLabel(r))}</span></div>
     <div class="meta" style="margin-top:5px">${r.goal?escHtml(r.goal)+' · ':''}${escHtml(routineBlockMeta(r))}</div>
@@ -5980,7 +5990,7 @@ async function loadTrainerRoutines(){
  const setsMap=new Map();for(const st of workoutSets){if(!setsMap.has(st.workout_exercise_id))setsMap.set(st.workout_exercise_id,[]);setsMap.get(st.workout_exercise_id).push(st)}
  const weMap=new Map();for(const we of workoutExercises){if(!weMap.has(we.workout_day_id))weMap.set(we.workout_day_id,[]);const meta=exMap.get(we.exercise_id)||{};weMap.get(we.workout_day_id).push({...we,name:meta.name||'Ejercicio',muscle_group:meta.muscle_group||'',image_url:meta.image_url||'',sets:setsMap.get(we.id)||[]})}
  const dayMap=new Map();for(const d of (days||[])){if(!dayMap.has(d.routine_id))dayMap.set(d.routine_id,[]);dayMap.get(d.routine_id).push({...d,exercises:weMap.get(d.id)||[]})}
- trainerRoutines=base.map(r=>({...r,client_name:clients.find(c=>c.id===r.client_id)?.name||'Cliente',days:dayMap.get(r.id)||[]}));
+ trainerRoutines=base.map(r=>{const client=clients.find(c=>c.id===r.client_id);return {...r,client_name:client?.name||'Cliente',client_avatar_url:client?.avatarUrl||'',days:dayMap.get(r.id)||[]}});
  renderTrainerRoutines();
 }
 
@@ -8998,11 +9008,12 @@ async function loadTrainerNutrition(){
   let profiles=[],meals=[],foods=[],logs=[],safetyRows=[];
   if(clientIds.length){
    const [{data:profileRows,error:profileErr},{data:safetyData,error:safetyErr}]=await Promise.all([
-    sb.from('profiles').select('id,full_name,email').in('id',clientIds),
+    sb.from('profiles').select('id,full_name,email,avatar_url').in('id',clientIds),
     sb.from('client_onboarding_assessments').select('client_id,additional_notes').eq('trainer_id',currentProfile.id).in('client_id',clientIds)
    ]);
    if(profileErr||safetyErr)throw(profileErr||safetyErr);
    profiles=profileRows||[];
+   await Promise.all(profiles.map(async p=>{p.avatar_display_url=p.avatar_url?await profileAvatarSignedUrl(p.avatar_url):''}));
    safetyRows=safetyData||[];
   }
   if(planIds.length){const {data,error}=await sb.from('nutrition_meals').select('id,plan_id,meal_order,name,target_time,notes').in('plan_id',planIds).order('meal_order');if(error)throw error;meals=data||[]}
@@ -9021,6 +9032,11 @@ async function loadTrainerNutrition(){
   document.getElementById('nutritionActivePlans').textContent=trainerNutritionPlans.length;document.getElementById('nutritionMealsToday').textContent=`${doneMeals}/${totalMeals}`;document.getElementById('nutritionAdherenceToday').textContent=totalMeals?adh+'%':'—';document.getElementById('nutritionAvgCalories').textContent=avgCal?avgCal.toLocaleString('es-ES'):'—';
   if(!trainerNutritionPlans.length){list.innerHTML='<div class="card nutrition-empty">Todavía no hay planes reales. Pulsa “+ Crear plan” para asignar el primero.</div>';return}
   list.innerHTML=trainerNutritionPlans.map(plan=>{const profile=pm.get(plan.client_id)||{};const ms=mealsByPlan.get(plan.id)||[];const safetyProfile=safetyProfiles.get(plan.client_id)||nutritionProfileBlank();const safetyReview=nutritionSafetyPlanReview(safetyProfile,ms,foodsByMeal);const doneSet=doneByPlanDate.get(`${plan.id}|${today}`)||new Set();const done=ms.filter(m=>doneSet.has(m.id)).length;const pct=ms.length?Math.round(done/ms.length*100):0;const history=nutritionPlanHistory(plan,ms,doneByPlanDate,historyDates);const duplicatesForClient=trainerNutritionPlans.filter(x=>String(x.client_id)===String(plan.client_id)).length>1;return `<div class="nutrition-plan-card"><div class="nutrition-plan-head"><div><span class="nutrition-status">● Activo</span><span class="nutrition-plan-lock ${safetyReview.conflicts.length?'blocked':''}">${safetyReview.conflicts.length?'⛔ Bloqueado':'🛡️ Validado'}</span><h2 style="margin-top:9px">${nutritionEsc(plan.name)}</h2><div class="muted">${nutritionEsc(profile.full_name||profile.email||'Cliente')}</div></div><div class="row">${duplicatesForClient?`<button class="btn" type="button" onclick="chooseNutritionPlan('${plan.id}')">✓ Dejar este</button>`:''}<button class="btn dark" type="button" onclick="editNutritionPlan('${plan.id}')">✎ Editar</button><button class="btn ghost" type="button" onclick="archiveNutritionPlan('${plan.id}')">🗑 Quitar</button></div></div><div class="nutrition-macros"><div class="nutrition-macro"><b>${nutritionNum(plan.target_calories)}</b><span>kcal</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_protein_g,' g')}</b><span>proteína</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_carbs_g,' g')}</b><span>carbo</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_fat_g,' g')}</b><span>grasa</span></div></div>${nutritionWeightNoticeHtml()}${nutritionSafetyReviewHtml(safetyReview,'trainer')}<div class="row" style="margin-top:14px"><b>Adherencia hoy</b><span class="green">${ms.length?pct+'%':'Sin comidas'}</span></div><div class="nutrition-adherence"><i style="width:${pct}%"></i></div>${nutritionHistoryHtml(history)}<div class="nutrition-meals">${ms.map(m=>`<div class="nutrition-meal"><div class="nutrition-meal-top"><b>${nutritionEsc(m.name)}</b><span class="muted tiny">${nutritionMealTime(m.target_time)?'🔔 '+nutritionMealTime(m.target_time):''} ${doneSet.has(m.id)?'· ✓ Hecha':''}</span></div>${m.notes?`<div class="nutrition-meal-target">${nutritionEsc(m.notes)}</div>`:''}<div class="nutrition-foods" style="margin-top:${m.notes?'10px':'0'}">${(foodsByMeal.get(m.id)||[]).map(f=>nutritionSafetyFoodRowHtml(f,safetyProfile,'trainer')).join('')||'<div class="muted tiny">Sin alimentos añadidos</div>'}</div></div>`).join('')}</div>${plan.notes?`<div class="muted tiny" style="margin-top:12px">Notas: ${nutritionEsc(plan.notes)}</div>`:''}</div>`}).join('');
+  [...list.querySelectorAll('.nutrition-plan-card')].forEach((card,index)=>{
+   const plan=trainerNutritionPlans[index],profile=pm.get(plan?.client_id)||{},head=card.querySelector('.nutrition-plan-head');
+   if(!head)return;
+   head.insertAdjacentHTML('beforebegin',`<div class="client-plan-identity">${profileAvatarHtml({name:profile.full_name||profile.email||'Cliente',avatarUrl:profile.avatar_display_url||''},'client-plan-avatar')}<div class="client-plan-copy"><div class="client-plan-label">Nutrición de</div><div class="client-plan-name">${nutritionEsc(profile.full_name||profile.email||'Cliente')}</div><div class="client-plan-detail">${nutritionEsc(plan?.name||'Plan nutricional')}</div></div></div>`);
+  });
  }catch(error){console.error(error);list.innerHTML='<div class="card nutrition-empty">No se pudieron cargar los planes nutricionales.</div>';toast('Error cargando nutrición')}
 }
 
@@ -15026,7 +15042,7 @@ async function loadTrainerSupplements(){
     sb.from('supplement_logs').select('plan_id,item_id,client_id,taken,log_date').in('plan_id',planIds).eq('log_date',suppToday())
    ]);if(iErr||lErr)throw(iErr||lErr);items=i||[];logs=l||[];
   }
-  if(clientIds.length){const {data,error}=await sb.from('profiles').select('id,full_name,email').in('id',clientIds);if(error)throw error;profiles=data||[]}
+  if(clientIds.length){const {data,error}=await sb.from('profiles').select('id,full_name,email,avatar_url').in('id',clientIds);if(error)throw error;profiles=data||[];await Promise.all(profiles.map(async p=>{p.avatar_display_url=p.avatar_url?await profileAvatarSignedUrl(p.avatar_url):''}))}
   const pm=new Map(profiles.map(p=>[p.id,p])),itemsByPlan=new Map(),takenSet=new Set(logs.filter(l=>l.taken).map(l=>`${l.plan_id}|${l.item_id}`));
   for(const i of items){if(!itemsByPlan.has(i.plan_id))itemsByPlan.set(i.plan_id,[]);itemsByPlan.get(i.plan_id).push(i)}
   const total=items.length,done=items.filter(i=>takenSet.has(`${i.plan_id}|${i.id}`)).length,pct=total?Math.round(done/total*100):0;
@@ -15038,7 +15054,7 @@ async function loadTrainerSupplements(){
   list.innerHTML=trainerSupplementPlans.map(plan=>{
    const its=itemsByPlan.get(plan.id)||[],profile=pm.get(plan.client_id)||{},d=its.filter(i=>takenSet.has(`${plan.id}|${i.id}`)).length,p=its.length?Math.round(d/its.length*100):0;
    return `<div class="supp-plan-card">
-    <div class="client-plan-identity"><div class="client-plan-avatar">💊</div><div class="client-plan-copy"><div class="client-plan-label">Suplementación de</div><div class="client-plan-name">${suppEsc(profile.full_name||profile.email||'Cliente')}</div><div class="client-plan-detail">${suppEsc(plan.name||'Plan de suplementación')}</div></div></div>
+    <div class="client-plan-identity">${profileAvatarHtml({name:profile.full_name||profile.email||'Cliente',avatarUrl:profile.avatar_display_url||''},'client-plan-avatar')}<div class="client-plan-copy"><div class="client-plan-label">Suplementación de</div><div class="client-plan-name">${suppEsc(profile.full_name||profile.email||'Cliente')}</div><div class="client-plan-detail">${suppEsc(plan.name||'Plan de suplementación')}</div></div></div>
     <div class="supp-plan-head"><div><span class="supp-status">● Activo</span><h2 style="margin-top:10px">${suppEsc(plan.name||'Plan de suplementación')}</h2></div><div class="row"><button class="btn dark" onclick="openSupplementBuilder('${plan.id}')">✎ Editar</button><button class="btn ghost" onclick="archiveSupplementPlan('${plan.id}')">Archivar</button></div></div>
     <div class="row" style="margin-top:14px"><div><b>Adherencia hoy</b><div class="muted tiny">${d}/${its.length} tomas</div></div><b style="font-size:24px">${its.length?p+'%':'—'}</b></div>
     <div class="supp-adherence"><i style="width:${p}%"></i></div>
