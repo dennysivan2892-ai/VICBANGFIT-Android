@@ -382,6 +382,11 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 .checkin-programmed .muted{font-size:12px}
 .service-selector{margin-top:14px;padding:14px;border:1px solid #303030;border-radius:14px;background:#0c0c0c}
 .service-selector h4{margin:0 0 5px}.service-options{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:11px}
+.btn.services-saved{background:linear-gradient(135deg,#128455,#20b977)!important;border-color:#42d99b!important;color:#fff!important;opacity:1!important;cursor:default}
+.assignment-view{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:11px 12px;border:1px solid #28563f;border-radius:12px;background:#0b2118}
+.assignment-view[hidden],.assignment-editor[hidden]{display:none!important}
+.assignment-active{color:#62dda3!important;border-color:#28563f!important;background:#0b2118!important}
+.assignment-inactive{color:#aaa!important;border-color:#333!important;background:#151515!important}
 .service-option{display:flex;align-items:center;gap:9px;padding:11px;border:1px solid #333;border-radius:12px;background:#131313;font-weight:750;cursor:pointer}
 .service-option input{width:18px;height:18px;accent-color:#24d17d}.client-side .service-options{grid-template-columns:minmax(0,1fr)}.client-side .service-option{min-width:0;white-space:normal;overflow-wrap:anywhere}.service-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.service-badge{font-size:10px;padding:3px 7px;border-radius:999px;background:#14251d;color:#55df9b;border:1px solid #28543d}
 @media(max-width:600px){.service-options{grid-template-columns:1fr}}
@@ -2514,11 +2519,11 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
         <button class="btn dark" onclick="showPage('checkins')">📸 Check-ins</button>
         <button class="btn dark" onclick="showPage('progreso')">📊 Progreso</button>
       </div>
-      <div class="service-selector"><h4>Servicios de este cliente</h4><div class="muted tiny">Los apartados desactivados dejarán de aparecer en su cuenta.</div><div class="service-options">
-        <label class="service-option"><input id="clientServiceTraining" type="checkbox"> 🏋 Entrenamiento</label>
-        <label class="service-option"><input id="clientServiceNutrition" type="checkbox"> 🥗 Nutrición</label>
-        <label class="service-option"><input id="clientServiceSupplements" type="checkbox"> 🧪 Suplementación</label>
-      </div><button id="saveClientServicesBtn" class="btn" type="button" style="margin-top:11px;width:100%" onclick="saveClientServices()">Guardar servicios</button><div id="clientServicesMsg" class="auth-error" style="margin-top:7px"></div></div>
+      <div class="service-selector"><div class="row"><div><h4>Servicios de este cliente</h4><div class="muted tiny">Los apartados desactivados dejarán de aparecer en su cuenta.</div></div><span id="clientServicesBadge" class="pill assignment-inactive">SIN ASIGNAR</span></div><div id="clientServicesActiveView" class="assignment-view" hidden><b id="clientServicesActiveText">—</b><button class="btn dark" type="button" onclick="editClientServices()">Modificar</button></div><div id="clientServicesEditor" class="assignment-editor"><div class="service-options">
+        <label class="service-option"><input id="clientServiceTraining" type="checkbox" onchange="clientServicesChanged()"> 🏋 Entrenamiento</label>
+        <label class="service-option"><input id="clientServiceNutrition" type="checkbox" onchange="clientServicesChanged()"> 🥗 Nutrición</label>
+        <label class="service-option"><input id="clientServiceSupplements" type="checkbox" onchange="clientServicesChanged()"> 🧪 Suplementación</label>
+      </div><button id="saveClientServicesBtn" class="btn" type="button" style="margin-top:11px;width:100%" onclick="saveClientServices()">Guardar servicios</button></div><div id="clientServicesMsg" class="auth-error" style="margin-top:7px"></div></div>
     </div>
 
     <div>
@@ -2535,9 +2540,10 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
             <div class="water-title">💧 Hidratación diaria</div>
             <div class="water-meta">Pauta fija individual. Se mantiene hasta que tú la cambies.</div>
           </div>
-          <span class="pill">Pauta individual</span>
+          <span id="trainerClientWaterBadge" class="pill assignment-inactive">SIN ASIGNAR</span>
         </div>
-        <div class="water-target-edit" style="margin-top:14px">
+        <div id="trainerClientWaterActiveView" class="assignment-view" hidden><b id="trainerClientWaterActiveText">—</b><button class="btn dark" type="button" onclick="editTrainerClientWaterTarget()">Modificar</button></div>
+        <div id="trainerClientWaterEditor" class="water-target-edit assignment-editor" style="margin-top:14px">
           <span>Litros al día:</span>
           <input id="trainerClientWaterTargetInput" type="number" min="0.5" max="10" step="0.25" inputmode="decimal" placeholder="Ej. 3">
           <span>L</span>
@@ -2552,9 +2558,10 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
             <div class="steps-title">🚶 Pasos diarios</div>
             <div class="steps-meta">Pauta individual. Los pasos llegan desde Health Connect (Android) o Salud/HealthKit (iPhone) cuando el cliente autoriza la conexión.</div>
           </div>
-          <span class="pill">Actividad diaria</span>
+          <span id="trainerClientStepsBadge" class="pill assignment-inactive">SIN ASIGNAR</span>
         </div>
-        <div class="steps-target-edit">
+        <div id="trainerClientStepsActiveView" class="assignment-view" hidden><b id="trainerClientStepsActiveText">—</b><button class="btn dark" type="button" onclick="editTrainerClientStepTarget()">Modificar</button></div>
+        <div id="trainerClientStepsEditor" class="steps-target-edit assignment-editor">
           <span>Objetivo diario:</span>
           <input id="trainerClientStepTargetInput" type="number" min="500" max="100000" step="500" inputmode="numeric" placeholder="Ej. 8000">
           <span>pasos</span>
@@ -5461,6 +5468,8 @@ function openClient(i){
   document.getElementById('clientServiceTraining').checked=c.services?.training!==false;
   document.getElementById('clientServiceNutrition').checked=c.services?.nutrition!==false;
   document.getElementById('clientServiceSupplements').checked=c.services?.supplements!==false;
+  clientServicesSavedState=clientServicesCurrentState();
+  clientServicesMarkSaved();
   const servicesMsg=document.getElementById('clientServicesMsg');if(servicesMsg){servicesMsg.textContent='';servicesMsg.classList.remove('auth-success')}
 
   document.getElementById("clientTitle").textContent=c.name;
@@ -5501,6 +5510,32 @@ function openClient(i){
 }
 function renderChecks(){const el=document.getElementById("checkList");if(!el)return;el.innerHTML=clients.length?clients.map((c,i)=>`<div class="activity"><div class="icon-dot check-dot">▣</div><div style="flex:1"><b>${c.name}</b><div class="muted tiny">Peso ${c.weight} · Check-in ${c.check}</div></div><button class="btn dark" onclick="openClient(${i})">Revisar</button></div>`).join(""):'<div class="empty-state">Todavía no hay clientes.</div>'}
 
+let clientServicesSavedState=null;
+function clientServicesCurrentState(){
+ return {
+  training:!!document.getElementById('clientServiceTraining')?.checked,
+  nutrition:!!document.getElementById('clientServiceNutrition')?.checked,
+  supplements:!!document.getElementById('clientServiceSupplements')?.checked
+ };
+}
+function clientServicesMarkSaved(){
+ const btn=document.getElementById('saveClientServicesBtn');if(!btn)return;
+ btn.disabled=true;btn.textContent='✓ Servicios guardados';btn.classList.add('services-saved');
+ const active=Object.values(clientServicesSavedState||{}).some(Boolean);
+ const names=[];if(clientServicesSavedState?.training)names.push('Entrenamiento');if(clientServicesSavedState?.nutrition)names.push('Nutrición');if(clientServicesSavedState?.supplements)names.push('Suplementación');
+ const badge=document.getElementById('clientServicesBadge'),view=document.getElementById('clientServicesActiveView'),editor=document.getElementById('clientServicesEditor'),text=document.getElementById('clientServicesActiveText');
+ if(badge){badge.textContent=active?'✓ ASIGNADO':'SIN ASIGNAR';badge.className=`pill ${active?'assignment-active':'assignment-inactive'}`}
+ if(text)text.textContent=names.join(' · ')||'Sin servicios activos';
+ if(view)view.hidden=!active;if(editor)editor.hidden=active;
+}
+function editClientServices(){const view=document.getElementById('clientServicesActiveView'),editor=document.getElementById('clientServicesEditor'),btn=document.getElementById('saveClientServicesBtn');if(view)view.hidden=true;if(editor)editor.hidden=false;if(btn){btn.disabled=true;btn.textContent='Sin cambios';btn.classList.remove('services-saved')}}
+function clientServicesChanged(){
+ const btn=document.getElementById('saveClientServicesBtn'),msg=document.getElementById('clientServicesMsg');if(!btn)return;
+ const now=clientServicesCurrentState(),saved=clientServicesSavedState;
+ const changed=!saved||now.training!==saved.training||now.nutrition!==saved.nutrition||now.supplements!==saved.supplements;
+ btn.disabled=!changed;btn.textContent=changed?'Guardar cambios':'✓ Servicios guardados';btn.classList.toggle('services-saved',!changed);
+ if(msg){msg.textContent='';msg.classList.remove('auth-success')}
+}
 async function saveClientServices(){
  if(currentProfile?.role!=='trainer'||!activeTrainerClientId)return;
  const training=document.getElementById('clientServiceTraining').checked;
@@ -5510,10 +5545,10 @@ async function saveClientServices(){
  if(!training&&!nutrition&&!supplements){msg.textContent='Activa al menos un servicio.';return}
  btn.disabled=true;btn.textContent='Guardando…';msg.textContent='';msg.classList.remove('auth-success');
  const {error}=await sb.from('trainer_clients').update({service_training:training,service_nutrition:nutrition,service_supplements:supplements}).eq('trainer_id',currentProfile.id).eq('client_id',activeTrainerClientId).eq('status','active');
- btn.disabled=false;btn.textContent='Guardar servicios';
- if(error){console.error(error);msg.textContent='No se pudieron guardar los servicios.';return}
+ if(error){console.error(error);btn.disabled=false;btn.textContent='Reintentar';btn.classList.remove('services-saved');msg.textContent='No se pudieron guardar los servicios.';return}
  const c=clients.find(x=>x.id===activeTrainerClientId);if(c)c.services={training,nutrition,supplements};
- msg.textContent='Servicios actualizados ✓';msg.classList.add('auth-success');renderClientTable();toast('Servicios del cliente actualizados');
+ clientServicesSavedState={training,nutrition,supplements};clientServicesMarkSaved();
+ msg.textContent='Configuración confirmada.';msg.classList.add('auth-success');renderClientTable();toast('Servicios del cliente actualizados');
 }
 
 
@@ -14538,6 +14573,7 @@ async function loadTrainerClientWaterTarget(clientId=activeTrainerClientId){
     if(loadToken!==trainerClientPanelLoadToken||clientId!==activeTrainerClientId)return;
     const target=Number(data?.target_ml)||0;
     input.value=waterTargetInputValue(target);
+    renderTrainerWaterAssignment(target);
     status.textContent=target>0
       ?`Pauta actual: ${waterLiters(target)} al día · permanecerá así hasta que la cambies.`
       :'Sin pauta asignada todavía.';
@@ -14547,6 +14583,13 @@ async function loadTrainerClientWaterTarget(clientId=activeTrainerClientId){
     status.textContent='No se pudo cargar la pauta de agua.';
   }
 }
+
+function renderTrainerWaterAssignment(targetMl){
+ const active=Number(targetMl)>0,badge=document.getElementById('trainerClientWaterBadge'),view=document.getElementById('trainerClientWaterActiveView'),editor=document.getElementById('trainerClientWaterEditor'),text=document.getElementById('trainerClientWaterActiveText');
+ if(badge){badge.textContent=active?'✓ ASIGNADA':'SIN ASIGNAR';badge.className=`pill ${active?'assignment-active':'assignment-inactive'}`}
+ if(text)text.textContent=active?`${waterLiters(targetMl)} al día`:'—';if(view)view.hidden=!active;if(editor)editor.hidden=active;
+}
+function editTrainerClientWaterTarget(){const view=document.getElementById('trainerClientWaterActiveView'),editor=document.getElementById('trainerClientWaterEditor');if(view)view.hidden=true;if(editor)editor.hidden=false;document.getElementById('trainerClientWaterTargetInput')?.focus()}
 
 async function saveTrainerClientWaterTarget(){
   if(currentProfile?.role!=='trainer'||!activeTrainerClientId)return;
@@ -14570,6 +14613,7 @@ async function saveTrainerClientWaterTarget(){
     },{onConflict:'client_id'});
     if(error)throw error;
     input.value=waterTargetInputValue(targetMl);
+    renderTrainerWaterAssignment(targetMl);
     if(status)status.textContent=`Pauta actual: ${waterLiters(targetMl)} al día · permanecerá así hasta que la cambies.`;
     toast(`Pauta de agua guardada · ${waterLiters(targetMl)} al día`);
   }catch(error){
@@ -14810,6 +14854,7 @@ async function loadTrainerClientSteps(clientId=activeTrainerClientId){
 function renderTrainerClientSteps(clientId,target,rows){
   const input=document.getElementById('trainerClientStepTargetInput'),status=document.getElementById('trainerClientStepTargetStatus');
   if(input)input.value=target>0?String(target):'';
+  renderTrainerStepsAssignment(target);
   if(status)status.textContent=target>0?`Pauta actual: ${stepsFmt(target)} pasos al día · se mantiene hasta que la cambies.`:'Sin objetivo de pasos asignado.';
   const today=stepsDateISO(),todayRow=(rows||[]).find(r=>String(r.step_date).slice(0,10)===today)||null,steps=Number(todayRow?.steps)||0;
   const remaining=target>0?Math.max(0,target-steps):null,kg=stepsClientWeightKg(clientId),kcal=stepsEstimateKcal(steps,kg);
@@ -14821,6 +14866,12 @@ function renderTrainerClientSteps(clientId,target,rows){
   const latest=[...(rows||[])].filter(r=>r.synced_at).sort((a,b)=>new Date(b.synced_at)-new Date(a.synced_at))[0]||null;
   const meta=document.getElementById('trainerClientStepsSyncMeta');if(meta)meta.textContent=latest?`Última sincronización: ${stepsSyncLabel(latest.synced_at)} · ${stepsSourceLabel(latest.source)}${kg?` · gasto por pasos estimado con ${String(kg).replace('.',',')} kg`:''}.`:'El cliente todavía no ha sincronizado pasos desde su móvil.';
 }
+function renderTrainerStepsAssignment(target){
+ const active=Number(target)>0,badge=document.getElementById('trainerClientStepsBadge'),view=document.getElementById('trainerClientStepsActiveView'),editor=document.getElementById('trainerClientStepsEditor'),text=document.getElementById('trainerClientStepsActiveText');
+ if(badge){badge.textContent=active?'✓ ASIGNADO':'SIN ASIGNAR';badge.className=`pill ${active?'assignment-active':'assignment-inactive'}`}
+ if(text)text.textContent=active?`${stepsFmt(target)} pasos al día`:'—';if(view)view.hidden=!active;if(editor)editor.hidden=active;
+}
+function editTrainerClientStepTarget(){const view=document.getElementById('trainerClientStepsActiveView'),editor=document.getElementById('trainerClientStepsEditor');if(view)view.hidden=true;if(editor)editor.hidden=false;document.getElementById('trainerClientStepTargetInput')?.focus()}
 async function saveTrainerClientStepTarget(){
   if(currentProfile?.role!=='trainer'||!activeTrainerClientId)return;
   const input=document.getElementById('trainerClientStepTargetInput'),status=document.getElementById('trainerClientStepTargetStatus');
