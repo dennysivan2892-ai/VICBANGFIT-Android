@@ -90,3 +90,18 @@ revoke all on function private.guard_client_appointment_update() from public;
 drop trigger if exists guard_client_appointment_update on public.in_person_appointments;
 create trigger guard_client_appointment_update before update on public.in_person_appointments
 for each row execute function private.guard_client_appointment_update();
+
+-- Avisos entre los dos participantes de una cita, sin permitir notificar
+-- a usuarios ajenos ni crear otros tipos de notificación desde el cliente.
+grant insert on public.notifications to authenticated;
+drop policy if exists "appointment participants create notices" on public.notifications;
+create policy "appointment participants create notices" on public.notifications for insert to authenticated
+with check (
+  type='appointment'
+  and exists(
+    select 1 from public.in_person_appointments a
+    where a.id=(notifications.data->>'appointment_id')::uuid
+      and ((a.trainer_id=(select auth.uid()) and notifications.user_id=a.client_id)
+        or (a.client_id=(select auth.uid()) and notifications.user_id=a.trainer_id))
+  )
+);
