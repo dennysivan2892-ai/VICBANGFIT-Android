@@ -41,33 +41,26 @@ revoke all on public.in_person_appointments from anon;
 grant select, insert, update on public.trainer_availability to authenticated;
 grant select, insert, update on public.in_person_appointments to authenticated;
 
-drop policy if exists "availability trainer manage" on public.trainer_availability;
-create policy "availability trainer manage" on public.trainer_availability for all to authenticated
-  using (trainer_id=auth.uid()) with check (trainer_id=auth.uid());
-
-drop policy if exists "availability enabled clients read" on public.trainer_availability;
-create policy "availability enabled clients read" on public.trainer_availability for select to authenticated
-  using (exists(select 1 from public.trainer_clients tc where tc.trainer_id=trainer_availability.trainer_id and tc.client_id=auth.uid() and tc.status='active' and tc.service_in_person=true));
+drop policy if exists "availability participants read" on public.trainer_availability;
+create policy "availability participants read" on public.trainer_availability for select to authenticated
+  using (trainer_id=(select auth.uid()) or exists(select 1 from public.trainer_clients tc where tc.trainer_id=trainer_availability.trainer_id and tc.client_id=(select auth.uid()) and tc.status='active' and tc.service_in_person=true));
+drop policy if exists "availability trainer insert" on public.trainer_availability;
+create policy "availability trainer insert" on public.trainer_availability for insert to authenticated
+  with check (trainer_id=(select auth.uid()));
+drop policy if exists "availability trainer update" on public.trainer_availability;
+create policy "availability trainer update" on public.trainer_availability for update to authenticated
+  using (trainer_id=(select auth.uid())) with check (trainer_id=(select auth.uid()));
 
 drop policy if exists "appointments participants read" on public.in_person_appointments;
 create policy "appointments participants read" on public.in_person_appointments for select to authenticated
-  using (trainer_id=auth.uid() or client_id=auth.uid());
-
-drop policy if exists "appointments enabled client request" on public.in_person_appointments;
-create policy "appointments enabled client request" on public.in_person_appointments for insert to authenticated
-  with check (client_id=auth.uid() and requested_by='client' and status='requested' and exists(select 1 from public.trainer_clients tc where tc.trainer_id=in_person_appointments.trainer_id and tc.client_id=auth.uid() and tc.status='active' and tc.service_in_person=true));
-
-drop policy if exists "appointments trainer create" on public.in_person_appointments;
-create policy "appointments trainer create" on public.in_person_appointments for insert to authenticated
-  with check (trainer_id=auth.uid() and requested_by='trainer' and exists(select 1 from public.trainer_clients tc where tc.trainer_id=auth.uid() and tc.client_id=in_person_appointments.client_id and tc.status='active' and tc.service_in_person=true));
-
-drop policy if exists "appointments trainer update" on public.in_person_appointments;
-create policy "appointments trainer update" on public.in_person_appointments for update to authenticated
-  using (trainer_id=auth.uid()) with check (trainer_id=auth.uid());
-
-drop policy if exists "appointments client update" on public.in_person_appointments;
-create policy "appointments client update" on public.in_person_appointments for update to authenticated
-  using (client_id=auth.uid()) with check (client_id=auth.uid() and status in ('confirmed','cancelled'));
+  using (trainer_id=(select auth.uid()) or client_id=(select auth.uid()));
+drop policy if exists "appointments participants insert" on public.in_person_appointments;
+create policy "appointments participants insert" on public.in_person_appointments for insert to authenticated
+  with check ((client_id=(select auth.uid()) and requested_by='client' and status='requested' and exists(select 1 from public.trainer_clients tc where tc.trainer_id=in_person_appointments.trainer_id and tc.client_id=(select auth.uid()) and tc.status='active' and tc.service_in_person=true)) or (trainer_id=(select auth.uid()) and requested_by='trainer' and exists(select 1 from public.trainer_clients tc where tc.trainer_id=(select auth.uid()) and tc.client_id=in_person_appointments.client_id and tc.status='active' and tc.service_in_person=true)));
+drop policy if exists "appointments participants update" on public.in_person_appointments;
+create policy "appointments participants update" on public.in_person_appointments for update to authenticated
+  using (trainer_id=(select auth.uid()) or client_id=(select auth.uid()))
+  with check (trainer_id=(select auth.uid()) or (client_id=(select auth.uid()) and status in ('confirmed','cancelled')));
 
 -- Un cliente solo puede aceptar un cambio o cancelar; no puede mover la cita
 -- ni modificar entrenador, duración, notas o propietario mediante la API.
