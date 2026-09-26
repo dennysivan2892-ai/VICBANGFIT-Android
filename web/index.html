@@ -9551,6 +9551,7 @@ async function notifyTrainerInitialCheckin(trainerId,checkinId,checkinDate){
 async function saveClientCheckin(){
  if(currentProfile?.role!=='client')return;
  const btn=document.getElementById('saveCheckinBtn');const msg=document.getElementById('clientCheckinMsg');if(msg){msg.textContent='';msg.classList.remove('auth-success')}
+ let returnHomeAfterSave=false;
  const weight=checkinNum('checkWeight'),waist=checkinNum('checkWaist'),energy=checkinNum('checkEnergy'),hunger=checkinNum('checkHunger'),sleep=checkinNum('checkSleep');
  if(weight==null||energy==null||hunger==null||sleep==null){if(msg)msg.textContent='Completa peso, energía, hambre y sueño.';return}
  if(energy<1||energy>10||hunger<1||hunger>10||sleep<0||sleep>24){if(msg)msg.textContent='Revisa energía, hambre y horas de sueño.';return}
@@ -9602,9 +9603,20 @@ async function saveClientCheckin(){
   const weightEl=document.getElementById('myWeight');if(weightEl)weightEl.textContent=`${String(weight).replace('.',',')} kg`;
   const autoText=autoResult?.targets?` · ${autoResult.targets.calories} kcal · nutrición ${autoResult.nutrition==='created'?'creada':'actualizada'} · rutina ${autoResult.routine==='created'?'creada':'lista'}`:'';
   if(msg){msg.textContent=autoError?'Check-in guardado ✓. Los datos quedaron sincronizados, pero la creación automática del plan se reintentará al abrir tu ficha.':`Check-in guardado y planificación actualizada ✓${autoText}`;msg.classList.add('auth-success')}
-  toast(autoError?'Check-in guardado ✓':'Check-in + planificación automática ✓');await loadClientCheckin();await loadClientCheckinStatus();
+  returnHomeAfterSave=isNewCheckin;
+  if(returnHomeAfterSave){
+   btn.textContent='Enviado ✓';
+   toast(autoError?'Check-in enviado y guardado ✓':'Check-in enviado correctamente ✓');
+   await Promise.all([loadClientCheckinStatus(),loadClientHomeAdherence()]);
+   await new Promise(resolve=>setTimeout(resolve,850));
+   showPage('client_home',{vicUserNavigation:true});
+  }else{
+   toast(autoError?'Check-in guardado ✓':'Check-in + planificación automática ✓');
+   await loadClientCheckin();
+   await loadClientCheckinStatus();
+  }
  }catch(error){console.error(error);if(msg)msg.textContent=vicError(error,'No se pudo guardar el check-in.')}
- finally{btn.disabled=false;if(!clientEditingCheckin)btn.textContent='Enviar check-in'}
+ finally{btn.disabled=false;if(returnHomeAfterSave||!clientEditingCheckin)btn.textContent='Enviar check-in'}
 }
 
 async function loadTrainerCheckins(){
