@@ -1,5 +1,5 @@
 const CACHE='vicbangfit-v7-premium-gold-global';
-const ASSETS=['./','./index.html','./manifest.json','./icon.svg'];
+const ASSETS=['./','./index.html','./manifest.json','./VICBANGFIT_AppIcon_Gold_1024.png'];
 
 self.addEventListener('install',event=>{
  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
