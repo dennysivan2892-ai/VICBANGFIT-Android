@@ -54,13 +54,13 @@ jobs:
               raise SystemExit("No se encontró minSdkVersion en android/variables.gradle")
           p.write_text(s.replace(old, new, 1))
           PY
-      - name: Poner logo 3D VICBANGFIT
+      - name: Poner logo dorado oficial VICBANGFIT
         run: |
           for d in android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi; do
             mkdir -p "$d"
-            cp VICBANGFIT_logo_3D_512.png "$d/ic_launcher.png"
-            cp VICBANGFIT_logo_3D_512.png "$d/ic_launcher_round.png"
-            cp VICBANGFIT_logo_3D_512.png "$d/ic_launcher_foreground.png"
+            cp VICBANGFIT_AppIcon_Gold_1024.png "$d/ic_launcher.png"
+            cp VICBANGFIT_AppIcon_Gold_1024.png "$d/ic_launcher_round.png"
+            cp VICBANGFIT_AppIcon_Gold_1024.png "$d/ic_launcher_foreground.png"
           done
       - name: Configurar enlace de recuperación VICBANGFIT
         run: |

@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - "web/**"
+      - "VICBANGFIT_AppIcon_Gold_Windows.ico"
       - ".github/workflows/build-vicbangfit-windows.yml"
 
 permissions:
@@ -31,6 +32,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path windows-build | Out-Null
           New-Item -ItemType Directory -Force -Path windows-build\app-web | Out-Null
           Copy-Item -Path web\* -Destination windows-build\app-web -Recurse -Force
+          Copy-Item -Path VICBANGFIT_AppIcon_Gold_Windows.ico -Destination windows-build\icon.ico -Force
 
           @'
           {
@@ -56,9 +58,11 @@ jobs:
               },
               "files": [
                 "main.js",
+                "icon.ico",
                 "app-web/**/*"
               ],
               "win": {
+                "icon": "icon.ico",
                 "target": [
                   {
                     "target": "nsis",
@@ -68,6 +72,8 @@ jobs:
                 "artifactName": "VICBANGFIT-Windows-Setup.exe"
               },
               "nsis": {
+                "installerIcon": "icon.ico",
+                "uninstallerIcon": "icon.ico",
                 "oneClick": false,
                 "allowToChangeInstallationDirectory": true,
                 "createDesktopShortcut": true,
@@ -151,6 +157,7 @@ jobs:
               height: 850,
               minWidth: 900,
               minHeight: 650,
+              icon: path.join(__dirname, "icon.ico"),
               backgroundColor: "#070707",
               autoHideMenuBar: true,
               webPreferences: {
