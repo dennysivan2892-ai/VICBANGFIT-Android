@@ -4366,6 +4366,17 @@ function showRecoveryForm(message='Enlace verificado. Ahora elige una contraseñ
  setTimeout(()=>document.getElementById('recoveryPassword')?.focus(),100);
 }
 function setAuthMessage(id,msg,ok=false){const e=document.getElementById(id);e.textContent=msg;e.classList.toggle('auth-success',ok)}
+function continueSignupOnLogin(email,message){
+ switchAuth('login');
+ const loginEmail=document.getElementById('loginEmail');
+ const loginPassword=document.getElementById('loginPassword');
+ if(loginEmail)loginEmail.value=email;
+ if(loginPassword)loginPassword.value='';
+ const signupPassword=document.getElementById('signupPassword');
+ if(signupPassword)signupPassword.value='';
+ setAuthMessage('loginMsg',message,true);
+ setTimeout(()=>loginPassword?.focus(),120);
+}
 async function loginUser(ev){
  ev.preventDefault();const btn=document.getElementById('loginBtn');btn.disabled=true;btn.textContent='Entrando…';setAuthMessage('loginMsg','');
  const email=document.getElementById('loginEmail').value.trim();const password=document.getElementById('loginPassword').value;
@@ -4428,13 +4439,19 @@ async function signupUser(ev){
   const valid=await validateSignupTrainerCode(true);
   if(!valid){btn.disabled=false;btn.textContent='Crear cuenta de cliente';return}
  }
- const {data,error}=await sb.auth.signUp({email,password,options:{data:{full_name,account_type,trainer_code:account_type==='client'?trainer_code:''}}});
+ const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:APP_AUTH_REDIRECT,data:{full_name,account_type,trainer_code:account_type==='client'?trainer_code:''}}});
  if(error){setAuthMessage('signupMsg',vicError(error,'No se pudo crear la cuenta.'));btn.disabled=false;btn.textContent=account_type==='trainer'?'Solicitar acceso de entrenador':'Crear cuenta de cliente';return}
  if(data.session){
   setAuthMessage('signupMsg',account_type==='trainer'?'Solicitud creada. Comprobando acceso…':'Cuenta creada. Entrando…',true);
   await enterApp(data.user);
  }else{
-  setAuthMessage('signupMsg',account_type==='trainer'?'Solicitud creada. Revisa tu correo para confirmar la cuenta; después quedará pendiente de aprobación.':'Cuenta creada y vinculada. Revisa tu correo para confirmar el email y luego inicia sesión.',true);
+  const existingAccount=Array.isArray(data.user?.identities)&&data.user.identities.length===0;
+  const message=existingAccount
+   ?'Ese correo ya tiene una cuenta. Escribe su contraseña para entrar o pulsa “¿Olvidaste la contraseña?”.'
+   :(account_type==='trainer'
+     ?'Solicitud creada. Confirma el correo y después inicia sesión; el acceso quedará pendiente de aprobación.'
+     :'Cuenta creada y vinculada. Confirma el correo y después escribe tu contraseña para entrar.');
+  continueSignupOnLogin(email,message);
  }
  btn.disabled=false;btn.textContent=account_type==='trainer'?'Solicitar acceso de entrenador':'Crear cuenta de cliente';
 }
