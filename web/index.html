@@ -8284,6 +8284,15 @@ const nutritionSubstitutionCatalog=[
  {name:'Tortitas de arroz',cat:'carb',p:8,c:80,f:3,gi:'alto',fiber:3,quality:1},
  {name:'Quinoa en crudo',cat:'carb',p:14,c:64,f:6,gi:'medio-bajo',fiber:7,quality:5},
  {name:'Cuscús integral en crudo',cat:'carb',p:13,c:65,f:2,gi:'medio',fiber:7,quality:4},
+ {name:'Pan de centeno',cat:'carb',p:8.5,c:48,f:3.3,gi:'medio-bajo',fiber:6,quality:5,meals:['breakfast','snack']},
+ {name:'Pan de molde integral',cat:'carb',p:9,c:43,f:4,gi:'medio',fiber:7,quality:4,meals:['breakfast','snack']},
+ {name:'Wrap integral',cat:'carb',p:9,c:48,f:7,gi:'medio',fiber:6,quality:4,meals:['breakfast','snack','lunch']},
+ {name:'Pita integral',cat:'carb',p:10,c:55,f:2,gi:'medio',fiber:6,quality:4,meals:['breakfast','snack','lunch']},
+ {name:'Copos de maíz sin azúcar',cat:'carb',p:7,c:84,f:1,gi:'alto',fiber:3,quality:2,meals:['breakfast','snack']},
+ {name:'Muesli sin azúcar',cat:'carb',p:10,c:62,f:8,gi:'medio',fiber:9,quality:4,meals:['breakfast','snack']},
+ {name:'Crema de arroz',cat:'carb',p:7,c:80,f:1,gi:'medio-alto',fiber:1,quality:2,meals:['breakfast','snack']},
+ {name:'Maíz dulce',cat:'carb',p:3.4,c:19,f:1.5,gi:'medio',fiber:2.7,quality:3,meals:['lunch','dinner']},
+ {name:'Alubias cocidas',cat:'carb',p:8,c:21,f:.5,gi:'bajo',fiber:7,quality:5,meals:['lunch','dinner'],season:['autumn','winter']},
 
  {name:'Pechuga de pollo',cat:'protein',p:23,c:0,f:2},
  {name:'Pechuga de pavo',cat:'protein',p:24,c:0,f:1.5},
@@ -8303,12 +8312,36 @@ const nutritionSubstitutionCatalog=[
  {name:'Garbanzos cocidos',cat:'protein',p:9,c:27,f:2.6},
  {name:'Salmón',cat:'protein',p:20,c:0,f:13},
  {name:'Queso fresco batido 0%',cat:'protein',p:8,c:4,f:.2},
+ {name:'Jamón cocido 95%',cat:'protein',p:20,c:1.5,f:3,meals:['breakfast','snack']},
+ {name:'Pavo loncheado 95%',cat:'protein',p:21,c:2,f:2,meals:['breakfast','snack']},
+ {name:'Jamón serrano magro',cat:'protein',p:30,c:.5,f:13,meals:['breakfast','snack']},
+ {name:'Lomo embuchado',cat:'protein',p:32,c:1,f:8,meals:['breakfast','snack']},
+ {name:'Queso fresco ligero',cat:'protein',p:12,c:3,f:5,meals:['breakfast','snack']},
+ {name:'Skyr natural 0%',cat:'protein',p:11,c:4,f:.2,meals:['breakfast','snack']},
+ {name:'Yogur alto en proteína 0%',cat:'protein',p:10,c:5,f:.2,meals:['breakfast','snack']},
+ {name:'Proteína whey',cat:'protein',p:78,c:8,f:6,meals:['breakfast','snack']},
+ {name:'Lomo de cerdo magro',cat:'protein',p:22,c:0,f:5,meals:['lunch','dinner']},
+ {name:'Solomillo de cerdo',cat:'protein',p:22,c:0,f:4,meals:['lunch','dinner']},
+ {name:'Conejo',cat:'protein',p:22,c:0,f:5,meals:['lunch','dinner']},
+ {name:'Dorada',cat:'protein',p:20,c:0,f:5,meals:['lunch','dinner']},
+ {name:'Lubina',cat:'protein',p:20,c:0,f:4,meals:['lunch','dinner']},
+ {name:'Lenguado',cat:'protein',p:18,c:0,f:2,meals:['lunch','dinner']},
+ {name:'Rape',cat:'protein',p:19,c:0,f:1,meals:['lunch','dinner']},
+ {name:'Caballa',cat:'protein',p:19,c:0,f:14,meals:['lunch','dinner']},
+ {name:'Sardinas',cat:'protein',p:20,c:0,f:10,meals:['lunch','dinner']},
+ {name:'Pulpo cocido',cat:'protein',p:15,c:2,f:1,meals:['lunch','dinner']},
+ {name:'Mejillones',cat:'protein',p:12,c:4,f:2,meals:['lunch','dinner']},
+ {name:'Edamame',cat:'protein',p:12,c:9,f:5,meals:['lunch','dinner','snack']},
 
  {name:'Aceite de oliva virgen extra',cat:'fat',p:0,c:0,f:100},
  {name:'Almendras',cat:'fat',p:21,c:22,f:50},
  {name:'Crema de cacahuete',cat:'fat',p:25,c:20,f:50},
  {name:'Aguacate',cat:'fat',p:2,c:9,f:15},
  {name:'Nueces',cat:'fat',p:15,c:14,f:65},
+ {name:'Pistachos',cat:'fat',p:20,c:28,f:45},
+ {name:'Avellanas',cat:'fat',p:15,c:17,f:61},
+ {name:'Semillas de chía',cat:'fat',p:17,c:42,f:31,meals:['breakfast','snack']},
+ {name:'Tahini',cat:'fat',p:17,c:21,f:53},
 
  {name:'Plátano',cat:'fruit',p:1,c:23,f:.3},
  {name:'Manzana',cat:'fruit',p:.3,c:14,f:.2},
@@ -8317,6 +8350,20 @@ const nutritionSubstitutionCatalog=[
  {name:'Kiwi',cat:'fruit',p:1.1,c:15,f:.5},
  {name:'Pera',cat:'fruit',p:.4,c:15,f:.1},
  {name:'Piña',cat:'fruit',p:.5,c:13,f:.1},
+ {name:'Mandarina',cat:'fruit',p:.8,c:13,f:.3,season:['autumn','winter']},
+ {name:'Pomelo',cat:'fruit',p:.8,c:11,f:.1,season:['winter','spring']},
+ {name:'Fresas',cat:'fruit',p:.7,c:8,f:.3,season:['spring']},
+ {name:'Cerezas',cat:'fruit',p:1,c:16,f:.2,season:['spring','summer']},
+ {name:'Sandía',cat:'fruit',p:.6,c:8,f:.2,season:['summer']},
+ {name:'Melón',cat:'fruit',p:.8,c:8,f:.2,season:['summer']},
+ {name:'Melocotón',cat:'fruit',p:.9,c:10,f:.3,season:['summer']},
+ {name:'Nectarina',cat:'fruit',p:1,c:11,f:.3,season:['summer']},
+ {name:'Ciruelas',cat:'fruit',p:.7,c:11,f:.3,season:['summer','autumn']},
+ {name:'Uvas',cat:'fruit',p:.7,c:18,f:.2,season:['autumn']},
+ {name:'Mango',cat:'fruit',p:.8,c:15,f:.4,season:['spring','summer']},
+ {name:'Papaya',cat:'fruit',p:.5,c:11,f:.3,season:['spring','summer']},
+ {name:'Granada',cat:'fruit',p:1.7,c:19,f:1.2,season:['autumn','winter']},
+ {name:'Caqui',cat:'fruit',p:.6,c:19,f:.2,season:['autumn','winter']},
 
  {name:'Verduras',cat:'veg',p:2,c:6,f:.3},
  {name:'Brócoli',cat:'veg',p:2.8,c:7,f:.4},
@@ -8330,6 +8377,13 @@ const nutritionSubstitutionCatalog=[
  {name:'Espárragos',cat:'veg',p:2.2,c:3.9,f:.1},
  {name:'Champiñones',cat:'veg',p:3.1,c:3.3,f:.3},
  {name:'Zanahoria',cat:'veg',p:.9,c:10,f:.2}
+ ,{name:'Calabaza',cat:'veg',p:1,c:7,f:.1,season:['autumn','winter']}
+ ,{name:'Puerro',cat:'veg',p:1.5,c:14,f:.3,season:['autumn','winter']}
+ ,{name:'Acelgas',cat:'veg',p:1.8,c:3.7,f:.2,season:['autumn','winter','spring']}
+ ,{name:'Tomate',cat:'veg',p:.9,c:3.9,f:.2,season:['spring','summer']}
+ ,{name:'Pepino',cat:'veg',p:.7,c:3.6,f:.1,season:['spring','summer']}
+ ,{name:'Gazpacho',cat:'veg',p:.8,c:4,f:2,season:['summer']}
+ ,{name:'Alcachofas',cat:'veg',p:3.3,c:11,f:.2,season:['autumn','winter','spring']}
 ];
 
 function nutritionSwapNormalize(value){
@@ -8371,8 +8425,13 @@ function nutritionSwapOptions(original,amount,profile){
  return nutritionSubstitutionCatalog
   .filter(x=>x.cat===base.cat && x.name!==base.name && nutritionFoodAllowed(x.name,profile))
   .map(x=>({food:x,...nutritionSwapBestAmount(target,x),target}))
-  .sort((a,b)=>a.score-b.score)
-  .slice(0,4);
+  .sort((a,b)=>{
+   const baseMeals=base.meals||[],aMeals=a.food.meals||[],bMeals=b.food.meals||[];
+   const aContext=baseMeals.length&&aMeals.some(x=>baseMeals.includes(x))?-0.35:0;
+   const bContext=baseMeals.length&&bMeals.some(x=>baseMeals.includes(x))?-0.35:0;
+   return (a.score+aContext)-(b.score+bContext);
+  })
+  .slice(0,6);
 }
 function closeNutritionSubstitution(){
  const modal=document.getElementById('nutritionSwapModal');
@@ -8685,12 +8744,15 @@ function nutritionAutoCatalogFood(name){
 function nutritionAutoLimits(cat,name){
  if(cat==='fat')return {min:5,max:40};
  if(cat==='protein'){
-  if(/lentejas|garbanzos/i.test(name))return {min:100,max:500};
-  if(/yogur/i.test(name))return {min:120,max:450};
+  if(/lentejas|garbanzos|alubias|edamame/i.test(name))return {min:100,max:500};
+  if(/yogur|skyr|queso fresco batido/i.test(name))return {min:120,max:450};
+  if(/proteína whey/i.test(name))return {min:20,max:60};
+  if(/jamón|loncheado|lomo embuchado|queso fresco ligero/i.test(name))return {min:40,max:180};
   return {min:60,max:350};
  }
  if(cat==='carb'){
-  if(/patata|boniato/i.test(name))return {min:100,max:650};
+  if(/patata|boniato|maíz dulce|alubias/i.test(name))return {min:100,max:650};
+  if(/pan|wrap|pita/i.test(name))return {min:30,max:180};
   return {min:20,max:200};
  }
  return {min:0,max:500};
@@ -8709,9 +8771,36 @@ function nutritionAutoQualityOrder(cat){
  if(nutritionAutoCalorieDirection!=='lower')return rows;
  return [...rows].sort((a,b)=>(Number(b.quality)||0)-(Number(a.quality)||0)||(Number(b.fiber)||0)-(Number(a.fiber)||0));
 }
-function nutritionAutoPickSafe(cat,profile,preferred=[],avoidNames=new Set()){
+function nutritionAutoSeason(){
+ const month=new Date().getMonth()+1;
+ if(month===12||month<=2)return 'winter';
+ if(month<=5)return 'spring';
+ if(month<=8)return 'summer';
+ return 'autumn';
+}
+function nutritionAutoMealKind(mealName=''){
+ const n=nutritionSafetyNorm(mealName);
+ if(/desayuno/.test(n))return 'breakfast';
+ if(/media manana|merienda|snack/.test(n))return 'snack';
+ if(/cena/.test(n))return 'dinner';
+ return 'lunch';
+}
+function nutritionAutoContextScore(food,context={}){
+ let score=0;
+ const kind=context.kind||nutritionAutoMealKind(context.mealName||'');
+ const season=context.season||nutritionAutoSeason();
+ if(food.meals?.length)score+=food.meals.includes(kind)?18:-25;
+ if(food.season?.length)score+=food.season.includes(season)?16:-5;
+ if(context.preferred?.has(nutritionSafetyNorm(food.name)))score+=35;
+ if(nutritionAutoCalorieDirection==='lower')score+=(Number(food.quality)||0)*3+(Number(food.fiber)||0);
+ // Un pequeño giro estable evita que la primera opción del catálogo gane siempre.
+ score+=((nutritionAutoVarietyCounter+nutritionSafetyNorm(food.name).length)%7);
+ return score;
+}
+function nutritionAutoPickSafe(cat,profile,preferred=[],avoidNames=new Set(),context={}){
  const preferredFoods=preferred.map(n=>nutritionAutoCatalogFood(n)).filter(Boolean),qualityFoods=nutritionAutoQualityOrder(cat);
- const ordered=nutritionAutoCalorieDirection==='lower'?[...qualityFoods,...preferredFoods]:[...preferredFoods,...qualityFoods];
+ const preferredSet=new Set(preferredFoods.map(x=>nutritionSafetyNorm(x.name)));
+ const ordered=[...preferredFoods,...qualityFoods].sort((a,b)=>nutritionAutoContextScore(b,{...context,preferred:preferredSet})-nutritionAutoContextScore(a,{...context,preferred:preferredSet}));
  const seen=new Set();
  const allowed=[];
  for(const food of ordered){
@@ -8739,7 +8828,9 @@ function nutritionAutoAdaptTemplate(template,profile,used={carb:new Set(),protei
   const cat=original?.cat||'';
   const originalKey=nutritionSafetyNorm(item.name);
   let picked=null;
-  const candidates=cat?nutritionAutoQualityOrder(cat).filter(food=>nutritionFoodAllowed(food.name,profile)&&!used.fixed.has(nutritionSafetyNorm(food.name))):[];
+  const candidates=cat?nutritionAutoQualityOrder(cat)
+   .filter(food=>nutritionFoodAllowed(food.name,profile)&&!used.fixed.has(nutritionSafetyNorm(food.name)))
+   .sort((a,b)=>nutritionAutoContextScore(b,{mealName:template.name})-nutritionAutoContextScore(a,{mealName:template.name})):[];
   const fresh=candidates.filter(food=>!nutritionAutoWasPrevious(food));
   const retained=candidates.filter(food=>nutritionAutoWasPrevious(food));
   if(nutritionAutoRevisionMode==='full')picked=fresh[0]||null;
@@ -8761,11 +8852,11 @@ function nutritionAutoAdaptTemplate(template,profile,used={carb:new Set(),protei
   const ordered=[];
   if(original?.name)ordered.push(original.name);
   ordered.push(...preferred);
-  const picked=nutritionAutoPickSafe(cat,profile,ordered,used[cat]);
+  const picked=nutritionAutoPickSafe(cat,profile,ordered,used[cat],{mealName:template.name});
   if(picked){used[cat].add(nutritionSafetyNorm(picked.name));return picked}
   // Solo se repite si las restricciones del cliente no dejan otra alternativa segura.
   if(original && nutritionFoodAllowed(original.name,profile))return original;
-  return nutritionAutoPickSafe(cat,profile,ordered,new Set())||original;
+  return nutritionAutoPickSafe(cat,profile,ordered,new Set(),{mealName:template.name})||original;
  }
  t.carb=choose('carb',template.carb,template.carbAlternatives||[]);
  t.protein=choose('protein',template.protein,template.proteinAlternatives||[]);
@@ -8787,9 +8878,11 @@ function nutritionAutoPreparation(name,mealName=''){
  if(/patata|boniato/.test(n))return meal.includes('cena')?'al horno o air fryer':'hervido o al horno';
  if(/arroz|quinoa|cuscus/.test(n))return 'hervido';
  if(/pasta/.test(n))return 'hervida al dente';
- if(/pollo|pavo|ternera|seitan|tofu|tempeh/.test(n))return meal.includes('cena')?'al horno o a la plancha':'a la plancha';
- if(/pescado|merluza|bacalao|salmon/.test(n))return meal.includes('cena')?'al horno o al vapor':'a la plancha';
+ if(/pollo|pechuga de pavo|ternera|cerdo|solomillo|conejo|seitan|tofu|tempeh/.test(n))return meal.includes('cena')?'al horno o a la plancha':'a la plancha';
+ if(/pescado|merluza|bacalao|salmon|dorada|lubina|lenguado|rape|caballa|sardina/.test(n))return meal.includes('cena')?'al horno o al vapor':'a la plancha';
  if(/gambas/.test(n))return 'a la plancha';
+ if(/pulpo/.test(n))return 'cocido o a la plancha';
+ if(/mejillones/.test(n))return 'al vapor';
  if(/brocoli|coliflor|judias verdes|esparragos|zanahoria/.test(n))return 'al vapor o salteado';
  if(/calabacin|berenjena|pimiento|champinon|espinaca/.test(n))return 'a la plancha o salteado';
  if(/ensalada/.test(n))return 'en crudo';
@@ -8835,19 +8928,59 @@ function nutritionAutoMealTemplates(count){
    meal('Comida','14:00',fixed('Brócoli',200),'Quinoa en crudo','Ternera magra','Aceite de oliva virgen extra',{carb:['Arroz en crudo','Pasta en crudo'],protein:['Pechuga de pollo'],fat:['Aguacate']}),
    meal('Merienda','18:00',fixed('Naranja',180),'Pan integral','Atún al natural','Almendras',{carb:['Tortitas de arroz','Avena'],protein:['Pechuga de pavo','Queso fresco batido 0%'],fat:['Nueces']}),
    meal('Cena','21:00',fixed('Ensalada variada',220),'Patata','Salmón','Aguacate',{carb:['Boniato','Arroz en crudo'],protein:['Pescado blanco','Tofu'],fat:['Nueces']})
+  ],
+  [
+   meal('Desayuno','08:00',fixed('Kiwi',150),'Pan de centeno','Jamón cocido 95%','Aguacate',{carb:['Pan de molde integral','Pita integral'],protein:['Pavo loncheado 95%','Queso fresco ligero'],fat:['Aceite de oliva virgen extra']}),
+   meal('Comida','14:00',fixed('Pimientos',220),'Cuscús integral en crudo','Lomo de cerdo magro','Aceite de oliva virgen extra',{carb:['Pasta integral en crudo','Quinoa en crudo'],protein:['Solomillo de cerdo','Conejo'],fat:['Tahini']}),
+   meal('Merienda','18:00',fixed('Piña',180),'Muesli sin azúcar','Skyr natural 0%','Pistachos',{carb:['Avena','Copos de maíz sin azúcar'],protein:['Yogur alto en proteína 0%','Proteína whey'],fat:['Semillas de chía']}),
+   meal('Cena','21:00',fixed('Espárragos',220),'Boniato','Dorada','Avellanas',{carb:['Patata','Maíz dulce'],protein:['Lubina','Lenguado','Rape'],fat:['Aguacate']})
+  ],
+  [
+   meal('Desayuno','08:00',fixed('Pera',170),'Wrap integral','Huevos enteros','Aguacate',{carb:['Pita integral','Pan integral'],protein:['Jamón serrano magro','Lomo embuchado'],fat:['Aceite de oliva virgen extra']}),
+   meal('Comida','14:00',fixed('Judías verdes',220),'Pasta integral en crudo','Solomillo de cerdo','Aceite de oliva virgen extra',{carb:['Cuscús integral en crudo','Patata'],protein:['Ternera magra','Pechuga de pavo'],fat:['Nueces']}),
+   meal('Merienda','18:00',fixed('Mango',160),'Crema de arroz','Proteína whey','Crema de cacahuete',{carb:['Avena','Muesli sin azúcar'],protein:['Skyr natural 0%','Yogur alto en proteína 0%'],fat:['Almendras']}),
+   meal('Cena','21:00',fixed('Champiñones',220),'Quinoa en crudo','Gambas','Tahini',{carb:['Boniato','Maíz dulce'],protein:['Pulpo cocido','Mejillones'],fat:['Aguacate']})
+  ],
+  [
+   meal('Desayuno','08:00',fixed('Mandarina',180),'Pan de molde integral','Pavo loncheado 95%','Queso fresco ligero',{carb:['Pan de centeno','Wrap integral'],protein:['Jamón cocido 95%','Huevos enteros'],fat:['Aguacate']}),
+   meal('Comida','14:00',fixed('Calabaza',250),'Alubias cocidas','Conejo','Aceite de oliva virgen extra',{carb:['Patata','Cuscús integral en crudo'],protein:['Lomo de cerdo magro','Ternera magra'],fat:['Tahini']}),
+   meal('Merienda','18:00',fixed('Granada',150),'Muesli sin azúcar','Yogur alto en proteína 0%','Semillas de chía',{carb:['Avena','Copos de maíz sin azúcar'],protein:['Skyr natural 0%','Queso fresco batido 0%'],fat:['Pistachos']}),
+   meal('Cena','21:00',fixed('Acelgas',220),'Boniato','Bacalao fresco','Nueces',{carb:['Patata','Quinoa en crudo'],protein:['Merluza','Rape'],fat:['Aguacate']})
+  ],
+  [
+   meal('Desayuno','08:00',fixed('Fresas',180),'Avena','Skyr natural 0%','Pistachos',{carb:['Muesli sin azúcar','Pan integral'],protein:['Yogur alto en proteína 0%','Proteína whey'],fat:['Semillas de chía']}),
+   meal('Comida','14:00',fixed('Gazpacho',250),'Patata','Pulpo cocido','Aceite de oliva virgen extra',{carb:['Maíz dulce','Pasta en crudo'],protein:['Gambas','Mejillones'],fat:['Aguacate']}),
+   meal('Merienda','18:00',fixed('Sandía',250),'Pita integral','Jamón serrano magro','Queso fresco ligero',{carb:['Pan de centeno','Wrap integral'],protein:['Pavo loncheado 95%','Jamón cocido 95%'],fat:['Almendras']}),
+   meal('Cena','21:00',fixed('Pepino',220),'Cuscús integral en crudo','Lubina','Tahini',{carb:['Quinoa en crudo','Boniato'],protein:['Dorada','Lenguado'],fat:['Aguacate']})
   ]
  ];
 
- const set5=[
-  meal('Desayuno','08:00',fixed('Frutos rojos',120),'Avena','Yogur griego 0%','Crema de cacahuete'),
-  meal('Media mañana','11:00',fixed('Manzana',160),'Pan integral','Pechuga de pavo','Aguacate'),
-  meal('Comida','14:00',fixed('Brócoli',200),'Arroz en crudo','Pechuga de pollo','Aceite de oliva virgen extra'),
-  meal('Merienda','18:00',fixed('Naranja',180),'Tortitas de arroz','Atún al natural','Almendras'),
-  meal('Cena','21:00',fixed('Ensalada variada',220),'Patata','Pescado blanco','Nueces')
+ const sets5=[
+  [
+   meal('Desayuno','08:00',fixed('Frutos rojos',120),'Avena','Yogur griego 0%','Crema de cacahuete'),
+   meal('Media mañana','11:00',fixed('Manzana',160),'Pan integral','Pechuga de pavo','Aguacate'),
+   meal('Comida','14:00',fixed('Brócoli',200),'Arroz en crudo','Pechuga de pollo','Aceite de oliva virgen extra'),
+   meal('Merienda','18:00',fixed('Naranja',180),'Tortitas de arroz','Atún al natural','Almendras'),
+   meal('Cena','21:00',fixed('Ensalada variada',220),'Patata','Pescado blanco','Nueces')
+  ],
+  [
+   meal('Desayuno','08:00',fixed('Kiwi',150),'Pan de centeno','Jamón cocido 95%','Aguacate'),
+   meal('Media mañana','11:00',fixed('Piña',170),'Muesli sin azúcar','Skyr natural 0%','Semillas de chía'),
+   meal('Comida','14:00',fixed('Pimientos',220),'Cuscús integral en crudo','Solomillo de cerdo','Aceite de oliva virgen extra'),
+   meal('Merienda','18:00',fixed('Pera',170),'Wrap integral','Pavo loncheado 95%','Queso fresco ligero'),
+   meal('Cena','21:00',fixed('Espárragos',220),'Boniato','Dorada','Pistachos')
+  ],
+  [
+   meal('Desayuno','08:00',fixed('Fresas',180),'Avena','Yogur alto en proteína 0%','Crema de cacahuete'),
+   meal('Media mañana','11:00',fixed('Melón',220),'Pita integral','Jamón serrano magro','Aguacate'),
+   meal('Comida','14:00',fixed('Gazpacho',250),'Patata','Gambas','Aceite de oliva virgen extra'),
+   meal('Merienda','18:00',fixed('Melocotón',180),'Crema de arroz','Proteína whey','Almendras'),
+   meal('Cena','21:00',fixed('Calabacín',220),'Quinoa en crudo','Lubina','Tahini')
+  ]
  ];
 
  const seed=(Date.now()+nutritionAutoVarietyCounter++)%sets4.length;
- if(count===5)return set5;
+ if(count===5)return sets5[seed%sets5.length];
  if(count===3){const s=sets4[seed];return [s[0],s[1],s[3]]}
  return sets4[seed];
 }
