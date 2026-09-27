@@ -8518,7 +8518,7 @@ async function openNutritionSubstitution(foodId){
  ${profileText?`<div class="nutrition-safety-ok">Perfil aplicado: ${nutritionEsc(profileText)}</div>`:''}`;
  if(copy)copy.textContent=currentProfile?.role==='trainer'
   ?'Primero verás solo 2 sugerencias nuevas. En Cambio manual puedes consultar todas las variantes compatibles.'
-  :'Consulta alternativas compatibles aproximadas. Solo tu entrenador puede modificar el plan.';
+  :'Puedes elegir entre estas 2 alternativas equivalentes para variar esta comida. El plan principal no se modifica.';
  if(!amount||unit!=='g'){
   document.getElementById('nutritionSwapModes').style.display='none';document.getElementById('nutritionSwapTools').style.display='none';
   list.innerHTML='<div class="nutrition-swap-empty">Esta equivalencia automática funciona de momento con alimentos registrados en gramos.</div>';
@@ -8531,7 +8531,9 @@ async function openNutritionSubstitution(foodId){
  }
  nutritionSwapState={mode:'smart',page:0,options,recent:recentFoods};
  window.__nutritionSwapOptions=options;
- document.getElementById('nutritionSwapModes').style.display='flex';document.getElementById('nutritionSwapTools').style.display='grid';
+ const trainer=currentProfile?.role==='trainer';
+ document.getElementById('nutritionSwapModes').style.display=trainer?'flex':'none';
+ document.getElementById('nutritionSwapTools').style.display=trainer?'grid':'none';
  renderNutritionSwapOptions();
  modal.style.display='flex';
 }
