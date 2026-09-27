@@ -1509,6 +1509,12 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 .nutrition-swap-original .name{font-size:17px;font-weight:900}
 .nutrition-swap-original .meta{margin-top:4px;color:#999;font-size:11px}
 .nutrition-swap-list{display:grid;gap:9px;margin-top:13px}
+.nutrition-swap-modes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.nutrition-swap-mode{border:1px solid #343434;background:#111;color:#aaa;border-radius:999px;padding:9px 13px;font-size:10px;font-weight:900;cursor:pointer}
+.nutrition-swap-mode.active{border-color:#b88a2d;background:linear-gradient(135deg,#2d2413,#17130b);color:#f4d77d}
+.nutrition-swap-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center;margin-top:10px}
+.nutrition-swap-tools input{width:100%;padding:11px 12px;border:1px solid #333;border-radius:11px;background:#090909;color:#fff}
+.nutrition-swap-recent{display:inline-flex;margin-top:5px;padding:4px 7px;border-radius:999px;border:1px solid #4b3c1f;background:#1b160c;color:#d9bd70;font-size:8px;font-weight:900}
 .nutrition-swap-option{
   display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;
   padding:12px;border-radius:14px;background:#0b0b0b;border:1px solid #2a2a2a
@@ -1529,6 +1535,7 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
   .nutrition-food-row{grid-template-columns:minmax(0,1fr) auto}
   .nutrition-swap-option{grid-template-columns:1fr}
   .nutrition-swap-option .btn{width:100%}
+  .nutrition-swap-tools{grid-template-columns:1fr}
 }
 
 
@@ -4139,6 +4146,14 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
       <button class="btn ghost" type="button" onclick="closeNutritionSubstitution()">✕</button>
     </div>
     <div id="nutritionSwapOriginal" class="nutrition-swap-original"></div>
+    <div id="nutritionSwapModes" class="nutrition-swap-modes" style="display:none">
+      <button id="nutritionSwapSmartMode" class="nutrition-swap-mode active" type="button" onclick="setNutritionSwapMode('smart')">✨ 2 sugerencias</button>
+      <button id="nutritionSwapManualMode" class="nutrition-swap-mode" type="button" onclick="setNutritionSwapMode('manual')">🔎 Cambio manual completo</button>
+    </div>
+    <div id="nutritionSwapTools" class="nutrition-swap-tools" style="display:none">
+      <input id="nutritionSwapSearch" type="search" placeholder="Buscar alimento o variante…" oninput="renderNutritionSwapOptions()">
+      <button id="nutritionSwapNext" class="btn ghost" type="button" onclick="nextNutritionSwapSuggestions()">Ver otras sugerencias</button>
+    </div>
     <div id="nutritionSwapList" class="nutrition-swap-list"></div>
     <div class="nutrition-swap-note">Las equivalencias son aproximadas y dependen de marca, cocción y composición real del alimento. El entrenador puede revisar y ajustar la cantidad final.</div>
   </div>
@@ -8270,6 +8285,7 @@ function nutritionSafetyFoodRowHtml(food,profile,role='trainer'){
 /* ===== SUSTITUCIONES INTELIGENTES ===== */
 let nutritionSubstitutionFoods=new Map();
 let nutritionSubstitutionCurrentId=null;
+let nutritionSwapState={mode:'smart',page:0,options:[],recent:new Set()};
 
 const nutritionSubstitutionCatalog=[
  {name:'Arroz en crudo',cat:'carb',p:7,c:78,f:1,gi:'medio',fiber:1,quality:2},
@@ -8418,20 +8434,64 @@ function nutritionSwapBestAmount(target,candidate){
  return best;
 }
 function nutritionSwapFmt(n){return Math.round(Number(n)||0)}
-function nutritionSwapOptions(original,amount,profile){
+function nutritionSwapOptions(original,amount,profile,recent=new Set()){
  const base=nutritionSwapFindFood(original);
  if(!base)return [];
  const target=nutritionSwapMacros(base,amount);
  return nutritionSubstitutionCatalog
   .filter(x=>x.cat===base.cat && x.name!==base.name && nutritionFoodAllowed(x.name,profile))
-  .map(x=>({food:x,...nutritionSwapBestAmount(target,x),target}))
+  .map(x=>({food:x,...nutritionSwapBestAmount(target,x),target,recent:recent.has(nutritionSafetyNorm(x.name))}))
   .sort((a,b)=>{
+   if(a.recent!==b.recent)return a.recent?1:-1;
    const baseMeals=base.meals||[],aMeals=a.food.meals||[],bMeals=b.food.meals||[];
    const aContext=baseMeals.length&&aMeals.some(x=>baseMeals.includes(x))?-0.35:0;
    const bContext=baseMeals.length&&bMeals.some(x=>baseMeals.includes(x))?-0.35:0;
    return (a.score+aContext)-(b.score+bContext);
-  })
-  .slice(0,6);
+  });
+}
+async function nutritionSwapRecentFoods(clientId,currentFoodId){
+ const recent=new Set();
+ if(!clientId||currentProfile?.role!=='trainer')return recent;
+ try{
+  const since=new Date();since.setDate(since.getDate()-56);
+  const {data:plans,error:pErr}=await sb.from('nutrition_plans').select('id').eq('trainer_id',currentProfile.id).eq('client_id',clientId).gte('created_at',since.toISOString());
+  if(pErr)throw pErr;
+  const planIds=(plans||[]).map(x=>x.id);if(!planIds.length)return recent;
+  const {data:meals,error:mErr}=await sb.from('nutrition_meals').select('id').in('plan_id',planIds);if(mErr)throw mErr;
+  const mealIds=(meals||[]).map(x=>x.id);if(!mealIds.length)return recent;
+  const {data:foods,error:fErr}=await sb.from('nutrition_foods').select('id,food_name').in('meal_id',mealIds);if(fErr)throw fErr;
+  (foods||[]).forEach(x=>{if(String(x.id)!==String(currentFoodId))recent.add(nutritionSafetyNorm(x.food_name))});
+ }catch(error){console.warn('No se pudo cargar el historial de sustituciones',error)}
+ return recent;
+}
+function setNutritionSwapMode(mode){
+ nutritionSwapState.mode=mode==='manual'?'manual':'smart';nutritionSwapState.page=0;
+ const search=document.getElementById('nutritionSwapSearch');if(search)search.value='';
+ renderNutritionSwapOptions();
+}
+function nextNutritionSwapSuggestions(){
+ const total=nutritionSwapState.options.length;
+ if(total<=2){toast('No hay más alternativas compatibles');return}
+ nutritionSwapState.page=(nutritionSwapState.page+1)%Math.ceil(total/2);
+ renderNutritionSwapOptions();
+}
+function renderNutritionSwapOptions(){
+ const list=document.getElementById('nutritionSwapList');if(!list)return;
+ const manual=nutritionSwapState.mode==='manual';
+ document.getElementById('nutritionSwapSmartMode')?.classList.toggle('active',!manual);
+ document.getElementById('nutritionSwapManualMode')?.classList.toggle('active',manual);
+ const search=document.getElementById('nutritionSwapSearch');if(search)search.style.display=manual?'block':'none';
+ const next=document.getElementById('nutritionSwapNext');if(next)next.style.display=!manual&&nutritionSwapState.options.length>2?'inline-flex':'none';
+ let options=nutritionSwapState.options;
+ if(manual){const q=nutritionSafetyNorm(search?.value||'');if(q)options=options.filter(o=>nutritionSafetyNorm(o.food.name).includes(q))}
+ else{const start=nutritionSwapState.page*2;options=options.slice(start,start+2);if(!options.length){nutritionSwapState.page=0;options=nutritionSwapState.options.slice(0,2)}}
+ if(!options.length){list.innerHTML='<div class="nutrition-swap-empty">No se encontraron alternativas compatibles.</div>';return}
+ const trainer=currentProfile?.role==='trainer';
+ list.innerHTML=options.map(o=>{
+  const index=nutritionSwapState.options.indexOf(o),m=o.macros,t=o.target;
+  const kcalDelta=t.k?Math.round((m.k-t.k)/t.k*100):0;
+  return `<div class="nutrition-swap-option"><div><h4>${nutritionEsc(o.food.name)}</h4><div class="amount">${nutritionSwapFmt(o.g)} g</div><div class="macro">≈ ${nutritionSwapFmt(m.k)} kcal · ${nutritionSwapFmt(m.p)} P · ${nutritionSwapFmt(m.c)} C · ${nutritionSwapFmt(m.f)} G</div><div class="delta">Diferencia energética: ${kcalDelta>0?'+':''}${kcalDelta}%</div>${o.recent?'<span class="nutrition-swap-recent">Usado en las últimas 8 semanas</span>':''}</div>${trainer?`<button class="btn dark" type="button" onclick="applyNutritionSubstitution(${index})">Usar esta</button>`:'<span class="pill">Alternativa</span>'}</div>`;
+ }).join('');
 }
 function closeNutritionSubstitution(){
  const modal=document.getElementById('nutritionSwapModal');
@@ -8450,38 +8510,29 @@ async function openNutritionSubstitution(foodId){
  const unit=String(food.unit||'g').toLowerCase();
  const clientId=food.client_id||(currentProfile?.role==='client'?currentProfile.id:activeTrainerClientId);
  const safetyProfile=await nutritionLoadSafetyProfile(clientId);
+ const recentFoods=await nutritionSwapRecentFoods(clientId,food.id);
  const blockedReason=nutritionFoodBlockedReason(food.food_name,safetyProfile);
  const profileText=nutritionProfileActiveText(safetyProfile);
  original.innerHTML=`<div class="name">${nutritionEsc(food.food_name)}</div><div class="meta">${nutritionEsc(nutritionFoodLabel(food))}</div>
  ${blockedReason?`<div class="nutrition-safety-warning">⚠️ ${nutritionEsc(blockedReason)}</div>`:''}
  ${profileText?`<div class="nutrition-safety-ok">Perfil aplicado: ${nutritionEsc(profileText)}</div>`:''}`;
  if(copy)copy.textContent=currentProfile?.role==='trainer'
-  ?'Elige una alternativa compatible y la cantidad equivalente. Al aplicarla se actualizará el plan real.'
+  ?'Primero verás solo 2 sugerencias nuevas. En Cambio manual puedes consultar todas las variantes compatibles.'
   :'Consulta alternativas compatibles aproximadas. Solo tu entrenador puede modificar el plan.';
  if(!amount||unit!=='g'){
+  document.getElementById('nutritionSwapModes').style.display='none';document.getElementById('nutritionSwapTools').style.display='none';
   list.innerHTML='<div class="nutrition-swap-empty">Esta equivalencia automática funciona de momento con alimentos registrados en gramos.</div>';
   modal.style.display='flex';return;
  }
- const options=nutritionSwapOptions(food.food_name,amount,safetyProfile);
+ const options=nutritionSwapOptions(food.food_name,amount,safetyProfile,recentFoods);
  if(!options.length){
   list.innerHTML='<div class="nutrition-swap-empty">No hay alternativas compatibles suficientes para este alimento con el perfil nutricional indicado. El entrenador puede editarlo manualmente.</div>';
   modal.style.display='flex';return;
  }
- list.innerHTML=options.map((o,i)=>{
-  const m=o.macros,t=o.target;
-  const kcalDelta=t.k?Math.round((m.k-t.k)/t.k*100):0;
-  const trainer=currentProfile?.role==='trainer';
-  return `<div class="nutrition-swap-option">
-    <div>
-      <h4>${nutritionEsc(o.food.name)}</h4>
-      <div class="amount">${nutritionSwapFmt(o.g)} g</div>
-      <div class="macro">≈ ${nutritionSwapFmt(m.k)} kcal · ${nutritionSwapFmt(m.p)} P · ${nutritionSwapFmt(m.c)} C · ${nutritionSwapFmt(m.f)} G</div>
-      <div class="delta">Diferencia energética: ${kcalDelta>0?'+':''}${kcalDelta}%</div>
-    </div>
-    ${trainer?`<button class="btn dark" type="button" onclick="applyNutritionSubstitution(${i})">Usar esta</button>`:'<span class="pill">Alternativa</span>'}
-  </div>`;
- }).join('');
+ nutritionSwapState={mode:'smart',page:0,options,recent:recentFoods};
  window.__nutritionSwapOptions=options;
+ document.getElementById('nutritionSwapModes').style.display='flex';document.getElementById('nutritionSwapTools').style.display='grid';
+ renderNutritionSwapOptions();
  modal.style.display='flex';
 }
 async function applyNutritionSubstitution(index){
