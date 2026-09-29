@@ -385,12 +385,15 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 .service-selector{margin-top:14px;padding:14px;border:1px solid #303030;border-radius:14px;background:#0c0c0c}
 .service-selector h4{margin:0 0 5px}.service-options{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:11px}
 .btn.services-saved{background:linear-gradient(135deg,#128455,#20b977)!important;border-color:#42d99b!important;color:#fff!important;opacity:1!important;cursor:default}
-.assignment-view{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:11px 12px;border:1px solid #28563f;border-radius:12px;background:#0b2118}
+.assignment-view{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;padding:11px 12px;border:1px solid #28563f;border-radius:12px;background:#0b2118}
+.assignment-view>b{flex:1 1 170px;min-width:0;overflow-wrap:anywhere}
+.assignment-view>.btn{flex:0 0 auto;margin-left:auto}
 .assignment-view[hidden],.assignment-editor[hidden]{display:none!important}
 .assignment-active{color:#62dda3!important;border-color:#28563f!important;background:#0b2118!important}
 .assignment-inactive{color:#aaa!important;border-color:#333!important;background:#151515!important}
 .service-option{display:flex;align-items:center;gap:9px;padding:11px;border:1px solid #333;border-radius:12px;background:#131313;font-weight:750;cursor:pointer}
 .service-option input{width:18px;height:18px;accent-color:#24d17d}.client-side .service-options{grid-template-columns:minmax(0,1fr)}.client-side .service-option{min-width:0;white-space:normal;overflow-wrap:anywhere}.service-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.service-badge{font-size:10px;padding:3px 7px;border-radius:999px;background:#14251d;color:#55df9b;border:1px solid #28543d}
+@media(max-width:1100px){.assignment-view>.btn{width:100%;margin-left:0}}
 @media(max-width:600px){.service-options{grid-template-columns:1fr}}
 
 /* ===== FICHA REAL DEL CLIENTE ===== */
@@ -1112,7 +1115,11 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 .chat-clients{background:#111;border:1px solid #292929;border-radius:18px;padding:10px;overflow:hidden}
 .chat-client-row{width:100%;display:flex;gap:10px;align-items:center;text-align:left;background:transparent;color:#eee;border:0;border-bottom:1px solid #232323;padding:12px;border-radius:12px}
 .chat-client-row:hover,.chat-client-row.active{background:#1b1b1b}
-.chat-avatar{width:42px;height:42px;border-radius:50%;border:2px solid #ef2434;display:grid;place-items:center;font-weight:900;flex:0 0 auto}
+.chat-avatar{width:42px;height:42px;border-radius:50%;border:2px solid #ef2434;display:grid;place-items:center;font-weight:900;flex:0 0 auto;overflow:hidden;background:#151515}
+.chat-avatar img{width:100%;height:100%;display:block;object-fit:cover}
+.chat-head-person{display:flex;align-items:center;gap:10px;min-width:0}
+.chat-head-person>div:last-child{min-width:0}
+.chat-head-person b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-client-main{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}.chat-client-name{font-weight:900;display:block}.chat-preview{display:block;font-size:12px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:0}
 .chat-unread{min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:#ef2434;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:900}
 .chat-panel{background:#111;border:1px solid #292929;border-radius:18px;display:flex;flex-direction:column;min-height:600px;overflow:hidden}
@@ -3247,7 +3254,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     </div>
     <div class="chat-panel">
       <div class="chat-head">
-        <div><b id="trainerChatTitle">Selecciona un cliente</b><div class="muted tiny" id="trainerChatSubtitle">Tus mensajes aparecerán aquí.</div></div>
+        <div class="chat-head-person"><div class="chat-avatar" id="trainerChatAvatar">?</div><div><b id="trainerChatTitle">Selecciona un cliente</b><div class="muted tiny" id="trainerChatSubtitle">Tus mensajes aparecerán aquí.</div></div></div>
       </div>
       <div class="chat-messages" id="trainerChatMessages"><div class="chat-empty">Selecciona una conversación.</div></div>
       <div class="chat-composer">
@@ -3622,7 +3629,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
   <div class="chat-client-page">
     <div class="header"><div><h1>💬 Mensajes</h1><div class="muted" id="clientChatSubtitle">Chat privado con tu entrenador.</div></div><button class="btn ghost" onclick="showPage('client_home')">← Inicio</button></div>
     <div class="chat-panel">
-      <div class="chat-head"><div><b id="clientChatTitle">Tu entrenador</b><div class="muted tiny">Conversación privada</div></div><span class="pill" id="clientChatStatus">Supabase</span></div>
+      <div class="chat-head"><div class="chat-head-person"><div class="chat-avatar" id="clientChatTrainerAvatar">?</div><div><b id="clientChatTitle">Tu entrenador</b><div class="muted tiny">Conversación privada</div></div></div><span class="pill" id="clientChatStatus">Supabase</span></div>
       <div class="chat-messages" id="clientChatMessages"><div class="chat-empty">Cargando conversación…</div></div>
       <div class="chat-composer">
         <textarea id="clientChatInput" placeholder="Escribe un mensaje…"></textarea>
@@ -14585,7 +14592,7 @@ async function loadTrainerMessages(resetSelection=true){
   list.innerHTML=clients.length?clients.map(c=>{
    const x=meta.get(c.id)||{last:null,unread:0};
    return `<button class="chat-client-row ${trainerChatClientId===c.id?'active':''}" onclick="openTrainerChat('${c.id}')">
-     <span class="chat-avatar">${initials(c.name)}</span>
+     ${profileAvatarHtml(c,'chat-avatar')}
      <span class="chat-client-main"><span class="chat-client-name">${escHtml(c.name)}</span><span class="chat-preview">${x.last?escHtml(x.last.body):'Sin mensajes todavía'}</span></span>
      ${x.unread?`<span class="chat-unread">${x.unread}</span>`:''}
    </button>`;
@@ -14601,6 +14608,7 @@ async function openTrainerChat(clientId,rerenderList=true){
  const c=clients.find(x=>x.id===clientId);
  document.getElementById('trainerChatTitle').textContent=c?.name||'Cliente';
  document.getElementById('trainerChatSubtitle').textContent='Conversación privada';
+ applyProfileAvatar(document.getElementById('trainerChatAvatar'),c?.avatarUrl||'',c?.name||'Cliente');
  document.getElementById('trainerChatInput').disabled=false;
  document.getElementById('trainerChatSend').disabled=false;
  try{
@@ -14665,8 +14673,10 @@ async function loadClientChat(markRead=true){
  try{
   const trainerId=await resolveClientTrainer();
   if(!trainerId){box.innerHTML='<div class="chat-empty">No tienes entrenador asignado.</div>';return}
-  const {data:trainer}=await sb.from('profiles').select('full_name').eq('id',trainerId).maybeSingle();
+  const {data:trainer}=await sb.from('profiles').select('full_name,avatar_url').eq('id',trainerId).maybeSingle();
   document.getElementById('clientChatTitle').textContent=trainer?.full_name||'Tu entrenador';
+  const trainerAvatarUrl=trainer?.avatar_url?await profileAvatarSignedUrl(trainer.avatar_url):'';
+  applyProfileAvatar(document.getElementById('clientChatTrainerAvatar'),trainerAvatarUrl,trainer?.full_name||'Tu entrenador');
   const {data,error}=await sb.from('chat_messages')
    .select('id,trainer_id,client_id,sender_id,body,read_at,created_at')
    .eq('trainer_id',trainerId).eq('client_id',currentProfile.id)
