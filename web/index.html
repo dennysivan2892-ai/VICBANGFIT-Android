@@ -4044,7 +4044,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     <div id="routineDays" class="routine-days"></div>
     <div class="row" style="margin-top:12px;align-items:flex-start">
       <button class="btn dark" type="button" onclick="addRoutineDay()">＋ Añadir día</button>
-      <div style="text-align:right"><div id="routineMsg" class="auth-error"></div><button id="saveRoutineBtn" class="btn" type="button" onclick="saveRoutine()">Guardar rutina</button></div>
+      <div style="text-align:right"><div id="routineRecoveryStatus" class="muted tiny" aria-live="polite"></div><button class="btn dark" type="button" onclick="saveRoutineRecovery()">Guardar copia en este dispositivo</button><div id="routineMsg" class="auth-error"></div><button id="saveRoutineBtn" class="btn" type="button" onclick="saveRoutine()">Guardar rutina</button></div>
     </div>
   </div>
 </div>
@@ -6556,7 +6556,7 @@ async function routineSyncVolumeProfileForClient(){
 async function openRoutineBuilder(){
  if(currentProfile?.role!=="trainer"){toast('Solo el entrenador puede crear rutinas');return}
  if(!clients.length){toast('Primero añade un cliente');showPage('clientes');return}
- editingRoutineId=null;setupRoutineModal('create');
+ routineActiveRecoveryKey=null;editingRoutineId=null;setupRoutineModal('create');
  const modal=document.getElementById('routineBuilderModal');
  document.getElementById('routineClient').innerHTML=clients.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
  if(trainerContentClientId && clients.some(c=>String(c.id)===String(trainerContentClientId)))document.getElementById('routineClient').value=trainerContentClientId;
@@ -6566,11 +6566,13 @@ async function openRoutineBuilder(){
  routineDayCounter=0;document.getElementById('routineDays').innerHTML='';
  const volumeSummary=document.getElementById('routineVolumeSummary');if(volumeSummary){volumeSummary.classList.remove('active');volumeSummary.innerHTML=''}
  addRoutineDay();modal.classList.add('open');
+ routineActiveRecoveryKey=routineRecoveryKey();
+ document.getElementById('routineRecoveryStatus').textContent='';restoreRoutineRecovery();
 }
 async function openEditRoutine(routineId){
  if(currentProfile?.role!=="trainer")return;
  const routine=trainerRoutines.find(r=>r.id===routineId);if(!routine){toast('No se encontró la rutina');return}
- editingRoutineId=routineId;setupRoutineModal('edit');setAuthMessage('routineMsg','');
+ routineActiveRecoveryKey=null;editingRoutineId=routineId;setupRoutineModal('edit');setAuthMessage('routineMsg','');
  const saveBtn=document.getElementById('saveRoutineBtn');
  if(saveBtn&&routine.status==='draft'&&routine.previous_routine_id)saveBtn.textContent=`Guardar borrador Bloque ${Number(routine.block_number)||2}`;
  const modal=document.getElementById('routineBuilderModal');
@@ -6582,8 +6584,13 @@ async function openEditRoutine(routineId){
  const orderedDays=[...(routine.days||[])].sort((a,b)=>(a.day_number||0)-(b.day_number||0));
  if(orderedDays.length)orderedDays.forEach(d=>addRoutineDay(d));else addRoutineDay();
  modal.classList.add('open');
+ routineActiveRecoveryKey=routineRecoveryKey();
+ document.getElementById('routineRecoveryStatus').textContent='';restoreRoutineRecovery();
 }
 function closeRoutineBuilder(){
+ if(routineSaving)return;
+ saveRoutineRecovery();
+ routineActiveRecoveryKey=null;
  document.getElementById('routineBuilderModal')?.classList.remove('open');
  editingRoutineId=null;setupRoutineModal('create');
 }
@@ -6948,27 +6955,37 @@ async function deleteRoutine(routineId){
   await loadTrainerRoutines();toast('Rutina archivada · historial conservado');
  }catch(error){console.error(error);toast(vicError(error,'No se pudo archivar la rutina'))}
 }
+async function routineRequest(query){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),45000);
+ try{
+  const result=await query.abortSignal(controller.signal);
+  if(controller.signal.aborted)throw new Error('timeout: No se pudo confirmar el guardado.');
+  return result;
+ }finally{clearTimeout(timer)}
+}
+
 async function archiveRoutineExerciseSafe(we){
  if(!we?.id)return;
  // Archiva TODAS las series activas de la fila directamente por workout_exercise_id.
  // Así también limpiamos filas que pudieran haber quedado de un guardado interrumpido.
- const {error:sErr}=await sb.from('workout_sets')
+ const {error:sErr}=await routineRequest(sb.from('workout_sets')
   .update({is_archived:true,updated_at:new Date().toISOString()})
   .eq('workout_exercise_id',we.id)
-  .eq('is_archived',false);
+  .eq('is_archived',false));
  if(sErr)throw sErr;
- const {error:eErr}=await sb.from('workout_exercises')
+ const {error:eErr}=await routineRequest(sb.from('workout_exercises')
   .update({is_archived:true,updated_at:new Date().toISOString()})
-  .eq('id',we.id);
+  .eq('id',we.id));
  if(eErr)throw eErr;
 }
 
 async function archiveRoutineDaySafe(day){
  if(!day?.id)return;
  for(const ex of (day.exercises||[]))await archiveRoutineExerciseSafe(ex);
- const {error:dErr}=await sb.from('workout_days')
+ const {error:dErr}=await routineRequest(sb.from('workout_days')
   .update({is_archived:true,weekday:null,reminder_time:null})
-  .eq('id',day.id);
+  .eq('id',day.id));
  if(dErr)throw dErr;
 }
 
@@ -6978,26 +6995,25 @@ async function archiveRoutineDaySafe(day){
 // todavía no conoce.
 async function shiftRoutineExerciseOrdersForSave(dayId){
  if(!dayId)return;
- const {data:current,error:qErr}=await sb.from('workout_exercises')
+ const {data:current,error:qErr}=await routineRequest(sb.from('workout_exercises')
   .select('id,exercise_order')
   .eq('workout_day_id',dayId)
   .eq('is_archived',false)
-  .order('exercise_order',{ascending:true});
+  .order('exercise_order',{ascending:true}));
  if(qErr)throw qErr;
  if(!(current||[]).length)return;
  const maxOrder=Math.max(0,...current.map(x=>Number(x.exercise_order)||0));
  // Cada fila recibe una posición temporal distinta y superior a cualquier
  // posición existente. Luego se reescriben exactamente como 1,2,3...
- let tempOrder=maxOrder+1000;
- for(const item of current){
-  tempOrder+=1;
-  const {error:uErr}=await sb.from('workout_exercises')
+ await routineWritePool(current,async(item,index)=>{
+  const tempOrder=maxOrder+1001+index;
+  const {error:uErr}=await routineRequest(sb.from('workout_exercises')
    .update({exercise_order:tempOrder,updated_at:new Date().toISOString()})
    .eq('id',item.id)
    .eq('workout_day_id',dayId)
-   .eq('is_archived',false);
+   .eq('is_archived',false));
   if(uErr)throw uErr;
- }
+ });
 }
 
 // Comprueba el resultado REAL del guardado volviendo a leer Supabase.
@@ -7006,19 +7022,19 @@ async function shiftRoutineExerciseOrdersForSave(dayId){
 // interfaz podía mostrar "Rutina actualizada" y, al recargar, recuperar los
 // datos anteriores o dejar un ejercicio sin series.
 async function verifyRoutineSavedState(routineId,expectedDays){
- const {data:routine,error:rErr}=await sb.from('routines')
+ const {data:routine,error:rErr}=await routineRequest(sb.from('routines')
   .select('id,client_id,name,goal,status')
   .eq('id',routineId)
   .eq('trainer_id',currentProfile.id)
-  .maybeSingle();
+  .maybeSingle());
  if(rErr)throw rErr;
  if(!routine)throw new Error('Supabase no confirmó los cambios de la rutina. Revisa los permisos de actualización.');
 
- const {data:days,error:dErr}=await sb.from('workout_days')
+ const {data:days,error:dErr}=await routineRequest(sb.from('workout_days')
   .select('id,day_number,name,is_archived')
   .eq('routine_id',routineId)
   .eq('is_archived',false)
-  .order('day_number',{ascending:true});
+  .order('day_number',{ascending:true}));
  if(dErr)throw dErr;
  const activeDays=days||[];
  if(activeDays.length!==expectedDays.length)throw new Error(`El guardado quedó incompleto: se esperaban ${expectedDays.length} días y Supabase devolvió ${activeDays.length}.`);
@@ -7026,27 +7042,28 @@ async function verifyRoutineSavedState(routineId,expectedDays){
  const dayIds=activeDays.map(d=>d.id);
  let allExercises=[];
  if(dayIds.length){
-  const {data,error}=await sb.from('workout_exercises')
-   .select('id,workout_day_id,exercise_id,exercise_order,is_archived')
-   .in('workout_day_id',dayIds).eq('is_archived',false).order('exercise_order',{ascending:true});
+  const {data,error}=await routineRequest(sb.from('workout_exercises')
+   .select('id,workout_day_id,exercise_id,exercise_order,rest_seconds,notes,is_archived')
+   .in('workout_day_id',dayIds).eq('is_archived',false).order('exercise_order',{ascending:true}));
   if(error)throw error;allExercises=data||[];
  }
  const exerciseIds=allExercises.map(ex=>ex.id);
  let allSets=[];
  if(exerciseIds.length){
-  const {data,error}=await sb.from('workout_sets')
+  const {data,error}=await routineRequest(sb.from('workout_sets')
    .select('id,workout_exercise_id,set_number,target_reps_min,target_reps_max,target_rir')
-   .in('workout_exercise_id',exerciseIds).eq('is_archived',false).order('set_number',{ascending:true});
+   .in('workout_exercise_id',exerciseIds).eq('is_archived',false).order('set_number',{ascending:true}));
   if(error)throw error;allSets=data||[];
  }
  for(const expectedDay of expectedDays){
   const savedDay=activeDays.find(d=>Number(d.day_number)===Number(expectedDay.dayNumber));
-  if(!savedDay)throw new Error(`No se guardó correctamente el Día ${expectedDay.dayNumber}.`);
+  if(!savedDay||savedDay.name!==expectedDay.name)throw new Error(`No se guardó correctamente el Día ${expectedDay.dayNumber}.`);
   const activeExercises=allExercises.filter(ex=>ex.workout_day_id===savedDay.id);
   if(activeExercises.length!==expectedDay.exercises.length)throw new Error(`El guardado de “${expectedDay.name}” quedó incompleto: faltan ejercicios.`);
   for(const expectedExercise of expectedDay.exercises){
    const savedExercise=activeExercises.find(ex=>Number(ex.exercise_order)===Number(expectedExercise.order)&&String(ex.exercise_id)===String(expectedExercise.exerciseId));
    if(!savedExercise)throw new Error(`No se guardó correctamente el ejercicio ${expectedExercise.order} de “${expectedDay.name}”.`);
+   if(Number(savedExercise.rest_seconds??-1)!==Number(expectedExercise.restSeconds??-1)||String(savedExercise.notes||'')!==String(expectedExercise.notes||''))throw new Error(`No se guardaron las indicaciones del ejercicio ${expectedExercise.order} de “${expectedDay.name}”.`);
    const activeSets=allSets.filter(st=>st.workout_exercise_id===savedExercise.id).sort((a,b)=>Number(a.set_number)-Number(b.set_number));
    if(activeSets.length!==expectedExercise.sets)throw new Error(`No se guardaron las ${expectedExercise.sets} series del ejercicio ${expectedExercise.order} de “${expectedDay.name}”.`);
    for(let i=0;i<activeSets.length;i++){
@@ -7084,8 +7101,8 @@ function routineDayPayloadFromEditor(d,di,routineId){
 
 async function createRoutineContentsBulk(routineId,dayEls){
  const dayPayloads=dayEls.map((d,di)=>routineDayPayloadFromEditor(d,di,routineId));
- const {data:savedDays,error:daysError}=await sb.from('workout_days')
-  .insert(dayPayloads).select('id,day_number');
+ const {data:savedDays,error:daysError}=await routineRequest(sb.from('workout_days')
+  .insert(dayPayloads).select('id,day_number'));
  if(daysError)throw daysError;
  const dayIdByNumber=new Map((savedDays||[]).map(d=>[Number(d.day_number),d.id]));
  if(dayIdByNumber.size!==dayEls.length)throw new Error('No se pudieron crear todos los días de la rutina.');
@@ -7106,8 +7123,8 @@ async function createRoutineContentsBulk(routineId,dayEls){
    });
   });
  });
- const {data:savedExercises,error:exercisesError}=await sb.from('workout_exercises')
-  .insert(exercisePayloads).select('id,workout_day_id,exercise_order');
+ const {data:savedExercises,error:exercisesError}=await routineRequest(sb.from('workout_exercises')
+  .insert(exercisePayloads).select('id,workout_day_id,exercise_order'));
  if(exercisesError)throw exercisesError;
  if((savedExercises||[]).length!==exercisePayloads.length)throw new Error('No se pudieron crear todos los ejercicios de la rutina.');
  const exerciseIdByPosition=new Map((savedExercises||[]).map(ex=>[`${ex.workout_day_id}:${ex.exercise_order}`,ex.id]));
@@ -7131,13 +7148,85 @@ async function createRoutineContentsBulk(routineId,dayEls){
   });
  });
  for(let start=0;start<setPayloads.length;start+=400){
-  const {error:setsError}=await sb.from('workout_sets').insert(setPayloads.slice(start,start+400));
+  const {error:setsError}=await routineRequest(sb.from('workout_sets').insert(setPayloads.slice(start,start+400)));
   if(setsError)throw setsError;
  }
 }
 
+// Local recovery copies are scoped to trainer, client and routine, and never
+// count as a confirmed server save. Store values, not executable HTML.
+let routineSaving=false;
+let routineActiveRecoveryKey=null;
+function routineRecoveryKey(){
+ if(!currentProfile?.id)return null;
+ if(routineActiveRecoveryKey?.startsWith(`vic-routine-recovery-v1:${currentProfile.id}:${document.getElementById('routineClient')?.value||''}:`))return routineActiveRecoveryKey;
+ return `vic-routine-recovery-v1:${currentProfile.id}:${document.getElementById('routineClient')?.value||''}:${editingRoutineId||'new'}`;
+}
+function routineRecoveryFields(root){
+ return [...root.querySelectorAll('input,select,textarea')].map(el=>({className:el.className,value:el.value}));
+}
+function routineApplyRecoveryFields(root,fields){
+ const controls=[...root.querySelectorAll('input,select,textarea')];
+ for(const field of fields||[]){const el=controls.find(x=>x.className===field.className);if(el)el.value=field.value}
+}
+function saveRoutineRecovery(){
+ const key=routineRecoveryKey();
+ if(!key||!document.getElementById('routineBuilderModal')?.classList.contains('open'))return false;
+ const draft={version:1,routineId:editingRoutineId,clientId:document.getElementById('routineClient').value,
+  name:document.getElementById('routineName').value,goal:document.getElementById('routineGoal').value,
+  savedAt:new Date().toISOString(),days:[...document.querySelectorAll('#routineDays .routine-day-editor')].map(day=>({
+   id:day.dataset.dayId||null,fields:routineRecoveryFields(day).filter(f=>!f.className.startsWith('re-')),
+   exercises:[...day.querySelectorAll('.routine-exercise-row')].map(row=>({
+    weId:row.dataset.weId||'',originalExerciseId:row.dataset.originalExerciseId||'',setIds:row.dataset.setIds||'[]',fields:routineRecoveryFields(row)
+   }))
+  }))};
+ try{localStorage.setItem(key,JSON.stringify(draft));
+  if(editingRoutineId)localStorage.setItem(`vic-routine-recovery-v1:${currentProfile.id}:${draft.clientId}:${editingRoutineId}`,JSON.stringify(draft));
+  document.getElementById('routineRecoveryStatus').textContent='✓ Copia guardada en este dispositivo · pendiente de guardar en la cuenta';return true}
+ catch(error){console.warn('routine recovery',error);document.getElementById('routineRecoveryStatus').textContent='No se pudo guardar la copia en este dispositivo. Mantén el editor abierto.';return false}
+}
+function restoreRoutineRecovery(){
+ const key=routineRecoveryKey();if(!key)return;
+ let draft;try{draft=JSON.parse(localStorage.getItem(key)||'null')}catch(_){return}
+ if(!draft||draft.version!==1||draft.clientId!==document.getElementById('routineClient').value||(editingRoutineId&&draft.routineId!==editingRoutineId))return;
+ if(!confirm('Hay cambios pendientes guardados en este dispositivo. ¿Quieres recuperarlos?'))return;
+ if(draft.routineId){editingRoutineId=draft.routineId;setupRoutineModal('edit')}
+ document.getElementById('routineName').value=draft.name||'';document.getElementById('routineGoal').value=draft.goal||'';
+ document.getElementById('routineDays').innerHTML='';routineDayCounter=0;
+ for(const data of draft.days||[]){
+  addRoutineDay({id:data.id,cardio_enabled:true});
+  const day=document.getElementById('routineDays').lastElementChild;
+  routineApplyRecoveryFields(day,data.fields);
+  setRoutineCardioEnabled(day,day.querySelector('.routine-cardio-enabled').value==='1');
+  for(const ex of data.exercises||[]){
+   addRoutineExercise(day);const row=day.querySelector('.routine-exercises').lastElementChild;
+   routineApplyRecoveryFields(row,ex.fields);
+   row.dataset.weId=ex.weId;row.dataset.originalExerciseId=ex.originalExerciseId;row.dataset.setIds=ex.setIds;
+   row.querySelector('.re-exercise').dispatchEvent(new Event('change',{bubbles:true}));
+  }
+ }
+ document.getElementById('routineRecoveryStatus').textContent='Cambios recuperados · pulsa Guardar cambios para guardarlos en la cuenta';
+}
+// Limit simultaneous writes and wait for every started operation even when one
+// fails. Otherwise a retry can overlap late writes from the previous attempt.
+async function routineWritePool(items,task,limit=3){
+ let next=0,failure;
+ async function worker(){while(!failure&&next<items.length){const index=next++;try{await task(items[index],index)}catch(error){failure=error}}}
+ await Promise.all(Array.from({length:Math.min(limit,items.length)},worker));
+ if(failure)throw failure;
+}
+document.getElementById('routineBuilderModal').addEventListener('input',()=>{if(!routineSaving)saveRoutineRecovery()});
+document.getElementById('routineBuilderModal').addEventListener('change',event=>{
+ if(routineSaving)return;
+ if(event.target.id==='routineClient'){routineActiveRecoveryKey=null;routineActiveRecoveryKey=routineRecoveryKey();restoreRoutineRecovery()}
+ saveRoutineRecovery();
+});
+document.getElementById('routineBuilderModal').addEventListener('click',()=>{setTimeout(()=>{if(!routineSaving)saveRoutineRecovery()},0)});
+window.addEventListener('pagehide',saveRoutineRecovery);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveRoutineRecovery()});
+
 async function saveRoutine(){
- if(vicDataMutationActive())return;
+ if(routineSaving||vicDataMutationActive())return;
  const btn=document.getElementById('saveRoutineBtn');
  const client_id=document.getElementById('routineClient').value;
  const name=document.getElementById('routineName').value.trim();
@@ -7159,6 +7248,10 @@ async function saveRoutine(){
  const targetRoutineId=editingRoutineId;
  const existingRoutine=wasEditing?trainerRoutines.find(r=>r.id===targetRoutineId):null;
  const editingGeneratedDraft=Boolean(wasEditing&&existingRoutine?.status==='draft'&&existingRoutine?.previous_routine_id);
+ const recoveryKey=routineRecoveryKey();
+ saveRoutineRecovery();routineSaving=true;
+ const lockedControls=[...document.querySelectorAll('#routineBuilderModal input,#routineBuilderModal select,#routineBuilderModal textarea,#routineBuilderModal button')].filter(el=>!el.disabled);
+ lockedControls.forEach(el=>el.disabled=true);
  vicBeginDataMutation();
  btn.disabled=true;btn.textContent=editingGeneratedDraft?'Guardando borrador…':(wasEditing?'Guardando cambios…':'Guardando…');setAuthMessage('routineMsg','');
 
@@ -7187,12 +7280,12 @@ async function saveRoutine(){
    const routineChanged=String(existingRoutine?.client_id||'')!==String(client_id)||
     String(existingRoutine?.name||'')!==String(name)||String(existingRoutine?.goal||'')!==String(goal||'');
    if(routineChanged){
-    const {error:uErr}=await sb.from('routines')
+    const {error:uErr}=await routineRequest(sb.from('routines')
      // Guardar un bloque sugerido nunca lo activa automáticamente. El entrenador
      // puede añadir, quitar y sustituir ejercicios libremente y activarlo más
      // tarde desde el botón independiente "Activar bloque".
      .update({client_id,name,goal,status:existingRoutine?.status||'active',updated_at:new Date().toISOString()})
-     .eq('id',routineId).eq('trainer_id',currentProfile.id);
+     .eq('id',routineId).eq('trainer_id',currentProfile.id));
     if(uErr)throw uErr;
    }
 
@@ -7202,11 +7295,14 @@ async function saveRoutine(){
     if(!keptDayIds.has(oldDay.id))await archiveRoutineDaySafe(oldDay);
    }
   }else{
-   const {data:routine,error:rErr}=await sb.from('routines')
+   const {data:routine,error:rErr}=await routineRequest(sb.from('routines')
     .insert({trainer_id:currentProfile.id,client_id,name,goal,status:'active'})
-    .select('id').single();
+    .select('id').single());
    if(rErr)throw rErr;
    routineId=routine.id;
+   // Keep the identity after a partial failure so a retry cannot create a duplicate routine.
+   editingRoutineId=routineId;
+   saveRoutineRecovery();
    await createRoutineContentsBulk(routineId,dayEls);
    createdInBulk=true;
   }
@@ -7241,15 +7337,15 @@ async function saveRoutine(){
      Number(oldDay.cardio_incline||0)!==Number(cardio_incline||0)||String(oldDay.cardio_resistance||'')!==String(cardio_resistance||'')||
      String(oldDay.cardio_notes||'')!==String(cardio_notes||'');
     if(dayChanged){
-     const {error:dErr}=await sb.from('workout_days')
+     const {error:dErr}=await routineRequest(sb.from('workout_days')
       .update({day_number:di+1,name:dayName,weekday,reminder_time,...cardioFields,is_archived:false,updated_at:new Date().toISOString()})
-      .eq('id',dayId).eq('routine_id',routineId);
+      .eq('id',dayId).eq('routine_id',routineId));
      if(dErr)throw dErr;
     }
    }else{
-    const {data:day,error:dErr}=await sb.from('workout_days')
+    const {data:day,error:dErr}=await routineRequest(sb.from('workout_days')
      .insert({routine_id:routineId,day_number:di+1,name:dayName,weekday,reminder_time,...cardioFields,is_archived:false})
-     .select('id').single();
+     .select('id').single());
     if(dErr)throw dErr;
     dayId=day.id;
     d.dataset.dayId=dayId;
@@ -7261,10 +7357,10 @@ async function saveRoutine(){
    // Reconciliación contra Supabase: cualquier ejercicio activo del día que ya
    // no esté representado por una fila existente del formulario se archiva.
    // Esto limpia también restos de intentos de guardado que fallaron a mitad.
-   const {data:liveRows,error:liveErr}=await sb.from('workout_exercises')
-    .select('id')
+   const {data:liveRows,error:liveErr}=await routineRequest(sb.from('workout_exercises')
+    .select('id,exercise_id,exercise_order,rest_seconds,notes')
     .eq('workout_day_id',dayId)
-    .eq('is_archived',false);
+    .eq('is_archived',false));
    if(liveErr)throw liveErr;
    for(const live of (liveRows||[])){
     if(!keptOldWeIds.has(live.id))await archiveRoutineExerciseSafe(live);
@@ -7289,13 +7385,25 @@ async function saveRoutine(){
    const needsOrderShift=rows.some((r,ei)=>{
     const weId=r.dataset.weId||null;
     if(!weId)return false;
-    const oldEx=(oldDay?.exercises||[]).find(x=>x.id===weId);
+    const oldEx=(liveRows||[]).find(x=>x.id===weId);
     return oldEx&&Number(oldEx.exercise_order)!==ei+1;
    });
    if(needsOrderShift)await shiftRoutineExerciseOrdersForSave(dayId);
 
+   // Re-read active set IDs once per day. An earlier timed-out insert may
+   // have succeeded, even though its response never reached this device.
+   const liveIds=rows.map(r=>r.dataset.weId).filter(Boolean);
+   let liveSets=[];
+   if(liveIds.length){
+    const {data,error}=await routineRequest(sb.from('workout_sets')
+     .select('id,workout_exercise_id,set_number,target_reps_min,target_reps_max,target_rir')
+     .in('workout_exercise_id',liveIds).eq('is_archived',false).order('set_number',{ascending:true}));
+    if(error)throw error;liveSets=data||[];
+   }
+   for(const row of rows)row.dataset.setIds=JSON.stringify(liveSets.filter(st=>st.workout_exercise_id===row.dataset.weId).map(st=>st.id));
+
    // Los ejercicios del día se guardan en paralelo para evitar esperas largas.
-   await Promise.all(rows.map(async (r,ei)=>{
+   await routineWritePool(rows,async (r,ei)=>{
     const exercise_id=r.querySelector('.re-exercise').value;
     const sets=Math.max(1,parseInt(r.querySelector('.re-sets').value||'1'));
     const min=parseInt(r.querySelector('.re-min').value||'0')||null;
@@ -7315,20 +7423,21 @@ async function saveRoutine(){
      weId=null;setIds=[];
     }
 
-    const oldEx=weId?(oldDay?.exercises||[]).find(x=>x.id===weId):null;
+    const liveEx=weId?(liveRows||[]).find(x=>x.id===weId):null;
+    const oldEx=liveEx?{...liveEx,sets:liveSets.filter(st=>st.workout_exercise_id===weId)}:null;
     if(weId){
      const exerciseChanged=needsOrderShift||!oldEx||String(oldEx.exercise_id)!==String(exercise_id)||
       Number(oldEx.exercise_order)!==ei+1||Number(oldEx.rest_seconds??-1)!==Number(rest_seconds??-1)||String(oldEx.notes||'')!==String(notes||'');
      if(exerciseChanged){
-      const {error:weErr}=await sb.from('workout_exercises')
+      const {error:weErr}=await routineRequest(sb.from('workout_exercises')
        .update({exercise_id,exercise_order:ei+1,rest_seconds,notes,is_archived:false,updated_at:new Date().toISOString()})
-       .eq('id',weId).eq('workout_day_id',dayId);
+       .eq('id',weId).eq('workout_day_id',dayId));
       if(weErr)throw weErr;
      }
     }else{
-     const {data:we,error:weErr}=await sb.from('workout_exercises')
+     const {data:we,error:weErr}=await routineRequest(sb.from('workout_exercises')
       .insert({workout_day_id:dayId,exercise_id,exercise_order:ei+1,rest_seconds,notes,is_archived:false})
-      .select('id').single();
+      .select('id').single());
      if(weErr)throw weErr;
      weId=we.id;
      r.dataset.weId=weId;
@@ -7344,14 +7453,14 @@ async function saveRoutine(){
     );
     if(commonSetsChanged){
      // Una sola actualización para todas las series existentes del ejercicio.
-     const {error:sErr}=await sb.from('workout_sets')
+     const {error:sErr}=await routineRequest(sb.from('workout_sets')
       .update({
        target_reps_min:min,
        target_reps_max:max,
        target_rir:Number.isFinite(rir)?rir:null,
        is_archived:false,
        updated_at:new Date().toISOString()
-      }).in('id',setIds.slice(0,common)).eq('workout_exercise_id',weId);
+      }).in('id',setIds.slice(0,common)).eq('workout_exercise_id',weId));
      if(sErr)throw sErr;
     }
 
@@ -7364,13 +7473,13 @@ async function saveRoutine(){
       target_rir:Number.isFinite(rir)?rir:null,
       is_archived:false
      }));
-     const {data:newSets,error:sErr}=await sb.from('workout_sets').insert(newRows).select('id,set_number');
+     const {data:newSets,error:sErr}=await routineRequest(sb.from('workout_sets').insert(newRows).select('id,set_number'));
      if(sErr)throw sErr;
      setIds=[...setIds,...(newSets||[]).sort((a,b)=>a.set_number-b.set_number).map(s=>s.id)];
     }else if(sets<setIds.length){
      const archiveIds=setIds.slice(sets);
      if(archiveIds.length){
-      const {error:sErr}=await sb.from('workout_sets').update({is_archived:true}).in('id',archiveIds);
+      const {error:sErr}=await routineRequest(sb.from('workout_sets').update({is_archived:true}).in('id',archiveIds));
       if(sErr)throw sErr;
      }
      setIds=setIds.slice(0,sets);
@@ -7378,14 +7487,16 @@ async function saveRoutine(){
 
     r.dataset.setIds=JSON.stringify(setIds);
     r.dataset.originalExerciseId=exercise_id;
-   }));
+   });
+   saveRoutineRecovery();
   }
 
   await verifyRoutineSavedState(routineId,expectedDays);
 
   const successText=editingGeneratedDraft?'Borrador guardado · bloque anterior protegido':(wasEditing?'Rutina actualizada · historial protegido':'Rutina guardada');
+  try{localStorage.removeItem(recoveryKey);localStorage.removeItem(routineRecoveryKey());localStorage.removeItem(`vic-routine-recovery-v1:${currentProfile.id}:${client_id}:${routineId}`)}catch(_){}
   document.getElementById('routineBuilderModal')?.classList.remove('open');
-  editingRoutineId=null;setupRoutineModal('create');
+  routineActiveRecoveryKey=null;editingRoutineId=null;setupRoutineModal('create');
   toast(successText+(editingGeneratedDraft?' · Cliente sin avisar':''));
 
   // El guardado ya está confirmado. La recarga y el aviso se ejecutan después
@@ -7404,8 +7515,10 @@ async function saveRoutine(){
    });
   }
  }catch(err){
-  console.error(err);setAuthMessage('routineMsg',vicError(err,'No se pudo guardar la rutina.'));
+  const recovered=saveRoutineRecovery();
+  console.error(err);setAuthMessage('routineMsg',vicError(err,'No se pudo guardar la rutina.')+(recovered?' Tus cambios tienen una copia en este dispositivo.':''));
  }finally{
+  routineSaving=false;lockedControls.forEach(el=>el.disabled=false);
   btn.disabled=false;btn.textContent=editingRoutineId?'Guardar cambios':'Guardar rutina';
   vicEndDataMutation();
  }
