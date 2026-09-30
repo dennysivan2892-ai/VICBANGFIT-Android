@@ -397,8 +397,9 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 @media(max-width:600px){.service-options{grid-template-columns:1fr}}
 
 /* ===== FICHA REAL DEL CLIENTE ===== */
-.client-real-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.client-real-actions button{flex:1;min-width:120px}
+.client-real-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.client-real-actions button{width:100%;min-width:0;min-height:46px;padding:11px 10px;font-size:13px;line-height:1.35;text-align:center;white-space:normal;overflow-wrap:anywhere}
+.client-real-actions button:nth-child(3){grid-column:1/-1}
 .client-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .client-summary-card{background:linear-gradient(180deg,#151515,#101010);border:1px solid #2b2b2b;border-radius:17px;padding:15px;min-height:118px}
 .client-summary-card .label{font-size:11px;color:#999;text-transform:uppercase}.client-summary-card .big{font-size:24px;font-weight:900;margin-top:8px;line-height:1.12}.client-summary-card .small{font-size:12px;color:#27d684;margin-top:7px}
