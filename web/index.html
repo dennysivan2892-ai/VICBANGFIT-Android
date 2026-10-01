@@ -3920,7 +3920,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     <div id="clientCheckinStatus" class="checkin-status-box muted">Cargando tu check-in…</div>
 
     <div class="nutrition-profile-note" style="margin:14px 0">
-      🔄 <b>Datos que alimentan tu planificación automática.</b> La primera vez completa estos campos. Después quedarán guardados y aparecerán ya rellenados. Al enviar el check-in se actualizarán tu perfil, calorías, macros y las propuestas de entrenamiento y nutrición.
+      🔄 <b>Datos que alimentan tu planificación automática.</b> La primera vez completa estos campos. Después quedarán guardados y aparecerán ya rellenados. Al enviar el check-in se actualizará tu perfil. Tu entrenador revisará las propuestas y te asignará tu plan personalizado.
     </div>
     <div id="checkProfileStatus" class="checkin-status-box muted" style="margin-bottom:12px">Cargando datos de planificación…</div>
     <div class="form-grid">
@@ -4026,7 +4026,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
       <div class="field"><label>Objetivo</label><input id="routineGoal" placeholder="Ej. Ganancia muscular"></div>
     </div>
     <div id="routineSystemBox" class="routine-system-box">
-      <div class="row"><div><b>✨ Configurar estructura antes de crear</b><div class="muted tiny" style="margin-top:4px">Elige el sistema y las prioridades. Se generará una propuesta editable; nada se guarda hasta que la revises.</div></div><span class="pill blue">SOLO ENTRENADOR</span></div>
+      <div class="row"><div><b>✨ Configurar o cambiar toda la estructura</b><div class="muted tiny" style="margin-top:4px">Elige el sistema y las prioridades. Se generará una propuesta editable; nada se guarda hasta que la revises.</div></div><span class="pill blue">SOLO ENTRENADOR</span></div>
       <div class="routine-system-grid">
         <div class="field"><label>Días</label><select id="routineAutoDays"><option value="1">1 día</option><option value="2">2 días</option><option value="3">3 días</option><option value="4" selected>4 días</option><option value="5">5 días</option><option value="6">6 días</option></select></div>
         <div class="field"><label>Sistema</label><select id="routineAutoSystem"><option value="recommended">Recomendado</option><option value="fullbody">Full Body</option><option value="upper_lower">Torso / Pierna</option><option value="ppl">Push / Pull / Legs</option><option value="bodypart">División por músculos</option><option value="specialization">Especialización muscular</option></select></div>
@@ -6080,8 +6080,8 @@ function renderTrainerRoutines(){
     <div class="row"><h3>${escHtml(r.name)}</h3><span class="pill ${r.status==='active'?'green':''}">${escHtml(routineBlockStatusLabel(r))}</span></div>
     <div class="meta" style="margin-top:5px">${r.goal?escHtml(r.goal)+' · ':''}${escHtml(routineBlockMeta(r))}</div>
     <div class="real-routine-actions">
-      ${r.status==='active'?`<button class="btn routine-action-next" type="button" onclick="createNextRoutineBlock('${r.id}')">↗ Crear siguiente bloque</button>`:''}
-      ${r.status==='draft'&&r.previous_routine_id?`<button class="btn routine-action-next" type="button" onclick="replanRoutineDraft('${r.id}')">✨ Replanificar días</button><button class="btn routine-action-edit" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar borrador</button><button class="btn routine-action-next" type="button" onclick="activateRoutineBlock('${r.id}')">✓ Activar bloque</button>`:`<button class="btn dark" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar</button>`}
+      ${r.status==='active'?`<button class="btn routine-action-next" type="button" onclick="createNextRoutineBlock('${r.id}')">↗ Continuar con progresión</button><button class="btn routine-action-next" type="button" onclick="createNextRoutineBlock('${r.id}',true)">✨ Nuevo bloque desde cero</button>`:''}
+      ${r.status==='draft'&&r.previous_routine_id?`<button class="btn routine-action-next" type="button" onclick="replanRoutineDraft('${r.id}')">✨ Reconfigurar por completo</button><button class="btn routine-action-edit" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar borrador</button><button class="btn routine-action-next" type="button" onclick="activateRoutineBlock('${r.id}')">✓ Activar bloque</button>`:`<button class="btn dark" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar</button>`}
       <button class="btn routine-action-archive" type="button" onclick="deleteRoutine('${r.id}')">🗄 Archivar</button>
     </div>
    </div>
@@ -6528,7 +6528,7 @@ function setupRoutineModal(mode){
  const title=document.getElementById('routineModalTitle');if(title)title.textContent=isEdit?'Editar rutina':'Crear rutina';
  const copy=document.getElementById('routineModalCopy');if(copy)copy.textContent=isEdit?'Modifica fuerza y cardio: días, ejercicios, series, minutos e intensidad.':'Asigna fuerza, cardio o ambos a uno de tus clientes.';
  const save=document.getElementById('saveRoutineBtn');if(save)save.textContent=isEdit?'Guardar cambios':'Guardar rutina';
- const systemBox=document.getElementById('routineSystemBox');if(systemBox)systemBox.style.display=isEdit?'none':'block';
+ const systemBox=document.getElementById('routineSystemBox');if(systemBox)systemBox.style.display='block';
 }
 function routineVolumeProfileCopy(profile){
  if(profile==='female_lower')return 'Mujer · prioridad en pierna y glúteos; torso reducido';
@@ -6579,6 +6579,8 @@ async function openEditRoutine(routineId){
  const modal=document.getElementById('routineBuilderModal');
  document.getElementById('routineClient').innerHTML=clients.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
  document.getElementById('routineClient').value=routine.client_id;
+ document.getElementById('routineAutoDays').value=String(Math.max(1,Math.min(6,(routine.days||[]).length||3)));
+ await routineSyncVolumeProfileForClient();
  document.getElementById('routineName').value=routine.name||'';document.getElementById('routineGoal').value=routine.goal||'';
  try{await loadRoutineExerciseLibrary()}catch(error){console.error(error);setAuthMessage('routineMsg','No se pudo cargar la biblioteca de ejercicios.');return}
  routineDayCounter=0;document.getElementById('routineDays').innerHTML='';
@@ -6608,7 +6610,7 @@ function generateRoutineStructureFromBuilder(){
  const volumeProfile=document.getElementById('routineAutoVolumeProfile')?.value||'male';
  const priorities=routineBuilderPriorities();
  const existing=document.querySelectorAll('#routineDays .routine-day-editor').length;
- if(existing>1&&!confirm('Esto sustituirá la estructura que aparece ahora en el editor. ¿Continuar?'))return;
+ if(existing>0&&!confirm('Esto sustituirá la estructura que aparece ahora en el editor. ¿Continuar?'))return;
  const goalType=smartGoalType(document.getElementById('routineGoal')?.value||'Hipertrofia');
  const prescription=smartPrescription(goalType,'intermediate');
  const split=smartSplit(days,system,priorities,volumeProfile);
@@ -6794,52 +6796,13 @@ async function activateRoutineBlock(routineId){
 async function replanRoutineDraft(routineId){
  if(currentProfile?.role!=='trainer')return;
  const routine=trainerRoutines.find(r=>r.id===routineId);
- if(!routine||routine.status!=='draft'||!routine.previous_routine_id){toast('Solo se puede replanificar un bloque en borrador');return}
- const currentDays=Math.max(1,Math.min(6,(routine.days||[]).length||3));
- const answer=prompt('¿Cuántos días de entrenamiento quieres para este nuevo bloque? Escribe un número del 1 al 6.',String(currentDays));
- if(answer===null)return;
- const days=Number(answer);
- if(!Number.isInteger(days)||days<1||days>6){toast('Escribe un número de días entre 1 y 6');return}
- try{
-  toast(`Generando propuesta de ${days} días…`);
-  await loadSmartTrainingPlan(routine.client_id);
-  if(!smartTrainingPlan)throw new Error('Faltan datos del cliente para generar la propuesta');
-  const p=smartTrainingPlan;
-  p.availableDays=days;
-  p.days=smartSplit(days,p.system||'recommended',p.priorities||[],p.volumeProfile||'male');
-  p.routineName=smartPlanTitle(p.goalType,days);
-  p.restSeconds=Number(p.restSeconds)||90;
-
-  editingRoutineId=routineId;
-  setupRoutineModal('edit');
-  const modal=document.getElementById('routineBuilderModal');
-  document.getElementById('routineClient').innerHTML=clients.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
-  document.getElementById('routineClient').value=routine.client_id;
-  document.getElementById('routineName').value=String(routine.name||p.routineName).replace(/\d+\s*días/i,`${days} días`);
-  document.getElementById('routineGoal').value=routine.goal||p.goalText||'';
-  const saveBtn=document.getElementById('saveRoutineBtn');
-  if(saveBtn)saveBtn.textContent=`Guardar borrador Bloque ${Number(routine.block_number)||2}`;
-  setAuthMessage('routineMsg','');
-  await loadRoutineExerciseLibrary();
-
-  routineDayCounter=0;
-  document.getElementById('routineDays').innerHTML='';
-  for(const d of p.days){
-   const exercises=smartBuildDayExercises(d,p.days,p.level,p.prescription,p.restSeconds,p.priorities,p.volumeProfile);
-   addRoutineDay({name:d.name,weekday:null,reminder_time:null,exercises});
-  }
-  smartRenderVolumeSummary(p.days,p.priorities,p.volumeProfile);
-  modal.classList.add('open');
-  setAuthMessage('routineMsg',`Nueva propuesta de ${days} días preparada. Revísala y pulsa “Guardar borrador”; el bloque anterior seguirá protegido.`);
- }catch(error){
-  console.error('replan routine draft',error);
-  editingRoutineId=null;
-  setupRoutineModal('create');
-  toast(vicError(error,'No se pudo replanificar el borrador'));
- }
+ if(!routine||routine.status!=='draft'){toast('Solo se puede reconfigurar un borrador');return}
+ await openEditRoutine(routineId);
+ document.getElementById('routineSystemBox')?.scrollIntoView({behavior:'smooth',block:'start'});
+ setAuthMessage('routineMsg','Cambia sistema, días, prioridades y frecuencia, o elimina los días para empezar desde cero. Generar estructura sustituye solo este borrador; el bloque anterior conserva su historial.');
 }
 
-async function createNextRoutineBlock(routineId){
+async function createNextRoutineBlock(routineId,reconfigure=false){
  if(currentProfile?.role!=='trainer')return;
  const source=trainerRoutines.find(r=>r.id===routineId);
  if(!source){toast('No se encontró la rutina');return}
@@ -6940,7 +6903,7 @@ async function createNextRoutineBlock(routineId){
 
   await loadTrainerRoutines();
   toast(`Bloque ${nextBlock} creado como borrador ✓`);
-  setTimeout(()=>openEditRoutine(newRoutineId),180);
+  if(reconfigure)await replanRoutineDraft(newRoutineId);else await openEditRoutine(newRoutineId);
  }catch(error){
   console.error('create next routine block',error);
   toast(vicError(error,'No se pudo crear el siguiente bloque'));
@@ -9711,14 +9674,6 @@ async function saveClientPlanningProfileFromCheckin(trainerId,weight,sleep){
  return data;
 }
 async function invokeVicbangAutoPlan(clientId=null){
- const targetClientId=clientId||currentProfile?.id||null;
- if(targetClientId){
-  const {data:existing,error:existingErr}=await sb.from('nutrition_plans').select('id,name,notes').eq('client_id',targetClientId).eq('status','active').order('created_at',{ascending:false}).limit(1).maybeSingle();
-  if(existingErr)throw existingErr;
-  if(existing){
-   return {ok:true,targets:null,nutrition:'kept_existing',routine:'kept_existing',skipped:true,reason:'active_nutrition_plan'};
-  }
- }
  const body=clientId?{client_id:clientId}:{};
  const {data,error}=await sb.functions.invoke('vicbang-auto-plan',{body});
  if(error)throw error;
@@ -9922,8 +9877,7 @@ async function saveClientCheckin(){
   try{autoResult=await invokeVicbangAutoPlan()}catch(err){console.error('auto planning after checkin',err);autoError=err}
   if(clientScheduledCheckinAt)clientScheduledCheckinAt=null;
   const weightEl=document.getElementById('myWeight');if(weightEl)weightEl.textContent=`${String(weight).replace('.',',')} kg`;
-  const autoText=autoResult?.targets?` · ${autoResult.targets.calories} kcal · nutrición ${autoResult.nutrition==='created'?'creada':'actualizada'} · rutina ${autoResult.routine==='created'?'creada':'lista'}`:'';
-  if(msg){msg.textContent=autoError?'Check-in guardado ✓. Los datos quedaron sincronizados, pero la creación automática del plan se reintentará al abrir tu ficha.':`Check-in guardado y planificación actualizada ✓${autoText}`;msg.classList.add('auth-success')}
+  if(msg){msg.textContent=autoError?'Check-in guardado ✓. Tu entrenador revisará tus datos para preparar tu plan.':'Check-in guardado ✓. Tu entrenador está preparando tu plan personalizado.';msg.classList.add('auth-success')}
   returnHomeAfterSave=isNewCheckin;
   if(returnHomeAfterSave){
    btn.textContent='Enviado ✓';
@@ -9932,7 +9886,7 @@ async function saveClientCheckin(){
    await new Promise(resolve=>setTimeout(resolve,850));
    showPage('client_home',{vicUserNavigation:true});
   }else{
-   toast(autoError?'Check-in guardado ✓':'Check-in + planificación automática ✓');
+   toast('Check-in guardado · pendiente de revisión del entrenador ✓');
    await loadClientCheckin();
    await loadClientCheckinStatus();
   }
@@ -12260,7 +12214,7 @@ async function saveClientOnboarding(complete){
   fillClientOnboardingForm(data);
   await loadClientOnboardingStatus();
   if(complete){
-   try{const auto=await invokeVicbangAutoPlan();toast(auto?.targets?`Evaluación + plan automático · ${auto.targets.calories} kcal ✓`:'Evaluación enviada ✓')}
+   try{const auto=await invokeVicbangAutoPlan();toast('Evaluación enviada · tu entrenador revisará tu plan ✓')}
    catch(autoError){console.error('auto plan after onboarding',autoError);toast('Evaluación enviada ✓ · planificación pendiente de sincronizar')}
   }else toast('Borrador guardado ✓');
  }catch(error){
