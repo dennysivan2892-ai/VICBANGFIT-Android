@@ -6283,14 +6283,38 @@ async function openWorkoutSession(routineId,dayId){
    if(error)throw error;
    logs=data||[];
   }
+  // Previous completed session is a reference, never a fabricated current log.
+  let previousLogs=[],previousDate=null;
+  if(setIds.length){
+   const {data:previousSessions,error:previousError}=await sb.from('workout_sessions')
+    .select('id,completed_at').eq('client_id',currentProfile.id).eq('workout_day_id',day.id)
+    .not('completed_at','is',null).order('completed_at',{ascending:false}).limit(1);
+   if(!previousError&&previousSessions?.length){
+    const previous=previousSessions[0];
+    const {data:previousRows,error:previousLogError}=await sb.from('workout_set_logs')
+     .select('workout_set_id,reps_completed,weight_kg,completed')
+     .eq('session_id',previous.id).in('workout_set_id',setIds).eq('completed',true);
+    if(!previousLogError){previousLogs=previousRows||[];previousDate=previous.completed_at}
+   }
+  }
   activeWorkoutSession=session;
-  activeWorkoutDay={routine,day};
+  activeWorkoutDay={routine,day,previousLogs,previousDate};
   renderWorkoutSession(logs);
  }catch(error){
   console.error(error);
   setAuthMessage('workoutSessionMsg',vicError(error,'No se pudo iniciar la sesión.'));
   document.getElementById('workoutSessionBody').innerHTML='<div class="empty-state">No se pudo cargar el entrenamiento.</div>';
  }
+}
+function workoutPreviousReference(ex){
+ const previousMap=new Map((activeWorkoutDay?.previousLogs||[]).map(log=>[log.workout_set_id,log]));
+ const previous=[...(ex.sets||[])].sort((a,b)=>Number(b.set_number)-Number(a.set_number))
+  .map(st=>previousMap.get(st.id)).find(log=>log&&(log.weight_kg!=null||log.reps_completed!=null));
+ if(!previous)return '<div class="muted tiny" style="margin:8px 0">Sin registro anterior para este ejercicio.</div>';
+ const date=new Date(activeWorkoutDay.previousDate).toLocaleDateString('es-ES',{day:'numeric',month:'short'});
+ const weight=previous.weight_kg!=null?escHtml(String(previous.weight_kg))+' kg':'Peso sin registrar';
+ const reps=previous.reps_completed!=null?' × '+escHtml(String(previous.reps_completed))+' rep':'';
+ return `<div class="workout-session-summary" style="margin:8px 0"><b>Último registro · ${date}: ${weight}${reps}</b><div class="muted tiny">Referencia de una serie. Sigue la pauta de tu entrenador y mantén una buena técnica.</div></div>`;
 }
 function renderWorkoutSession(logs=[]){
  if(!activeWorkoutSession||!activeWorkoutDay)return;
@@ -6299,23 +6323,25 @@ function renderWorkoutSession(logs=[]){
  const started=new Date(activeWorkoutSession.started_at).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
  document.getElementById('workoutSessionMeta').textContent=`${routine.name||'Rutina'} · iniciada ${started}`;
  const body=document.getElementById('workoutSessionBody');
- body.innerHTML=`<div class="workout-session-summary"><b>${day.cardio_enabled&&!(day.exercises||[]).length?'Sesión de cardio pautada':'Registra lo que haces realmente'}</b><div class="muted tiny" style="margin-top:4px">${(day.exercises||[]).length?'Repeticiones, peso usado y RIR real. Marca “Hecha” en cada serie completada.':'Realiza el cardio según la pauta de tu entrenador y finaliza la sesión al terminar.'}</div></div>${cardioPrescriptionHtml(day)}`+
+ body.innerHTML=`<div class="workout-session-summary"><b>${day.cardio_enabled&&!(day.exercises||[]).length?'Sesión de cardio pautada':'Registra lo que haces realmente'}</b><div class="muted tiny" style="margin-top:4px">${(day.exercises||[]).length?'Realiza todas las series pautadas. Anota solo el peso y las repeticiones de la última serie efectiva, sin contar el calentamiento. El RIR es opcional. Puedes desplegar las demás series si quieres más detalle. El progreso y el volumen corresponden a las series registradas.':'Realiza el cardio según la pauta de tu entrenador y finaliza la sesión al terminar.'}</div></div>${cardioPrescriptionHtml(day)}`+
  (day.exercises||[]).map(ex=>`<div class="workout-session-exercise">
    <div class="workout-exercise-head">${exerciseThumbHtml(ex)}<div><h3>${escHtml(ex.name||'Ejercicio')}</h3><div class="meta">${ex.muscle_group?escHtml(ex.muscle_group):''}${ex.rest_seconds!=null?' · Descanso '+escHtml(String(ex.rest_seconds))+' segundos':''}</div>${techniqueBadgeHtml(ex.notes)}</div></div>
+   ${workoutPreviousReference(ex)}
    <div class="workout-log-head"><span>Serie</span><span>Reps</span><span>Kg</span><span>RIR</span><span>Estado</span></div>
-   ${(ex.sets||[]).map(st=>{
+   <div class="muted tiny">${(ex.sets||[]).length} series pautadas · registro rápido de la última serie</div>
+   ${[...(ex.sets||[])].sort((a,b)=>Number(b.set_number)-Number(a.set_number)).map((st,index)=>{
     const log=logMap.get(st.id)||{};
     const targetReps=st.target_reps_min!=null&&st.target_reps_max!=null?(st.target_reps_min===st.target_reps_max?String(st.target_reps_min):st.target_reps_min+'–'+st.target_reps_max):(st.target_reps_min??st.target_reps_max??'—');
     const targetRir=st.target_rir!=null?String(st.target_rir).replace('.0',''):'—';
     const targetWeight=st.target_weight_kg!=null?String(st.target_weight_kg):'';
-    return `<div class="workout-log-row" data-set-id="${st.id}">
-      <div class="set-label">Serie ${st.set_number}<div class="workout-target">Objetivo ${targetReps} rep · RIR ${targetRir}</div></div>
+    return `${index===1?'<details class="workout-extra-sets"><summary style="cursor:pointer;padding:12px 0">Registrar las demás series (opcional)</summary>':''}<div class="workout-log-row" data-set-id="${st.id}" oninput="this.dataset.dirty='true'" onchange="this.dataset.dirty='true'">
+      <div class="set-label">${index===0?'Última serie':'Serie '+st.set_number}<div class="workout-target">Objetivo ${targetReps} rep · RIR ${targetRir}</div></div>
       <input class="wl-reps" type="number" min="0" max="200" inputmode="numeric" placeholder="Reps" value="${log.reps_completed??''}">
       <input class="wl-weight" type="number" min="0" max="1000" step="0.5" inputmode="decimal" placeholder="${targetWeight||'Kg'}" value="${log.weight_kg??targetWeight}">
       <input class="wl-rir" type="number" min="0" max="10" step="0.5" inputmode="decimal" placeholder="RIR" value="${log.rir_actual??''}">
-      <label class="workout-done"><input class="wl-done" type="checkbox" ${log.completed?'checked':''}> Hecha</label>
+      <label class="workout-done"><input class="wl-done" type="checkbox" ${log.completed?'checked':''}> ${index===0?'Ejercicio completado':'Hecha'}</label>
     </div>`;
-   }).join('')}
+   }).join('')}${(ex.sets||[]).length>1?'</details>':''}
   </div>`).join('');
 }
 async function saveWorkoutProgress(finish=false){
@@ -6323,7 +6349,7 @@ async function saveWorkoutProgress(finish=false){
  const saveBtn=document.getElementById('saveWorkoutBtn'),finishBtn=document.getElementById('finishWorkoutBtn');
  saveBtn.disabled=true;finishBtn.disabled=true;setAuthMessage('workoutSessionMsg','');
  try{
-  const rows=[...document.querySelectorAll('#workoutSessionBody .workout-log-row')];
+  const rows=[...document.querySelectorAll('#workoutSessionBody .workout-log-row')].filter(row=>!row.closest('details')||row.closest('details').open||row.dataset.dirty==='true');
   const payload=rows.map(row=>{
    const repsRaw=row.querySelector('.wl-reps').value;
    const weightRaw=row.querySelector('.wl-weight').value;
@@ -6340,7 +6366,7 @@ async function saveWorkoutProgress(finish=false){
   }).filter(x=>x.completed||x.reps_completed!=null||x.weight_kg!=null||x.rir_actual!=null);
 
   if(finish && rows.length>0 && !payload.some(x=>x.completed)){
-   setAuthMessage('workoutSessionMsg','Marca al menos una serie como hecha antes de finalizar.');
+   setAuthMessage('workoutSessionMsg','Marca al menos un ejercicio como completado antes de finalizar.');
    return;
   }
   if(payload.length){
@@ -7735,7 +7761,7 @@ async function loadClientProgress(){
   document.getElementById('clientProgressBestExercise').textContent=best?best.name:'Todavía sin datos';
   renderWeekBars('clientWeeklyBars',pc.sessions);
   const el=document.getElementById('clientExerciseProgress');
-  el.innerHTML=exStats.length?exStats.map(x=>`<div class="progress-exercise-row"><div class="progress-name"><b>${escHtml(x.name)}</b><small>${escHtml(x.muscle||'Ejercicio')}</small></div><div class="progress-metric"><b>${x.maxKg||0} kg</b><br><span class="muted tiny">máximo</span></div><div class="progress-metric"><b>${x.bestReps||0} rep</b><br><span class="muted tiny">mejor serie</span></div><div class="progress-metric"><b>${Math.round(x.volume)} kg</b><br><span class="muted tiny">volumen</span></div></div>`).join(''):'<div class="empty-state">Completa entrenamientos para ver tu evolución por ejercicio.</div>';
+  el.innerHTML=exStats.length?exStats.map(x=>`<div class="progress-exercise-row"><div class="progress-name"><b>${escHtml(x.name)}</b><small>${escHtml(x.muscle||'Ejercicio')}</small></div><div class="progress-metric"><b>${x.maxKg||0} kg</b><br><span class="muted tiny">máximo</span></div><div class="progress-metric"><b>${x.bestReps||0} rep</b><br><span class="muted tiny">mejor serie</span></div><div class="progress-metric"><b>${Math.round(x.volume)} kg</b><br><span class="muted tiny">volumen registrado</span></div></div>`).join(''):'<div class="empty-state">Completa entrenamientos para ver tu evolución por ejercicio.</div>';
  }catch(error){
   console.error(error);document.getElementById('clientExerciseProgress').innerHTML='<div class="empty-state">No se pudo cargar el progreso.</div>';
  }
@@ -7776,7 +7802,7 @@ async function loadTrainerProgress(){
   renderWeekBars('trainerWeeklyBars',data.sessions);
   if(list)list.innerHTML=rows.map(({client,pc,bestEx})=>{
    const last=pc.lastSession?new Date(pc.lastSession.started_at).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'}):'—';
-   return `<div class="progress-client-row"><div class="progress-name"><b>${escHtml(client.name)}</b><small>Última sesión: ${last}</small></div><div class="progress-metric"><b>${pc.sessions.length}</b><br><span class="muted tiny">sesiones</span></div><div class="progress-metric"><b>${Math.round(pc.volume)} kg</b><br><span class="muted tiny">volumen</span></div><div class="progress-metric"><b>${bestEx?.maxKg||0} kg</b><br><span class="muted tiny">${escHtml(bestEx?.name||'máximo')}</span></div></div>`;
+   return `<div class="progress-client-row"><div class="progress-name"><b>${escHtml(client.name)}</b><small>Última sesión: ${last}</small></div><div class="progress-metric"><b>${pc.sessions.length}</b><br><span class="muted tiny">sesiones</span></div><div class="progress-metric"><b>${Math.round(pc.volume)} kg</b><br><span class="muted tiny">volumen registrado</span></div><div class="progress-metric"><b>${bestEx?.maxKg||0} kg</b><br><span class="muted tiny">${escHtml(bestEx?.name||'máximo')}</span></div></div>`;
   }).join('')||'<div class="empty-state">Todavía no hay entrenamientos finalizados.</div>';
  }catch(error){
   console.error(error);if(list)list.innerHTML='<div class="empty-state">No se pudo cargar el progreso real.</div>';
