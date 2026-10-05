@@ -2546,6 +2546,21 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
         <div id="clientNextCheckinMsg" class="auth-error" style="margin-top:7px"></div>
       </div>
 
+      <div id="trainerClientPresentialBox" class="checkin-schedule-box" hidden>
+        <b>📅 Próximo presencial</b>
+        <div id="trainerClientPresentialSummary" class="muted" aria-live="polite">Sin programar</div>
+        <div class="checkin-schedule-row" style="margin-top:10px">
+          <label for="trainerClientPresentialDate">Fecha</label><input id="trainerClientPresentialDate" type="date" required>
+          <label for="trainerClientPresentialTime">Hora</label><input id="trainerClientPresentialTime" type="time" required>
+        </div>
+        <div class="field" style="margin-top:8px"><label for="trainerClientPresentialDuration">Duración</label><select id="trainerClientPresentialDuration"><option value="45">45 minutos</option><option value="60" selected>60 minutos</option><option value="90">90 minutos</option></select></div>
+        <div class="checkin-schedule-row" style="margin-top:10px">
+          <button id="trainerClientPresentialSave" class="btn" type="button" onclick="saveTrainerClientPresential()" disabled>Programar presencial</button>
+          <button id="trainerClientPresentialCancel" class="btn ghost" type="button" onclick="cancelTrainerClientPresential()" hidden>Cancelar cita</button>
+        </div>
+        <div id="trainerClientPresentialMsg" class="auth-error" role="status" style="margin-top:7px"></div>
+      </div>
+
       <div class="client-real-actions">
         <button class="btn dark" onclick="openTrainerClientSection('entrenamientos')">🏋 Rutinas</button>
         <button class="btn dark" onclick="openTrainerClientSection('nutricion')">🥗 Nutrición</button>
@@ -3431,6 +3446,10 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
       <button class="btn" style="width:100%;margin-top:12px" onclick="showPage('client_onboarding')">Abrir evaluación</button>
     </div>
 
+    <div id="clientHomePresentialBox" class="card" hidden>
+      <h3>📅 Próximo presencial</h3><div id="clientHomePresentialSummary" class="muted" aria-live="polite"></div>
+      <button class="btn dark" type="button" style="margin-top:10px" onclick="showPage('client_presential')">Ver cita</button>
+    </div>
     <div class="card client-alerts">
       <div class="client-alerts-head">
         <div><h3 style="margin:0">🔔 Avisos</h3><div class="muted tiny">Notificaciones guardadas en tu cuenta.</div></div>
@@ -5128,7 +5147,7 @@ function showPage(id,vicOptions={}){
   if(id==="client_checkin" && currentProfile?.role==="client")loadClientCheckin();
   if(id==="client_messages" && currentProfile?.role==="client")loadClientChat();
   if(id==="client_onboarding" && currentProfile?.role==="client")loadClientOnboarding();
-  if(id==="client_home" && currentProfile?.role==="client"){loadClientHomeAdherence();loadClientCheckinStatus();loadClientNotifications();loadClientPaymentSummary();loadClientMessageBadge();loadClientOnboardingStatus();loadClientSteps();}
+  if(id==="client_home" && currentProfile?.role==="client"){loadClientHomePresential();loadClientHomeAdherence();loadClientCheckinStatus();loadClientNotifications();loadClientPaymentSummary();loadClientMessageBadge();loadClientOnboardingStatus();loadClientSteps();}
   vicUpdateBackButton();
   window.scrollTo(0,0)
 }
@@ -5574,6 +5593,7 @@ function openClient(i){
   document.getElementById('clientServicePresential').checked=c.services?.presential===true;
   clientServicesSavedState=clientServicesCurrentState();
   clientServicesMarkSaved();
+  loadTrainerClientPresential();
   const servicesMsg=document.getElementById('clientServicesMsg');if(servicesMsg){servicesMsg.textContent='';servicesMsg.classList.remove('auth-success')}
 
   document.getElementById("clientTitle").textContent=c.name;
@@ -5654,6 +5674,7 @@ async function saveClientServices(){
  if(error){console.error(error);btn.disabled=false;btn.textContent='Reintentar';btn.classList.remove('services-saved');msg.textContent='No se pudieron guardar los servicios.';return}
  const c=clients.find(x=>x.id===activeTrainerClientId);if(c)c.services={training,nutrition,supplements,presential};
  clientServicesSavedState={training,nutrition,supplements,presential};clientServicesMarkSaved();
+ loadTrainerClientPresential();
  msg.textContent='Configuración confirmada.';msg.classList.add('auth-success');renderClientTable();toast('Servicios del cliente actualizados');
 }
 
@@ -14304,6 +14325,95 @@ async function renderClientPhotoComparison(){
  }catch(error){
   console.error(error);toast('No se pudieron abrir tus fotos privadas.');
  }
+}
+
+let trainerClientPresentialRow=null;
+let trainerClientPresentialLoad=0;
+let trainerClientPresentialBusy=false;
+let trainerClientPresentialReady=false;
+function presentialLocalTime(value){
+ const d=new Date(value);return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function trainerClientPresentialControls(ready){
+ const box=document.getElementById('trainerClientPresentialBox');
+ box?.querySelectorAll('input,select,button').forEach(el=>el.disabled=!ready||trainerClientPresentialBusy);
+}
+async function loadTrainerClientPresential(){
+ const clientId=activeTrainerClientId,token=++trainerClientPresentialLoad;
+ const client=clients.find(c=>c.id===clientId),box=document.getElementById('trainerClientPresentialBox');
+ trainerClientPresentialRow=null;trainerClientPresentialReady=false;
+ if(!box)return;box.hidden=currentProfile?.role!=='trainer'||!client?.services?.presential;
+ if(box.hidden)return;
+ const summary=document.getElementById('trainerClientPresentialSummary'),msg=document.getElementById('trainerClientPresentialMsg');
+ summary.textContent='Cargando cita…';msg.textContent='';msg.classList.remove('auth-success');
+ document.getElementById('trainerClientPresentialDate').value='';
+ document.getElementById('trainerClientPresentialDate').min=agendaLocalISO(new Date());
+ document.getElementById('trainerClientPresentialTime').value='';
+ document.getElementById('trainerClientPresentialDuration').value='60';
+ document.getElementById('trainerClientPresentialCancel').hidden=true;
+ document.getElementById('trainerClientPresentialSave').textContent='Programar presencial';
+ trainerClientPresentialControls(false);
+ try{
+  const {data,error}=await sb.from('in_person_appointments').select('*').eq('trainer_id',currentProfile.id).eq('client_id',clientId).in('status',['requested','confirmed','change_proposed']).gte('starts_at',new Date().toISOString()).order('starts_at').limit(1).maybeSingle();
+  if(error)throw error;
+  if(token!==trainerClientPresentialLoad||clientId!==activeTrainerClientId)return;
+  trainerClientPresentialRow=data||null;
+  summary.textContent=data?`${appointmentDateLabel(data.starts_at)} · ${data.duration_minutes} min · ${appointmentStatusLabels[data.status]}`:'Sin programar';
+  if(data){
+   document.getElementById('trainerClientPresentialDate').value=agendaLocalISO(new Date(data.starts_at));
+   document.getElementById('trainerClientPresentialTime').value=presentialLocalTime(data.starts_at);
+   document.getElementById('trainerClientPresentialDuration').value=String(data.duration_minutes);
+   document.getElementById('trainerClientPresentialCancel').hidden=false;
+   document.getElementById('trainerClientPresentialSave').textContent='Guardar cambios';
+  }
+  trainerClientPresentialReady=true;trainerClientPresentialControls(true);
+ }catch(error){
+  if(token!==trainerClientPresentialLoad||clientId!==activeTrainerClientId)return;
+  summary.textContent='No se pudo cargar la cita';msg.textContent=vicError(error,'No se pudo cargar el presencial. Vuelve a abrir la ficha para reintentar.');
+ }
+}
+async function saveTrainerClientPresential(){
+ const clientId=activeTrainerClientId,client=clients.find(c=>c.id===clientId);
+ if(trainerClientPresentialBusy||currentProfile?.role!=='trainer'||!client?.services?.presential)return;
+ const msg=document.getElementById('trainerClientPresentialMsg');msg.classList.remove('auth-success');
+ const date=document.getElementById('trainerClientPresentialDate').value,time=document.getElementById('trainerClientPresentialTime').value,duration=Number(document.getElementById('trainerClientPresentialDuration').value);
+ const start=new Date(`${date}T${time}`);
+ if(!date||!time||Number.isNaN(start.getTime())||start<=new Date()||![45,60,90].includes(duration)){msg.textContent='Selecciona una fecha y hora futuras y una duración válida.';return}
+ const row=trainerClientPresentialRow;
+ trainerClientPresentialBusy=true;trainerClientPresentialControls(false);msg.textContent='Guardando…';
+ try{
+  const payload={starts_at:start.toISOString(),ends_at:new Date(start.getTime()+duration*60000).toISOString(),duration_minutes:duration,status:'confirmed',updated_at:new Date().toISOString()};
+  const query=row?sb.from('in_person_appointments').update(payload).eq('id',row.id).eq('trainer_id',currentProfile.id).eq('client_id',clientId).in('status',['requested','confirmed','change_proposed']):sb.from('in_person_appointments').insert({...payload,trainer_id:currentProfile.id,client_id:clientId,requested_by:'trainer'});
+  const {data,error}=await query.select('id').single();if(error)throw error;if(!data?.id)throw new Error('No se pudo confirmar el guardado de la cita.');
+  await createAppointmentNotice(clientId,row?'Sesión presencial actualizada':'Sesión presencial agendada',`Tu sesión está programada para ${appointmentDateLabel(start)}.`,{appointment_id:data.id});
+  if(clientId===activeTrainerClientId){await loadTrainerClientPresential();msg.textContent='✓ Presencial guardado';msg.classList.add('auth-success')}
+  toast('Presencial guardado');
+ }catch(error){if(clientId===activeTrainerClientId)msg.textContent=vicError(error,'No se pudo guardar el presencial. Inténtalo de nuevo.')}
+ finally{trainerClientPresentialBusy=false;trainerClientPresentialControls(trainerClientPresentialReady)}
+}
+async function cancelTrainerClientPresential(){
+ const row=trainerClientPresentialRow,clientId=activeTrainerClientId;
+ if(!row||trainerClientPresentialBusy||currentProfile?.role!=='trainer'||!clients.find(c=>c.id===clientId)?.services?.presential)return;
+ if(!confirm('¿Cancelar esta cita presencial?'))return;
+ const msg=document.getElementById('trainerClientPresentialMsg');msg.classList.remove('auth-success');
+ trainerClientPresentialBusy=true;trainerClientPresentialControls(false);msg.textContent='Cancelando…';
+ try{
+  const {data,error}=await sb.from('in_person_appointments').update({status:'cancelled',updated_at:new Date().toISOString()}).eq('id',row.id).eq('trainer_id',currentProfile.id).eq('client_id',clientId).select('id').single();
+  if(error)throw error;if(!data?.id)throw new Error('No se pudo confirmar la cancelación.');
+  await createAppointmentNotice(clientId,'Sesión presencial cancelada','Tu entrenador ha cancelado la cita presencial.',{appointment_id:row.id});
+  if(clientId===activeTrainerClientId){await loadTrainerClientPresential();msg.textContent='Cita cancelada.'}
+ }catch(error){if(clientId===activeTrainerClientId)msg.textContent=vicError(error,'No se pudo cancelar la cita.')}
+ finally{trainerClientPresentialBusy=false;trainerClientPresentialControls(trainerClientPresentialReady)}
+}
+async function loadClientHomePresential(){
+ const box=document.getElementById('clientHomePresentialBox'),summary=document.getElementById('clientHomePresentialSummary');
+ if(!box)return;box.hidden=currentProfile?.role!=='client'||!currentClientServices.presential;if(box.hidden)return;
+ const clientId=currentProfile.id;summary.textContent='Cargando cita…';
+ try{
+  const {data,error}=await sb.from('in_person_appointments').select('starts_at,duration_minutes,status').eq('client_id',clientId).in('status',['requested','confirmed','change_proposed']).gte('starts_at',new Date().toISOString()).order('starts_at').limit(1).maybeSingle();
+  if(error)throw error;if(currentProfile?.id!==clientId)return;
+  summary.textContent=data?`${appointmentDateLabel(data.starts_at)} · ${data.duration_minutes} min · ${appointmentStatusLabels[data.status]}`:'Sin presencial programado';
+ }catch(error){if(currentProfile?.id===clientId)summary.textContent='No se pudo cargar tu próxima cita.'}
 }
 
 const appointmentStatusLabels={requested:'Pendiente',confirmed:'Confirmada',change_proposed:'Cambio propuesto',cancelled:'Cancelada',completed:'Realizada'};
