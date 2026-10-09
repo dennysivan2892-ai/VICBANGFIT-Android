@@ -1,4 +1,4 @@
-const CACHE='vicbangfit-v8-quick-workout-log';
+const CACHE='vicbangfit-exercise-guides-20261009';
 const ASSETS=['./','./index.html','./manifest.json','./VICBANGFIT_AppIcon_Gold_1024.png'];
 
 self.addEventListener('install',event=>{
