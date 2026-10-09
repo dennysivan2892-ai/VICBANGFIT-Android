@@ -3350,7 +3350,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 
 <section id="ejercicios" class="section">
   <div class="header">
-    <div><h1>Biblioteca de ejercicios</h1><div class="muted">Añade una imagen a cada ejercicio. La miniatura aparecerá automáticamente en las rutinas.</div></div>
+    <div><h1>Biblioteca de ejercicios</h1><div class="muted">Añade tus vídeos y explicaciones a cada ejercicio. Tus clientes podrán consultar cómo realizarlo desde sus rutinas.</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="expandExerciseLibraryBtn" class="btn" type="button" onclick="expandExerciseLibrary()">＋ Ampliar biblioteca</button><button class="btn dark" type="button" onclick="loadExerciseManager()">↻ Actualizar</button></div>
   </div>
   <div class="card">
@@ -4839,7 +4839,7 @@ async function copyTrainerOwnCode(){
 async function refreshTrainerRequestStatus(){
  const {data:{user},error}=await sb.auth.getUser();if(error||!user){toast('No se pudo comprobar la cuenta');return}await enterApp(user);
 }
-async function logoutUser(){stopPlanningDataRealtime();await sb.auth.signOut();currentProfile=null;setAdminUiVisible(false);nutritionSafetyProfileCache.clear();document.body.classList.remove('client-mode');document.getElementById('appShell').style.display='none';const p=document.getElementById('trainerPendingShell');if(p)p.style.display='none';document.getElementById('authShell').style.display='grid';switchAuth('login')}
+async function logoutUser(){if(guideState?.saving){toast('Espera a que termine de guardarse la explicación');return}closeExerciseGuide();stopPlanningDataRealtime();await sb.auth.signOut();currentProfile=null;setAdminUiVisible(false);nutritionSafetyProfileCache.clear();document.body.classList.remove('client-mode');document.getElementById('appShell').style.display='none';const p=document.getElementById('trainerPendingShell');if(p)p.style.display='none';document.getElementById('authShell').style.display='grid';switchAuth('login')}
 async function bootstrapAuth(){const {data:{session}}=await sb.auth.getSession();if(session?.user)await enterApp(session.user);else{const p=document.getElementById('trainerPendingShell');if(p)p.style.display='none';document.getElementById('authShell').style.display='grid';document.getElementById('appShell').style.display='none'}}
 window.bootstrapAuth=bootstrapAuth;
 sb.auth.onAuthStateChange((event,session)=>{
@@ -5997,6 +5997,133 @@ async function submitNewClient(ev){
 
 
 let trainerRoutines=[];
+// BEGIN TRAINER EXERCISE GUIDES
+// Loaded after the app's classic script: uses its authenticated client and UI helpers.
+const GUIDE_BUCKET='exercise-guide-videos';
+let guideState=null,guideRequest=0;
+function guideVideoId(){
+ if(typeof crypto.randomUUID==='function')return crypto.randomUUID();
+ const bytes=crypto.getRandomValues(new Uint8Array(16));
+ bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+ const hex=Array.from(bytes,n=>n.toString(16).padStart(2,'0')).join('');
+ return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+function guideHttps(value){
+ const raw=String(value||'').trim();if(!raw)return '';
+ const url=new URL(raw);if(url.protocol!=='https:')throw new Error('El enlace del vídeo debe empezar por https://');
+ return url.href;
+}
+function guideResolve(rows,clientId,base={}){
+ return rows.find(r=>clientId&&r.client_id===clientId)||rows.find(r=>r.client_id===null)||{instructions:base.instructions||'',video_url:base.video_url||'',common_errors:''};
+}
+function guideButtonHtml(ex,trainerId,clientId='',editable=false){
+ if(!ex?.exercise_id||!trainerId)return '';
+ return `<button class="btn dark" style="margin-top:8px" type="button" onclick="openExerciseGuide('${escHtml(ex.exercise_id)}','${escHtml(trainerId)}','${escHtml(clientId)}',${editable})">${editable?'✎ Mi explicación':'▶ Cómo realizarlo'}</button>`;
+}
+function guideDialog(){
+ let dialog=document.getElementById('exerciseGuideDialog');if(dialog)return dialog;
+ dialog=document.createElement('dialog');dialog.id='exerciseGuideDialog';
+ dialog.style.cssText='background:#101010;color:#eee;border:1px solid #b89447;border-radius:18px;width:min(620px,90vw);max-height:85vh;padding:22px;overflow:auto;z-index:10000';
+ dialog.addEventListener('cancel',event=>{event.preventDefault();closeExerciseGuide()});
+ document.body.appendChild(dialog);return dialog;
+}
+function closeExerciseGuide(){
+ if(guideState?.saving)return;
+ guideRequest++;guideState=null;
+ const dialog=document.getElementById('exerciseGuideDialog');dialog?.querySelector('video')?.pause();dialog?.close();if(dialog)dialog.innerHTML='';
+}
+async function openExerciseGuide(exerciseId,trainerId,clientId='',editable=false){
+ if(guideState?.saving)return;
+ const request=++guideRequest,viewerId=currentProfile?.id;
+ const dialog=guideDialog();dialog.innerHTML='<p>Cargando explicación…</p><button class="btn dark" onclick="closeExerciseGuide()">Cerrar</button>';
+ if(!dialog.open)dialog.showModal();
+ try{
+  const [baseResult,guideResult]=await Promise.all([
+   sb.from('exercises').select('id,name,instructions,video_url').eq('id',exerciseId).maybeSingle(),
+   sb.from('trainer_exercise_guides').select('*').eq('trainer_id',trainerId).eq('exercise_id',exerciseId).or(clientId?`client_id.is.null,client_id.eq.${clientId}`:'client_id.is.null')
+  ]);
+  if(request!==guideRequest||viewerId!==currentProfile?.id)return;
+  if(baseResult.error)throw baseResult.error;if(guideResult.error)throw guideResult.error;
+  guideState={exerciseId,trainerId,clientId,base:baseResult.data||{},rows:guideResult.data||[],editable:editable&&currentProfile?.role==='trainer'&&trainerId===viewerId,request};
+  if(guideState.editable)renderGuideEditor();else await renderGuideViewer();
+ }catch(error){if(request===guideRequest){dialog.innerHTML=`<p>${escHtml(vicError(error,'No se pudo cargar la explicación.'))}</p><button class="btn dark" onclick="closeExerciseGuide()">Cerrar</button>`}}
+}
+function guideHeading(){return `<div class="row"><h2 style="margin:0">${escHtml(guideState.base.name||'Cómo realizarlo')}</h2><button class="btn ghost" type="button" onclick="closeExerciseGuide()" aria-label="Cerrar explicación">✕</button></div>`}
+async function renderGuideViewer(){
+ const state=guideState,guide=guideResolve(state.rows,state.clientId,state.base);
+ let media='';
+ if(guide.video_path){
+  const {data,error}=await sb.storage.from(GUIDE_BUCKET).createSignedUrl(guide.video_path,3600);if(error)throw error;
+  media=`<video controls playsinline preload="metadata" style="width:100%;max-height:340px;border-radius:12px;margin-top:14px" src="${escHtml(data.signedUrl)}"></video><p class="muted tiny">Si el vídeo no carga, cierra y vuelve a abrir esta explicación.</p>`;
+ }else if(guide.video_url){
+  const url=guideHttps(guide.video_url);
+  // External hosts may disallow embedding. Keep a reliable link rather than an arbitrary iframe.
+  media=`<p><a class="btn dark" href="${escHtml(url)}" target="_blank" rel="noopener noreferrer">▶ Ver vídeo del ejercicio</a></p>`;
+ }
+ if(guideState!==state||state.request!==guideRequest)return;
+ const section=(label,value)=>value?`<h3>${label}</h3><div style="white-space:pre-wrap;overflow-wrap:anywhere">${escHtml(value)}</div>`:'';
+ guideDialog().innerHTML=guideHeading()+`<p class="muted tiny">${guide.client_id?'Adaptación de tu entrenador para ti':'Explicación del ejercicio'}</p>`+media+section('Cómo ejecutarlo',guide.instructions)+section('Errores comunes',guide.common_errors)+(!media&&!guide.instructions&&!guide.common_errors?'<p class="muted">Tu entrenador todavía no ha añadido una explicación para este ejercicio.</p>':'');
+}
+function renderGuideEditor(scope){
+ const state=guideState;state.scope=scope||(state.clientId?'client':'shared');
+ const clientId=state.scope==='client'?state.clientId:null;
+ const own=state.rows.find(row=>row.client_id===clientId);
+ // Start a client adaptation from the trainer's shared content, never from another client's content.
+ const resolved=guideResolve(state.rows,clientId,state.base);
+ state.original=own||null;state.videoPath=resolved.video_path||null;state.removeVideo=false;
+ guideDialog().innerHTML=guideHeading()+`<p class="muted">Tu contenido solo se aplica a tus clientes.</p>
+ ${state.clientId?`<div class="field"><label>Aplicar a</label><select id="guideScope" onchange="renderGuideEditor(this.value)"><option value="shared" ${state.scope==='shared'?'selected':''}>Todos mis clientes</option><option value="client" ${state.scope==='client'?'selected':''}>Solo este cliente</option></select></div><p class="muted tiny">Guarda los cambios antes de cambiar de opción. La adaptación se reutiliza para este ejercicio en las rutinas del cliente.</p>`:''}
+ <form id="exerciseGuideForm" onsubmit="event.preventDefault();saveExerciseGuide()">
+ <div class="field"><label>Cómo ejecutarlo</label><textarea id="guideInstructions" rows="6" maxlength="12000" placeholder="Posición inicial, movimiento, respiración…">${escHtml(resolved.instructions||'')}</textarea></div>
+ <div class="field"><label>Errores comunes</label><textarea id="guideErrors" rows="3" maxlength="6000">${escHtml(resolved.common_errors||'')}</textarea></div>
+ <div class="field"><label>Enlace del vídeo (opcional)</label><input id="guideVideoUrl" type="url" placeholder="https://…" value="${escHtml(resolved.video_url||'')}"></div>
+ <div class="field"><label>O subir mi vídeo</label><input id="guideVideoFile" type="file" accept="video/mp4,video/webm,video/quicktime"><small class="muted">MP4, WEBM o MOV · máximo 50 MB. MP4 ofrece mayor compatibilidad.</small></div>
+ ${state.videoPath||resolved.video_url?'<p id="guideExistingVideo">✓ Vídeo guardado <button class="btn ghost" type="button" onclick="guideState.removeVideo=true;guideState.videoPath=null;document.getElementById(\'guideVideoUrl\').value=\'\';this.parentElement.textContent=\'Se quitará el vídeo al guardar\'">Quitar vídeo</button></p>':''}
+ <p id="exerciseGuideMessage" role="status"></p><div class="row"><button class="btn" id="saveExerciseGuideBtn" type="submit">Guardar mi explicación</button>${own?'<button class="btn ghost" type="button" onclick="resetExerciseGuide()">'+(clientId?'Usar mi explicación general':'Restablecer explicación de biblioteca')+'</button>':''}</div></form>`;
+}
+async function guideRemoveUnused(path){
+ if(!path)return;
+ const {data,error}=await sb.from('trainer_exercise_guides').select('id').eq('video_path',path).limit(1);
+ if(!error&&!data?.length)await sb.storage.from(GUIDE_BUCKET).remove([path]);
+}
+async function saveExerciseGuide(){
+ const state=guideState;if(!state?.editable||state.saving)return;
+ const button=document.getElementById('saveExerciseGuideBtn'),message=document.getElementById('exerciseGuideMessage');
+ let uploaded=null;
+ try{
+  const instructions=document.getElementById('guideInstructions').value.trim(),common_errors=document.getElementById('guideErrors').value.trim();
+  const video_url=guideHttps(document.getElementById('guideVideoUrl').value);
+  const file=document.getElementById('guideVideoFile').files[0];
+  if(file&&video_url)throw new Error('Elige un enlace o un archivo de vídeo, solo uno.');
+  const types={'video/mp4':'mp4','video/webm':'webm','video/quicktime':'mov'};
+  if(file&&(!types[file.type]||file.size>50*1024*1024||!file.size))throw new Error('Sube un MP4, WEBM o MOV de hasta 50 MB.');
+  state.saving=true;guideDialog().querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=true);button.textContent=file?'Subiendo vídeo…':'Guardando…';message.textContent='';
+  let video_path=state.removeVideo||video_url?null:state.videoPath;
+  if(file){
+   uploaded=`${state.trainerId}/${state.exerciseId}/${state.scope==='client'?state.clientId:'shared'}/${guideVideoId()}.${types[file.type]}`;
+   const {error}=await sb.storage.from(GUIDE_BUCKET).upload(uploaded,file,{contentType:file.type,upsert:false});if(error)throw error;video_path=uploaded;
+  }
+  const payload={trainer_id:state.trainerId,exercise_id:state.exerciseId,client_id:state.scope==='client'?state.clientId:null,instructions,common_errors,video_url:video_url||null,video_path,updated_at:new Date().toISOString()};
+  const {data,error}=await sb.from('trainer_exercise_guides').upsert(payload,{onConflict:'trainer_id,exercise_id,client_id'}).select().single();if(error)throw error;
+  state.rows=state.rows.filter(row=>row.client_id!==data.client_id).concat(data);
+  const previousPath=state.original?.video_path;state.original=data;uploaded=null;
+  if(previousPath&&previousPath!==video_path)await guideRemoveUnused(previousPath);
+  toast('Tu explicación se ha guardado ✓');
+  state.saving=false;renderGuideEditor(state.scope);
+ }catch(error){if(uploaded)await guideRemoveUnused(uploaded);message.textContent=vicError(error,'No se pudo guardar. Conservamos tus cambios para reintentar.');}
+ finally{state.saving=false;if(guideState===state){guideDialog().querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=false);button.textContent='Guardar mi explicación'}}
+}
+async function resetExerciseGuide(){
+ const state=guideState;if(!state?.original||state.saving)return;
+ if(!confirm(state.scope==='client'?'¿Eliminar esta adaptación y usar tu explicación general?':'¿Eliminar tu explicación propia y volver a la de la biblioteca?'))return;
+ state.saving=true;
+ try{
+  const {error}=await sb.from('trainer_exercise_guides').delete().eq('id',state.original.id).eq('trainer_id',state.trainerId);if(error)throw error;
+  state.rows=state.rows.filter(row=>row.id!==state.original.id);await guideRemoveUnused(state.original.video_path);state.saving=false;renderGuideEditor(state.scope);toast('Explicación restablecida');
+ }catch(error){document.getElementById('exerciseGuideMessage').textContent=vicError(error,'No se pudo restablecer la explicación.');}finally{state.saving=false;}
+}
+
+// END TRAINER EXERCISE GUIDES
 let routineExerciseLibrary=[];
 let routineDayCounter=0;
 let editingRoutineId=null;
@@ -6110,7 +6237,7 @@ function renderTrainerRoutines(){
      <div class="real-routine-day-head"><div class="real-routine-day-title"><span class="real-routine-day-number">DÍA ${Number(d.day_number)||1}</span><span class="real-routine-day-name">${escHtml(d.name||'Entrenamiento')}</span></div><span class="pill">${(d.exercises||[]).length} ejercicio${(d.exercises||[]).length===1?'':'s'}${d.cardio_enabled?' + cardio':''}</span></div>
      <div class="real-routine-day-body">
      ${workoutScheduleText(d)?`<div class="workout-schedule-badge">🔔 ${escHtml(workoutScheduleText(d))}</div>`:''}
-     ${(d.exercises||[]).length?d.exercises.map(ex=>`<div class="real-routine-exercise"><div class="exercise-routine-line">${exerciseThumbHtml(ex)}<div class="exercise-routine-copy"><b>${escHtml(ex.name||'Ejercicio')}</b><div class="meta">${escHtml(formatRoutineSetMeta(ex.sets))}${ex.muscle_group?' · '+escHtml(ex.muscle_group):''}${ex.rest_seconds!=null?' · Descanso '+escHtml(String(ex.rest_seconds))+' s':''}</div>${techniqueBadgeHtml(ex.notes)}</div></div></div>`).join(''):d.cardio_enabled?'':'<div class="muted tiny" style="margin-top:8px">Sin ejercicios.</div>'}
+     ${(d.exercises||[]).length?d.exercises.map(ex=>`<div class="real-routine-exercise"><div class="exercise-routine-line">${exerciseThumbHtml(ex)}<div class="exercise-routine-copy"><b>${escHtml(ex.name||'Ejercicio')}</b><div class="meta">${escHtml(formatRoutineSetMeta(ex.sets))}${ex.muscle_group?' · '+escHtml(ex.muscle_group):''}${ex.rest_seconds!=null?' · Descanso '+escHtml(String(ex.rest_seconds))+' s':''}</div>${techniqueBadgeHtml(ex.notes)}${guideButtonHtml(ex,currentProfile.id,r.client_id,true)}</div></div></div>`).join(''):d.cardio_enabled?'':'<div class="muted tiny" style="margin-top:8px">Sin ejercicios.</div>'}
      ${cardioPrescriptionHtml(d)}</div>
     </div>`).join(''):'<div class="muted tiny">Esta rutina todavía no tiene días configurados.</div>'}
   </div>`).join('');
@@ -6187,7 +6314,7 @@ function renderClientRoutines(){
      <div class="real-routine-day-head"><div class="real-routine-day-title"><span class="real-routine-day-number">DÍA ${Number(d.day_number)||1}</span><span class="real-routine-day-name">${escHtml(d.name||'Entrenamiento')}</span></div><span class="pill">${(d.exercises||[]).length} ejercicio${(d.exercises||[]).length===1?'':'s'}${d.cardio_enabled?' + cardio':''}</span></div>
      <div class="real-routine-day-body">
      ${workoutScheduleText(d)?`<div class="workout-schedule-badge">🔔 ${escHtml(workoutScheduleText(d))}</div>`:''}
-     ${(d.exercises||[]).length?[...(d.exercises||[])].sort((a,b)=>(a.exercise_order||0)-(b.exercise_order||0)).map(ex=>`<div class="real-routine-exercise"><div class="exercise-routine-line">${exerciseThumbHtml(ex)}<div class="exercise-routine-copy"><b>${escHtml(ex.name||'Ejercicio')}</b><div class="meta">${escHtml(formatRoutineSetMeta(ex.sets))}${ex.muscle_group?' · '+escHtml(ex.muscle_group):''}${ex.rest_seconds!=null?' · Descanso '+escHtml(String(ex.rest_seconds))+' s':''}</div>${techniqueBadgeHtml(ex.notes)}</div></div></div>`).join(''):d.cardio_enabled?'':'<div class="muted tiny" style="margin-top:8px">Sin ejercicios.</div>'}
+     ${(d.exercises||[]).length?[...(d.exercises||[])].sort((a,b)=>(a.exercise_order||0)-(b.exercise_order||0)).map(ex=>`<div class="real-routine-exercise"><div class="exercise-routine-line">${exerciseThumbHtml(ex)}<div class="exercise-routine-copy"><b>${escHtml(ex.name||'Ejercicio')}</b><div class="meta">${escHtml(formatRoutineSetMeta(ex.sets))}${ex.muscle_group?' · '+escHtml(ex.muscle_group):''}${ex.rest_seconds!=null?' · Descanso '+escHtml(String(ex.rest_seconds))+' s':''}</div>${techniqueBadgeHtml(ex.notes)}${guideButtonHtml(ex,r.trainer_id,r.client_id)}</div></div></div>`).join(''):d.cardio_enabled?'':'<div class="muted tiny" style="margin-top:8px">Sin ejercicios.</div>'}
      ${cardioPrescriptionHtml(d)}
      <button class="btn" style="width:100%;margin-top:12px" type="button" onclick="openWorkoutSession('${r.id}','${d.id}')">▶ ${d.cardio_enabled&&!(d.exercises||[]).length?'Abrir sesión de cardio':'Registrar este entrenamiento'}</button></div>
    </div>`).join(''):'<div class="muted">Esta rutina todavía no tiene días configurados.</div>'}
@@ -6197,7 +6324,7 @@ async function loadClientRoutines(){
  if(currentProfile?.role!=="client")return;
  const list=document.getElementById('clientRoutineList');if(list)list.innerHTML='<div class="empty-state card">Cargando tu entrenamiento…</div>';
  try{
-  const {data:routines,error:rErr}=await sb.from('routines').select('id,client_id,name,goal,status,start_date,end_date,block_number,created_at').eq('client_id',currentProfile.id).eq('status','active').order('created_at',{ascending:false});
+  const {data:routines,error:rErr}=await sb.from('routines').select('id,trainer_id,client_id,name,goal,status,start_date,end_date,block_number,created_at').eq('client_id',currentProfile.id).eq('status','active').order('created_at',{ascending:false});
   if(rErr)throw rErr;
   const base=routines||[];
   if(!base.length){clientRoutines=[];renderClientRoutines();return}
@@ -6347,6 +6474,7 @@ function renderWorkoutSession(logs=[]){
  body.innerHTML=`<div class="workout-session-summary"><b>${day.cardio_enabled&&!(day.exercises||[]).length?'Sesión de cardio pautada':'Registra lo que haces realmente'}</b><div class="muted tiny" style="margin-top:4px">${(day.exercises||[]).length?'Realiza todas las series pautadas. Anota solo el peso y las repeticiones de la última serie efectiva, sin contar el calentamiento. El RIR es opcional. Puedes desplegar las demás series si quieres más detalle. El progreso y el volumen corresponden a las series registradas.':'Realiza el cardio según la pauta de tu entrenador y finaliza la sesión al terminar.'}</div></div>${cardioPrescriptionHtml(day)}`+
  (day.exercises||[]).map(ex=>`<div class="workout-session-exercise">
    <div class="workout-exercise-head">${exerciseThumbHtml(ex)}<div><h3>${escHtml(ex.name||'Ejercicio')}</h3><div class="meta">${ex.muscle_group?escHtml(ex.muscle_group):''}${ex.rest_seconds!=null?' · Descanso '+escHtml(String(ex.rest_seconds))+' segundos':''}</div>${techniqueBadgeHtml(ex.notes)}</div></div>
+   ${guideButtonHtml(ex,routine.trainer_id,routine.client_id)}
    ${workoutPreviousReference(ex)}
    <div class="workout-log-head"><span>Serie</span><span>Reps</span><span>Kg</span><span>RIR</span><span>Estado</span></div>
    <div class="muted tiny">${(ex.sets||[]).length} series pautadas · registro rápido de la última serie</div>
@@ -6512,7 +6640,7 @@ function renderExerciseManager(){
      <button class="btn dark" type="button" onclick="document.getElementById('exerciseImage_${ex.id}').click()">📷 ${ex.image_url?'Cambiar imagen':'Subir imagen'}</button>
      ${ex.image_url?`<button class="btn ghost" type="button" onclick="removeExerciseImage('${ex.id}')">Quitar</button>`:''}
    </div>`:'<div class="muted tiny" style="margin-top:8px">Solo el ADMIN puede cambiar la imagen global.</div>';
-   return `<div class="card exercise-library-card">${image}<div class="exercise-library-info"><div class="row" style="align-items:flex-start"><div><b>${escHtml(ex.name||'Ejercicio')}</b><div class="muted tiny">${escHtml(ex.muscle_group||'Sin grupo')}${ex.equipment?' · '+escHtml(ex.equipment):''}</div></div>${global}</div>${actions}</div></div>`;
+   return `<div class="card exercise-library-card">${image}<div class="exercise-library-info"><div class="row" style="align-items:flex-start"><div><b>${escHtml(ex.name||'Ejercicio')}</b><div class="muted tiny">${escHtml(ex.muscle_group||'Sin grupo')}${ex.equipment?' · '+escHtml(ex.equipment):''}</div></div>${global}</div>${actions}${guideButtonHtml({exercise_id:ex.id},currentProfile.id,'',true)}</div></div>`;
  }).join('');
 }
 
@@ -6725,7 +6853,7 @@ function addRoutineExercise(dayEl,exerciseData=null){
  if(exerciseData?.id)row.dataset.weId=exerciseData.id;
  if(exerciseData?.exercise_id)row.dataset.originalExerciseId=exerciseData.exercise_id;
  row.dataset.setIds=JSON.stringify([...(exerciseData?.sets||[])].sort((a,b)=>(a.set_number||0)-(b.set_number||0)).map(s=>s.id).filter(Boolean));
- row.innerHTML=`<div class="field exercise-select"><label>Ejercicio</label><div style="display:flex;gap:8px;align-items:center"><div class="re-thumb"></div><select class="re-exercise" style="flex:1">${options}</select></div></div><div class="field"><label>Series</label><input class="re-sets" type="number" min="1" max="20" value="${setCount}"></div><div class="field"><label>Rep. mín.</label><input class="re-min" type="number" min="1" max="100" value="${min}"></div><div class="field"><label>Rep. máx.</label><input class="re-max" type="number" min="1" max="100" value="${max}"></div><div class="field"><label>RIR</label><input class="re-rir" type="number" min="0" max="10" step="0.5" value="${rir}"></div><div class="field"><label>Descanso</label><div style="display:flex;align-items:center;gap:6px"><input class="re-rest" type="number" min="0" max="900" step="15" value="${restSeconds}"><span class="muted tiny">s</span></div></div><button class="btn dark mini-btn routine-suggestion-toggle" type="button" onclick="toggleRoutineSuggestions(this.closest('.routine-exercise-row'))">💡 Sugerencias</button><button class="btn ghost mini-btn" type="button" onclick="this.parentElement.remove()">✕</button><div class="routine-suggestions"></div><div class="routine-exercise-advanced"><div class="field"><label>Técnica de entrenamiento</label><select class="re-technique">${techniqueOptions(prescription.technique)}</select></div><div class="field"><label>Configuración avanzada</label><input class="re-technique-detail" value="${escHtml(prescription.detail)}" placeholder="Ej. 3 bajadas del 20% o 30 s"></div><div class="field wide"><label>Indicaciones para el cliente</label><input class="re-notes" value="${escHtml(prescription.notes)}" placeholder="Ej. Alternar lados, 3 s de bajada, sin descanso entre ejercicios…"></div></div>`;
+ row.innerHTML=`<div class="field exercise-select"><label>Ejercicio</label><div style="display:flex;gap:8px;align-items:center"><div class="re-thumb"></div><select class="re-exercise" style="flex:1">${options}</select></div></div><div class="field"><label>Series</label><input class="re-sets" type="number" min="1" max="20" value="${setCount}"></div><div class="field"><label>Rep. mín.</label><input class="re-min" type="number" min="1" max="100" value="${min}"></div><div class="field"><label>Rep. máx.</label><input class="re-max" type="number" min="1" max="100" value="${max}"></div><div class="field"><label>RIR</label><input class="re-rir" type="number" min="0" max="10" step="0.5" value="${rir}"></div><div class="field"><label>Descanso</label><div style="display:flex;align-items:center;gap:6px"><input class="re-rest" type="number" min="0" max="900" step="15" value="${restSeconds}"><span class="muted tiny">s</span></div></div><button class="btn dark mini-btn routine-suggestion-toggle" type="button" onclick="toggleRoutineSuggestions(this.closest('.routine-exercise-row'))">💡 Sugerencias</button><button class="btn dark mini-btn" type="button" onclick="openExerciseGuide(this.parentElement.querySelector('.re-exercise').value,currentProfile.id,document.getElementById('routineClient').value,true)">▶ Cómo realizarlo</button><button class="btn ghost mini-btn" type="button" onclick="this.parentElement.remove()">✕</button><div class="routine-suggestions"></div><div class="routine-exercise-advanced"><div class="field"><label>Técnica de entrenamiento</label><select class="re-technique">${techniqueOptions(prescription.technique)}</select></div><div class="field"><label>Configuración avanzada</label><input class="re-technique-detail" value="${escHtml(prescription.detail)}" placeholder="Ej. 3 bajadas del 20% o 30 s"></div><div class="field wide"><label>Indicaciones para este cliente y esta rutina</label><input class="re-notes" value="${escHtml(prescription.notes)}" placeholder="Ej. Alternar lados, 3 s de bajada, sin descanso entre ejercicios…"></div></div>`;
  dayEl.querySelector('.routine-exercises').appendChild(row);
  if(exerciseData?.exercise_id)row.querySelector('.re-exercise').value=exerciseData.exercise_id;
  const select=row.querySelector('.re-exercise');
