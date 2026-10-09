@@ -4,6 +4,7 @@ on:
     paths:
       - 'web/**'
       - 'tests/exercise-guides*'
+      - 'tests/nutrition-adjustments*'
       - 'package*.json'
       - '.github/workflows/exercise-guides-checks.yml'
   workflow_dispatch:
@@ -23,3 +24,4 @@ jobs:
       - run: node tests/exercise-guides.unit.cjs
       - run: npx playwright install --with-deps chromium --only-shell
       - run: node tests/exercise-guides.test.cjs
+      - run: node tests/nutrition-adjustments.test.cjs

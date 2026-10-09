@@ -1,4 +1,4 @@
-const CACHE='vicbangfit-exercise-guides-20261009';
+const CACHE='vicbangfit-nutrition-adjustments-20261009';
 const ASSETS=['./','./index.html','./manifest.json','./VICBANGFIT_AppIcon_Gold_1024.png'];
 
 self.addEventListener('install',event=>{
