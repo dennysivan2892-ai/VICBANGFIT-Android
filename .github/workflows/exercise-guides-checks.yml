@@ -1,0 +1,25 @@
+name: Exercise guide checks
+on:
+  pull_request:
+    paths:
+      - 'web/**'
+      - 'tests/exercise-guides*'
+      - 'package*.json'
+      - '.github/workflows/exercise-guides-checks.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  guide-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node tests/exercise-guides.unit.cjs
+      - run: npx playwright install --with-deps chromium --only-shell
+      - run: node tests/exercise-guides.test.cjs
