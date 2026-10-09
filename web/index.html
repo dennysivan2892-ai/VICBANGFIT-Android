@@ -6001,6 +6001,13 @@ let trainerRoutines=[];
 // Loaded after the app's classic script: uses its authenticated client and UI helpers.
 const GUIDE_BUCKET='exercise-guide-videos';
 let guideState=null,guideRequest=0;
+function guideVideoId(){
+ if(typeof crypto.randomUUID==='function')return crypto.randomUUID();
+ const bytes=crypto.getRandomValues(new Uint8Array(16));
+ bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+ const hex=Array.from(bytes,n=>n.toString(16).padStart(2,'0')).join('');
+ return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
 function guideHttps(value){
  const raw=String(value||'').trim();if(!raw)return '';
  const url=new URL(raw);if(url.protocol!=='https:')throw new Error('El enlace del vídeo debe empezar por https://');
@@ -6093,7 +6100,7 @@ async function saveExerciseGuide(){
   state.saving=true;guideDialog().querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=true);button.textContent=file?'Subiendo vídeo…':'Guardando…';message.textContent='';
   let video_path=state.removeVideo||video_url?null:state.videoPath;
   if(file){
-   uploaded=`${state.trainerId}/${state.exerciseId}/${state.scope==='client'?state.clientId:'shared'}/${crypto.randomUUID()}.${types[file.type]}`;
+   uploaded=`${state.trainerId}/${state.exerciseId}/${state.scope==='client'?state.clientId:'shared'}/${guideVideoId()}.${types[file.type]}`;
    const {error}=await sb.storage.from(GUIDE_BUCKET).upload(uploaded,file,{contentType:file.type,upsert:false});if(error)throw error;video_path=uploaded;
   }
   const payload={trainer_id:state.trainerId,exercise_id:state.exerciseId,client_id:state.scope==='client'?state.clientId:null,instructions,common_errors,video_url:video_url||null,video_path,updated_at:new Date().toISOString()};
