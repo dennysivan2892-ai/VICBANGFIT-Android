@@ -2457,7 +2457,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
         <button class="quick" onclick="showPage('plantillas')"><b>📋</b>Plantillas<small>Reutilizar planes guardados</small></button>
         <button class="quick" onclick="showPage('ejercicios')"><b>💪</b>Ejercicios<small>Explorar la biblioteca</small></button>
         <button class="quick" onclick="toast('Datos exportados')"><b>📤</b>Exportar<small>Descargar los datos</small></button>
-        <button class="quick" onclick="showPage('ajustes')"><b>⚙️</b>Más opciones<small>Configurar la aplicación</small></button>
+        <button class="quick" onclick="showPage('ajustes')"><b>👤</b>Mi perfil y ajustes<small>Configurar la aplicación</small></button>
       </div></div>
     </div>
   </div>
@@ -3364,6 +3364,22 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 </section>
 
 <section id="ajustes" class="section">
+  <div class="card" id="trainerProfessionalProfile" style="margin-bottom:16px">
+    <h2>Mi perfil de entrenador</h2><p class="muted">Personaliza la presentación que verán tus clientes. El nombre profesional no cambia tus datos de registro.</p>
+    <form id="trainerProfileForm" onsubmit="saveTrainerProfessionalProfile(event)">
+      <div id="trainerProfileAvatar" class="client-own-avatar" style="margin-bottom:12px">—</div>
+      <div class="field"><label for="trainerProfilePhoto">Foto de perfil · JPG, PNG o WEBP</label><input id="trainerProfilePhoto" type="file" accept="image/jpeg,image/png,image/webp"></div>
+      <div class="form-grid" style="margin-top:12px">
+        <div class="field"><label for="trainerProfileName">Nombre profesional</label><input id="trainerProfileName" required maxlength="100" placeholder="Ej.: VICBANGFIT"></div>
+        <div class="field"><label for="trainerProfilePhone">Teléfono de contacto (opcional)</label><input id="trainerProfilePhone" type="tel" maxlength="40"></div>
+        <div class="field"><label for="trainerProfileSpecialties">Especialidades (opcional)</label><input id="trainerProfileSpecialties" maxlength="250" placeholder="Fuerza, hipertrofia…"></div>
+        <div class="field"><label for="trainerProfileBio">Sobre mí (opcional)</label><textarea id="trainerProfileBio" maxlength="2000" rows="5" placeholder="Cuéntales a tus clientes tu experiencia y cómo trabajas."></textarea></div>
+      </div>
+      <label style="display:block;margin:12px 0"><input id="trainerProfileRemovePhoto" type="checkbox"> Quitar mi foto actual</label>
+      <button id="trainerProfileSave" class="btn" type="submit">Guardar perfil</button><p id="trainerProfileMsg" class="muted" role="status"></p>
+    </form>
+  </div>
+
   <div class="header"><div><h1>Ajustes</h1><div class="muted">Configuración de la plataforma.</div></div></div>
   <div class="card">
     <div class="form-grid">
@@ -3379,6 +3395,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 <section id="client_home" class="section">
   <div class="client-home-wrap">
     <div class="header"><div><span class="role-chip">CLIENTE</span><h1 id="clientWelcome" style="margin-top:8px">Hola 👋</h1><div class="muted">Tu entrenamiento, nutrición y progreso.</div></div><button class="logout-btn" onclick="logoutUser()">Cerrar sesión</button></div>
+    <div id="myTrainerProfiles" style="margin-bottom:16px"></div>
     <div class="client-own-profile">
       <div id="clientOwnAvatar" class="client-own-avatar">—</div>
       <div style="min-width:0;flex:1">
@@ -5149,7 +5166,8 @@ function showPage(id,vicOptions={}){
   if(id==="client_checkin" && currentProfile?.role==="client")loadClientCheckin();
   if(id==="client_messages" && currentProfile?.role==="client")loadClientChat();
   if(id==="client_onboarding" && currentProfile?.role==="client")loadClientOnboarding();
-  if(id==="client_home" && currentProfile?.role==="client"){loadClientHomePresential();loadClientHomeAdherence();loadClientCheckinStatus();loadClientNotifications();loadClientPaymentSummary();loadClientMessageBadge();loadClientOnboardingStatus();loadClientSteps();}
+  if(id==="ajustes" && currentProfile?.role==="trainer")loadTrainerProfessionalProfile();
+  if(id==="client_home" && currentProfile?.role==="client"){loadMyTrainerProfiles();loadClientHomePresential();loadClientHomeAdherence();loadClientCheckinStatus();loadClientNotifications();loadClientPaymentSummary();loadClientMessageBadge();loadClientOnboardingStatus();loadClientSteps();}
   vicUpdateBackButton();
   window.scrollTo(0,0)
 }
@@ -5253,6 +5271,7 @@ function renderAdminAccounts(){
     let primary='';
     if(!self && active && pending)primary=`<button class="btn" type="button" onclick="adminAccountAction('${a.id}','approve_trainer')">✓ Aprobar entrenador</button><button class="btn ghost" type="button" onclick="adminAccountAction('${a.id}','reject_trainer')">Rechazar</button>`;
     else if(!self && active && a.role==='client' && !pending)primary=`<button class="btn dark" type="button" onclick="adminAccountAction('${a.id}','promote_trainer')">🏋 Convertir en entrenador</button>`;
+    const trainerPayButton=a.role==='trainer'?`<button class="btn dark" type="button" onclick="openAdminTrainerPayments('${a.id}')">💶 Pagos</button>`:'';
     const actions=self
       ?'<span class="muted tiny">Cuenta principal</span>'
       :`<div style="display:flex;gap:6px;flex-wrap:wrap">${primary}<button class="btn ${active?'ghost':'dark'}" type="button" onclick="adminAccountAction('${a.id}','${active?'deactivate':'activate'}')">${active?'Dar de baja':'Reactivar'}</button><button class="btn danger" type="button" onclick="adminAccountAction('${a.id}','delete')">Eliminar</button></div>`;
@@ -5265,7 +5284,7 @@ function renderAdminAccounts(){
       <td>${status}</td>
       <td>${adminDate(a.created_at)}</td>
       <td>${a.role==='trainer'?(a.active_clients??0):'—'}</td>
-      <td>${actions}</td>
+      <td>${trainerPayButton}${actions}</td>
     </tr>`;
   }).join(''):'<tr><td colspan="6" class="muted">No hay cuentas que coincidan.</td></tr>';
 }
@@ -16067,6 +16086,99 @@ document.addEventListener('input',function(e){
 })();
 </script>
 
+
+
+<dialog id="adminTrainerPaymentsDialog" style="background:#111;color:#fff;border:1px solid #b99045;border-radius:18px;width:min(720px,92vw);max-height:85vh;padding:24px">
+  <div class="row"><h2 id="adminTrainerPaymentTitle">Pagos del entrenador</h2><button class="btn ghost" type="button" onclick="document.getElementById('adminTrainerPaymentsDialog').close()">Cerrar</button></div>
+  <p class="muted">Registro manual de pagos · Solo administración</p>
+  <div id="adminTrainerPaymentHistory"></div>
+  <h3 id="adminTrainerPaymentFormTitle">Nuevo pago</h3>
+  <form id="adminTrainerPaymentForm" onsubmit="saveAdminTrainerPayment(event)">
+    <div class="form-grid">
+      <div class="field"><label for="adminTrainerPaymentAmount">Importe (€)</label><input id="adminTrainerPaymentAmount" type="number" step="0.01" min="0" max="99999999.99" required></div>
+      <div class="field"><label for="adminTrainerPaymentDue">Fecha de vencimiento</label><input id="adminTrainerPaymentDue" type="date" required></div>
+      <div class="field"><label for="adminTrainerPaymentStatus">Estado</label><select id="adminTrainerPaymentStatus" onchange="syncAdminTrainerPaidDate()"><option value="pending">Pendiente</option><option value="paid">Pagado</option></select></div>
+      <div class="field"><label for="adminTrainerPaymentPaidAt">Fecha de cobro</label><input id="adminTrainerPaymentPaidAt" type="date" disabled></div>
+      <div class="field"><label for="adminTrainerPaymentNotes">Notas</label><textarea id="adminTrainerPaymentNotes" rows="3" maxlength="2000"></textarea></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px"><button id="adminTrainerPaymentSave" class="btn" type="submit">Guardar pago</button><button class="btn ghost" type="button" onclick="resetAdminTrainerPaymentForm()">Nuevo registro</button></div>
+    <p id="adminTrainerPaymentMsg" role="status" class="muted"></p>
+  </form>
+</dialog>
+<script>
+let adminTrainerPaymentTarget=null, adminTrainerPaymentEditing=null, adminTrainerPaymentRows=[], trainerProfessionalProfile=null;
+function syncAdminTrainerPaidDate(){
+ const paid=document.getElementById('adminTrainerPaymentStatus').value==='paid',date=document.getElementById('adminTrainerPaymentPaidAt');
+ date.disabled=!paid;date.required=paid;if(paid&&!date.value)date.value=paymentToday();if(!paid)date.value='';
+}
+function resetAdminTrainerPaymentForm(){
+ adminTrainerPaymentEditing=null;document.getElementById('adminTrainerPaymentForm').reset();document.getElementById('adminTrainerPaymentDue').value=paymentToday();
+ document.getElementById('adminTrainerPaymentFormTitle').textContent='Nuevo pago';document.getElementById('adminTrainerPaymentMsg').textContent='';syncAdminTrainerPaidDate();
+}
+async function openAdminTrainerPayments(id){
+ if(!currentProfile?.is_admin)return;const account=adminAccounts.find(a=>a.id===id&&a.role==='trainer');if(!account)return;
+ adminTrainerPaymentTarget=id;document.getElementById('adminTrainerPaymentTitle').textContent='Pagos · '+(account.full_name||account.email);resetAdminTrainerPaymentForm();
+ document.getElementById('adminTrainerPaymentsDialog').showModal();await loadAdminTrainerPaymentHistory();
+}
+async function loadAdminTrainerPaymentHistory(){
+ const target=adminTrainerPaymentTarget,box=document.getElementById('adminTrainerPaymentHistory');box.textContent='Cargando pagos…';
+ const {data,error}=await sb.from('trainer_payment_records').select('*').eq('trainer_id',target).order('due_date',{ascending:false});
+ if(target!==adminTrainerPaymentTarget)return;if(error){box.textContent=vicError(error,'No se pudo cargar el historial.');return}
+ adminTrainerPaymentRows=data||[];
+ box.innerHTML=adminTrainerPaymentRows.length?adminTrainerPaymentRows.map(r=>`<div class="card" style="margin-bottom:10px"><div class="row"><b>${escHtml(paymentMoney(r.amount))}</b><span class="pill">${r.status==='paid'?'Pagado':r.due_date<paymentToday()?'Vencido':'Pendiente'}</span></div><p>Vencimiento: ${escHtml(paymentDateLabel(r.due_date))}${r.paid_at?' · Cobrado: '+escHtml(paymentDateLabel(r.paid_at)):''}</p>${r.notes?`<p style="white-space:pre-wrap">${escHtml(r.notes)}</p>`:''}<button class="btn ghost" type="button" onclick="editAdminTrainerPayment('${r.id}')">Editar pago</button></div>`).join(''):'<p class="muted">Aún no hay pagos registrados para este entrenador.</p>';
+}
+function editAdminTrainerPayment(id){
+ const r=adminTrainerPaymentRows.find(r=>r.id===id);if(!r)return;adminTrainerPaymentEditing=id;
+ document.getElementById('adminTrainerPaymentFormTitle').textContent='Editar pago';
+ for(const [suffix,value] of Object.entries({Amount:r.amount,Due:r.due_date,Status:r.status,PaidAt:r.paid_at||'',Notes:r.notes||''}))document.getElementById('adminTrainerPayment'+suffix).value=value;
+ syncAdminTrainerPaidDate();document.getElementById('adminTrainerPaymentMsg').textContent='';
+}
+async function saveAdminTrainerPayment(event){
+ event.preventDefault();if(!currentProfile?.is_admin)return;const form=event.target;if(!form.reportValidity())return;
+ const btn=document.getElementById('adminTrainerPaymentSave'),msg=document.getElementById('adminTrainerPaymentMsg');if(btn.disabled)return;btn.disabled=true;
+ const status=document.getElementById('adminTrainerPaymentStatus').value;
+ const payload={trainer_id:adminTrainerPaymentTarget,amount:Number(document.getElementById('adminTrainerPaymentAmount').value),due_date:document.getElementById('adminTrainerPaymentDue').value,status,paid_at:status==='paid'?document.getElementById('adminTrainerPaymentPaidAt').value:null,notes:document.getElementById('adminTrainerPaymentNotes').value.trim(),updated_at:new Date().toISOString()};
+ try{
+ const query=adminTrainerPaymentEditing?sb.from('trainer_payment_records').update(payload).eq('id',adminTrainerPaymentEditing).eq('trainer_id',adminTrainerPaymentTarget):sb.from('trainer_payment_records').insert(payload);
+ const {data,error}=await query.select('id').single();if(error||!data)throw error||new Error('No se guardó el pago.');
+ resetAdminTrainerPaymentForm();msg.textContent='Pago guardado ✓';await loadAdminTrainerPaymentHistory();
+ }catch(e){msg.textContent=vicError(e,'No se pudo guardar el pago.')}finally{btn.disabled=false}
+}
+async function loadTrainerProfessionalProfile(){
+ if(currentProfile?.role!=='trainer')return;
+ const {data,error}=await sb.from('trainer_public_profiles').select('*').eq('trainer_id',currentProfile.id).maybeSingle();
+ if(error){document.getElementById('trainerProfileMsg').textContent=vicError(error,'No se pudo cargar tu perfil.');return}
+ trainerProfessionalProfile=data;
+ for(const [suffix,value] of Object.entries({Name:data?.display_name||currentProfile.full_name||'',Phone:data?.contact_phone||'',Specialties:data?.specialties||'',Bio:data?.bio||''}))document.getElementById('trainerProfile'+suffix).value=value;
+ document.getElementById('trainerProfilePhoto').value='';document.getElementById('trainerProfileRemovePhoto').checked=false;document.getElementById('trainerProfileMsg').textContent='';
+ applyProfileAvatar(document.getElementById('trainerProfileAvatar'),await profileAvatarSignedUrl(data?.avatar_path||''),data?.display_name||currentProfile.full_name);
+}
+async function saveTrainerProfessionalProfile(event){
+ event.preventDefault();if(currentProfile?.role!=='trainer')return;const btn=document.getElementById('trainerProfileSave'),msg=document.getElementById('trainerProfileMsg');if(btn.disabled)return;
+ const name=document.getElementById('trainerProfileName').value.trim();if(!name){msg.textContent='Escribe tu nombre profesional.';return}
+ btn.disabled=true;msg.textContent='Guardando…';
+ try{
+ let path=trainerProfessionalProfile?.avatar_path||null;const file=document.getElementById('trainerProfilePhoto').files[0],remove=document.getElementById('trainerProfileRemovePhoto').checked;
+ if(file&&remove)throw new Error('Selecciona una foto nueva o marca quitar foto, pero no ambas opciones.');
+ if(file){if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>12*1024*1024)throw new Error('Usa una imagen JPG, PNG o WEBP de hasta 12 MB.');
+ path=currentProfile.id+'/trainer-avatar.jpg';const blob=await compressClientProfilePhoto(file);const {error}=await sb.storage.from('profile-photos').upload(path,blob,{upsert:true,contentType:'image/jpeg'});if(error)throw error;profileAvatarSignedCache.delete(path);}
+ if(remove)path=null;
+ const payload={trainer_id:currentProfile.id,display_name:name,contact_phone:document.getElementById('trainerProfilePhone').value.trim(),specialties:document.getElementById('trainerProfileSpecialties').value.trim(),bio:document.getElementById('trainerProfileBio').value.trim(),avatar_path:path,updated_at:new Date().toISOString()};
+ const {data,error}=await sb.from('trainer_public_profiles').upsert(payload,{onConflict:'trainer_id'}).select().single();if(error||!data)throw error||new Error('No se guardó el perfil.');
+ trainerProfessionalProfile=data;await loadTrainerProfessionalProfile();msg.textContent='Perfil guardado ✓ Tus clientes ya pueden consultarlo.';
+ }catch(e){msg.textContent=vicError(e,'No se pudo guardar tu perfil.')}finally{btn.disabled=false}
+}
+async function loadMyTrainerProfiles(){
+ if(currentProfile?.role!=='client')return;const box=document.getElementById('myTrainerProfiles');box.textContent='Cargando tu entrenador…';
+ try{
+ const {data:links,error:linkError}=await sb.from('trainer_clients').select('trainer_id').eq('client_id',currentProfile.id).eq('status','active');if(linkError)throw linkError;
+ const ids=[...new Set((links||[]).map(l=>l.trainer_id))];if(!ids.length){box.textContent='';return}
+ const {data,error}=await sb.from('trainer_public_profiles').select('*').in('trainer_id',ids);if(error)throw error;
+ const cards=await Promise.all(ids.map(async id=>{const t=(data||[]).find(t=>t.trainer_id===id),name=t?.display_name||'Tu entrenador',photo=await profileAvatarSignedUrl(t?.avatar_path||'');
+ return `<div class="card" style="margin-bottom:12px"><div class="row" style="justify-content:flex-start;gap:14px"><div class="client-own-avatar">${photo?`<img src="${escHtml(photo)}" alt="Foto de ${escHtml(name)}">`:escHtml(initials(name))}</div><div><div class="muted tiny">TU ENTRENADOR</div><h2>${escHtml(name)}</h2>${t?.specialties?`<p>${escHtml(t.specialties)}</p>`:''}</div></div>${t?.bio?`<p style="white-space:pre-wrap;overflow-wrap:anywhere">${escHtml(t.bio)}</p>`:''}${t?.contact_phone?`<p>Contacto: ${escHtml(t.contact_phone)}</p>`:''}</div>`;}));box.innerHTML=cards.join('');
+ }catch(e){box.textContent=vicError(e,'No se pudo cargar el perfil de tu entrenador.')}
+}
+</script>
 
 </body>
 </html>
