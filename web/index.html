@@ -2143,6 +2143,23 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 .client-card-main{display:flex;align-items:center;gap:9px;min-width:0}.client-card-copy{min-width:0;flex:1}.client-card-copy h4{margin:0 0 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.client-card-copy .meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.client-card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
 @media(max-width:900px){.dashboard-clients-actions{gap:6px}.dashboard-client-total{min-height:29px;padding:0 8px;font-size:10px}#clientStrip{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#clientStrip .client-card{padding:9px;border-radius:12px}#clientStrip .avatar{width:38px;height:38px;flex:0 0 38px;font-size:13px}#clientStrip .client-card-copy h4{font-size:13px;line-height:1.15}#clientStrip .client-card-copy .meta{font-size:10px}#clientStrip .bar{height:5px;margin:7px 0 5px}#clientStrip .client-card-foot{font-size:11px}#clientStrip .client-card-foot .tiny{font-size:10px}}
 @media(max-width:430px){#clientStrip{grid-template-columns:1fr}#clientStrip .client-card{display:grid;grid-template-columns:minmax(0,1fr) 104px;gap:5px 10px;align-items:center;padding:8px 10px}#clientStrip .client-card-main{grid-row:1/3}#clientStrip .bar{grid-column:2;margin:0}#clientStrip .client-card-foot{grid-column:2;justify-content:flex-end;flex-wrap:wrap;gap:1px 7px;text-align:right}#clientStrip .client-card-foot .blue{width:100%}}
+
+/* Daily client home and native emoji thumbnails */
+.client-day-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 18px}
+.client-day-heading h2{font-size:30px;margin:0 0 4px}.client-day-heading p{margin:0;text-transform:capitalize}
+.client-day-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.client-day-grid .client-hero{margin:0;padding:22px;border-radius:22px;display:flex;flex-direction:column;align-items:flex-start;min-width:0}
+.client-day-grid .client-hero h2{font-size:26px;line-height:1.15;margin:10px 0}
+.client-day-card{padding:22px;border:1px solid #333;border-radius:22px;background:linear-gradient(145deg,#191811,#101010);display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0}
+.client-day-card h3{margin:0;font-size:21px;overflow-wrap:anywhere}.client-day-card p{margin:0;line-height:1.5}.client-day-card .btn,.client-day-grid .client-hero .btn{margin-top:auto;min-height:48px;white-space:normal;text-align:left}
+.client-day-label{font-size:11px;font-weight:900;letter-spacing:.08em;color:#dfc27f;text-transform:uppercase}
+.client-day-card .muted{overflow-wrap:anywhere}.client-day-card [id=clientDaySupplementsMeta]{font-size:13px;line-height:1.7}
+.client-day-personal{border:1px solid #292929;border-radius:18px;padding:16px;margin-top:18px}.client-day-personal summary{font-weight:800;cursor:pointer}.client-day-personal .client-own-profile{margin:16px 0 0}
+.nutrition-food-thumb.native-food-icon{display:grid;place-items:center;font-size:29px;flex-shrink:0;color:initial;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
+.exercise-thumb.placeholder{color:initial;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
+#client_home [hidden]{display:none!important}
+@media(max-width:600px){.client-day-grid{grid-template-columns:1fr}.client-day-heading h2{font-size:27px}.client-day-card,.client-day-grid .client-hero{padding:18px}.client-day-grid .client-hero h2{font-size:24px}}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0/dist/umd/supabase.min.js"></script>
   <script type="module">
@@ -3395,27 +3412,21 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 <section id="client_home" class="section">
   <div class="client-home-wrap">
     <div class="header"><div><span class="role-chip">CLIENTE</span><h1 id="clientWelcome" style="margin-top:8px">Hola 👋</h1><div class="muted">Tu entrenamiento, nutrición y progreso.</div></div><button class="logout-btn" onclick="logoutUser()">Cerrar sesión</button></div>
-    <div id="myTrainerProfiles" style="margin-bottom:16px"></div>
-    <div class="client-own-profile">
-      <div id="clientOwnAvatar" class="client-own-avatar">—</div>
-      <div style="min-width:0;flex:1">
-        <h3>Mi foto de perfil</h3>
-        <div class="muted tiny">Esta foto también la verá tu entrenador en tu ficha de VICBANGFIT.</div>
-        <input id="clientAvatarInput" type="file" accept="image/jpeg,image/png,image/webp" hidden onchange="uploadClientAvatar(event)">
-        <div class="client-avatar-actions">
-          <button id="clientAvatarUploadBtn" class="btn" type="button" onclick="document.getElementById('clientAvatarInput').click()">📷 Cambiar foto</button>
-          <button id="clientAvatarRemoveBtn" class="btn ghost" type="button" onclick="removeClientAvatar()" style="display:none">Quitar foto</button>
-        </div>
-        <div class="client-avatar-note">JPG, PNG o WEBP. La imagen se ajusta automáticamente.</div>
-        <div id="clientAvatarMsg" class="client-avatar-msg"></div>
-      </div>
+    <div class="client-day-heading"><div><h2>Mi día</h2><p id="clientDayDate" class="muted">Tu planificación de hoy</p></div><button class="btn ghost" type="button" onclick="loadClientDay()">↻ Actualizar</button></div>
+    <div id="clientDayPlanning" class="client-day-grid">
+    <div class="client-hero" data-client-service="training"><div class="muted tiny">🏋️ Entrenamiento</div><h2 id="clientHeroTitle">Cargando entrenamiento…</h2><p class="muted" id="clientHeroMeta">Buscando tu rutina activa.</p><button id="clientHeroBtn" class="btn" onclick="showPage('client_workout')">Ver mi entrenamiento →</button></div>
+      <div class="client-day-card" data-client-service="nutrition"><span class="client-day-label">🥗 Nutrición</span><h3 id="clientDayNutritionTitle">Tu dieta diaria</h3><p id="clientDayNutritionMeta" class="muted">Cargando tu planificación…</p><button class="btn dark" type="button" onclick="showPage('client_nutrition')">Ver mis comidas →</button></div>
+      <div id="clientDaySupplementsCard" class="client-day-card" data-client-service="supplements" hidden><span class="client-day-label">💊 Suplementación</span><h3>Tu pauta</h3><div id="clientDaySupplementsMeta" class="muted"></div><button class="btn dark" type="button" onclick="showPage('client_nutrition')">Ver pauta y registrar tomas →</button></div>
+      <div class="client-day-card" data-client-service="nutrition"><span class="client-day-label">💧 Hidratación</span><h3 id="clientDayWaterTarget">Cargando pauta…</h3><p id="clientDayWaterMeta" class="muted">Cantidad indicada por tu entrenador.</p><button class="btn dark" type="button" onclick="showPage('client_nutrition')">Ver nutrición e hidratación →</button></div>
     </div>
-    <div class="client-hero" data-client-service="training"><div class="muted tiny">RUTINA ASIGNADA</div><h1 id="clientHeroTitle">Cargando entrenamiento…</h1><p class="muted" id="clientHeroMeta">Buscando tu rutina activa.</p><button id="clientHeroBtn" class="btn" onclick="showPage('client_workout')">Ver mi entrenamiento →</button></div>
+    <div class="client-day-grid">
+      <div class="client-day-card"><span class="client-day-label">🚶 Pasos</span><h3 id="clientDayStepsTitle">Pasos de hoy</h3><p id="clientDayStepsMeta" class="muted">Cargando tu objetivo…</p><button class="btn dark" type="button" onclick="openClientDaySteps()">Ver pasos y sincronizar →</button></div>
+      <div class="client-day-card"><span class="client-day-label">📸 Check-in</span><h3 id="clientHomeCheckin">Cargando…</h3><p id="clientHomeCheckinMeta" class="muted">Consultando tu próxima revisión.</p><button class="btn dark" type="button" onclick="showPage('client_checkin')">Ver mi check-in →</button></div>
+    </div>
     <div class="grid4">
       <div class="card kpi"><div class="label">PESO</div><div class="value" id="myWeight">—</div><div class="green">Seguimiento</div></div>
       <div class="card kpi"><div class="label">ADHERENCIA</div><div class="value" id="clientHomeAdherence">—</div><div class="green" id="clientHomeAdherenceMeta">Plan actual · esta semana</div></div>
       <div class="card kpi"><div class="label">ENTRENAMIENTOS</div><div class="value" id="clientCompletedWorkouts">0</div><div class="green">Completados esta semana</div></div>
-      <div class="card kpi"><div class="label">CHECK-IN</div><div class="value" id="clientHomeCheckin" style="font-size:20px">—</div><div class="orange" id="clientHomeCheckinMeta">Esta semana</div></div>
     </div>
 
     <div class="steps-card" id="clientStepsCard">
@@ -3442,6 +3453,23 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     </div>
 
     <div class="client-nav"><button data-client-service="training" onclick="showPage('client_workout')">🏋 Entrenamiento</button><button data-client-service="nutrition" onclick="showPage('client_nutrition')">🥗 Nutrición</button><button data-client-service="presential" onclick="showPage('client_presential')">📅 Presencial</button><button onclick="showPage('client_progress')">📊 Progreso</button><button onclick="showPage('client_checkin')">📸 Check-in</button><button onclick="showPage('client_onboarding')">📝 Evaluación</button><button onclick="showPage('client_messages')">💬 Mensajes <span id="clientMessageNavBadge" class="message-badge-inline" style="display:none">0</span></button></div>
+    <details class="client-day-personal"><summary>Mi perfil y mi entrenador</summary>
+    <div id="myTrainerProfiles" style="margin-bottom:16px"></div>
+    <div class="client-own-profile">
+      <div id="clientOwnAvatar" class="client-own-avatar">—</div>
+      <div style="min-width:0;flex:1">
+        <h3>Mi foto de perfil</h3>
+        <div class="muted tiny">Esta foto también la verá tu entrenador en tu ficha de VICBANGFIT.</div>
+        <input id="clientAvatarInput" type="file" accept="image/jpeg,image/png,image/webp" hidden onchange="uploadClientAvatar(event)">
+        <div class="client-avatar-actions">
+          <button id="clientAvatarUploadBtn" class="btn" type="button" onclick="document.getElementById('clientAvatarInput').click()">📷 Cambiar foto</button>
+          <button id="clientAvatarRemoveBtn" class="btn ghost" type="button" onclick="removeClientAvatar()" style="display:none">Quitar foto</button>
+        </div>
+        <div class="client-avatar-note">JPG, PNG o WEBP. La imagen se ajusta automáticamente.</div>
+        <div id="clientAvatarMsg" class="client-avatar-msg"></div>
+      </div>
+    </div>
+    </details>
     <div id="clientPaymentSummary" class="card payment-summary-client" style="display:none">
       <div class="payment-summary-grid">
         <div><div class="muted tiny">💳 MI CUOTA</div><div class="payment-summary-amount" id="clientPaymentAmount">—</div><div class="muted" id="clientPaymentDue">—</div></div>
@@ -4349,7 +4377,7 @@ let currentProfile=null;
 let currentClientServices={training:true,nutrition:true,supplements:true,presential:false};
 function clientServiceEnabled(service){return currentClientServices?.[service]!==false}
 function applyClientServiceVisibility(){
- document.querySelectorAll('[data-client-service]').forEach(el=>{el.style.display=(clientServiceEnabled(el.dataset.clientService)||(el.dataset.clientService==='nutrition'&&clientServiceEnabled('supplements')))?'':'none'});
+ document.querySelectorAll('[data-client-service]').forEach(el=>{el.style.display=(clientServiceEnabled(el.dataset.clientService)||(el.matches('button')&&el.dataset.clientService==='nutrition'&&clientServiceEnabled('supplements')))?'':'none'});
 }
 async function loadCurrentClientServices(){
  currentClientServices={training:true,nutrition:true,supplements:true,presential:false};
@@ -4843,7 +4871,7 @@ async function enterApp(user){
   document.getElementById('myWeight').textContent=details.current_weight_kg+' kg';
  }
  await refreshClientPlanningAccess();
- if(clientPlanningAccessAllowed&&clientServiceEnabled('training'))await loadClientRoutines();
+ // The daily home refreshes the current routine after service access has loaded.
  await loadClientWorkoutStats();
  showPage('client_home');
  await processPendingVicbangfitPushAction();
@@ -5169,7 +5197,7 @@ function showPage(id,vicOptions={}){
   if(id==="client_messages" && currentProfile?.role==="client")loadClientChat();
   if(id==="client_onboarding" && currentProfile?.role==="client")loadClientOnboarding();
   if(id==="ajustes" && currentProfile?.role==="trainer")loadTrainerProfessionalProfile();
-  if(id==="client_home" && currentProfile?.role==="client"){loadMyTrainerProfiles();loadClientHomePresential();loadClientHomeAdherence();loadClientCheckinStatus();loadClientNotifications();loadClientPaymentSummary();loadClientMessageBadge();loadClientOnboardingStatus();loadClientSteps();}
+  if(id==="client_home" && currentProfile?.role==="client"){loadMyTrainerProfiles();loadClientHomePresential();loadClientHomeAdherence();loadClientNotifications();loadClientPaymentSummary();loadClientMessageBadge();loadClientOnboardingStatus();loadClientDay();}
   vicUpdateBackButton();
   window.scrollTo(0,0)
 }
@@ -6152,10 +6180,24 @@ let routineDayCounter=0;
 let editingRoutineId=null;
 function escHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
+function exerciseVisual(ex){
+ const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const name=norm(ex?.name),group=norm(ex?.muscle_group),equipment=norm(ex?.equipment);
+ const rules=[[/bicicleta|cycling|bici/,'🚴'],[/cinta|carrera|correr|running/,'🏃'],[/eliptica|caminata|caminar/,'🚶'],[/remo ergometro|remo indoor/,'🚣'],[/comba/,'🪢'],[/plancha|plank|crunch|abdominal|rueda abdominal|dead bug|hollow|pallof/,'🧘'],[/curl|biceps|triceps|extension.*cuerda|press frances|press cerrado|jm press|fondos/,'💪'],[/sentadilla|squat|prensa|zancada|step.up|femoral|nordic|gemelo|peso muerto|buenos dias/,'🦵'],[/hip thrust|gluteo|abduccion|aduccion|aductor|pull.through/,'🍑'],[/dominada|jalon|remo|pullover|rack pull/,'🏋️'],[/press|apertura|cruce|flexion|peck|pajaro|elevacion|raise|face pull/,'🏋️']];
+ for(const [pattern,icon] of rules)if(pattern.test(name))return icon;
+ if(/biceps|triceps|brazo|hombro/.test(group))return '💪';
+ if(/cuadriceps|isquio|gemelo|pierna|aductor/.test(group))return '🦵';
+ if(/glute/.test(group))return '🍑';
+ if(/abdom|core/.test(group))return '🧘';
+ if(/cardio/.test(group))return '🏃';
+ if(/banda|goma/.test(equipment))return '🪢';
+ return '🏋️';
+}
 function exerciseThumbHtml(ex,sizeClass=''){
- const url=String(ex?.image_url||'').trim();
- if(url)return `<img class="exercise-thumb ${sizeClass}" src="${escHtml(url)}" alt="${escHtml(ex?.name||'Ejercicio')}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="exercise-thumb placeholder" style="display:none">🏋️</div>`;
- return '<div class="exercise-thumb placeholder">🏋️</div>';
+ const url=String(ex?.image_url||'').trim(),label=escHtml(ex?.name||'Ejercicio');
+ const fallback=`<span class="exercise-thumb placeholder ${escHtml(sizeClass)}" role="img" aria-label="${label}" title="${label}"${url?' style="display:none"':''}>${exerciseVisual(ex)}</span>`;
+ if(url)return `<img class="exercise-thumb ${escHtml(sizeClass)}" src="${escHtml(url)}" alt="${label}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.style.display='grid'">${fallback}`;
+ return fallback;
 }
 
 function formatRoutineSetMeta(sets){
@@ -6306,6 +6348,82 @@ async function loadTrainerRoutines(){
  renderTrainerRoutines();
 }
 
+// BEGIN CLIENT MY DAY
+let clientDayLoadToken=0;
+function clientDayWorkouts(routines,date=new Date()){
+ const iso=nutritionDateISO(date),weekday=date.getDay()||7;
+ const active=(routines||[]).filter(r=>(!r.start_date||String(r.start_date).slice(0,10)<=iso)&&(!r.end_date||String(r.end_date).slice(0,10)>=iso));
+ const days=active.flatMap(r=>(r.days||[]).filter(d=>!d.is_archived).map(day=>({routine:r,day})));
+ return {scheduled:days.filter(x=>Number(x.day.weekday)===weekday),flexible:days.filter(x=>!x.day.weekday),hasDays:days.length>0};
+}
+function renderClientDayTraining(){
+ const title=document.getElementById('clientHeroTitle'),meta=document.getElementById('clientHeroMeta'),btn=document.getElementById('clientHeroBtn');if(!title||!meta||!btn)return;
+ const {scheduled,flexible,hasDays}=clientDayWorkouts(clientRoutines);
+ btn.style.display='inline-flex';btn.onclick=()=>showPage('client_workout');btn.textContent='Ver mi rutina →';
+ if(scheduled.length===1){
+  const {routine,day}=scheduled[0],count=(day.exercises||[]).length;
+  title.textContent=day.name||'Entrenamiento de hoy';
+  meta.textContent=`${routine.name||'Tu rutina'} · ${count} ejercicios${day.cardio_enabled?' · Cardio '+(day.cardio_minutes||0)+' min':''}${day.reminder_time?' · '+workoutTimeShort(day.reminder_time):''}`;
+  btn.textContent='Abrir entrenamiento de hoy →';btn.onclick=()=>{showPage('client_workout');if(vicActivePage()==='client_workout')openWorkoutSession(routine.id,day.id)};
+ }else if(scheduled.length>1){title.textContent=`${scheduled.length} sesiones para hoy`;meta.textContent=scheduled.map(x=>x.day.name||'Entrenamiento').join(' · ');btn.textContent='Elegir sesión →'}
+ else if(flexible.length){title.textContent='Tu entrenamiento';meta.textContent='Tu rutina tiene sesiones sin día fijo. Elige la que corresponda según tu planificación.';btn.textContent='Elegir mi sesión →'}
+ else if(hasDays){title.textContent='Hoy sin sesión programada';meta.textContent='Consulta tu rutina completa cuando lo necesites.'}
+ else{title.textContent='Sin entrenamiento asignado';meta.textContent='Tu entrenador preparará tu próxima rutina.'}
+}
+function clientDaySet(id,text){const el=document.getElementById(id);if(el)el.textContent=text}
+function clientDayNutritionSummary(plan,meals,logs){
+ if(!plan)return {title:'Sin dieta asignada',detail:'Tu entrenador todavía no ha activado un plan nutricional.'};
+ const done=new Set((logs||[]).filter(x=>x.completed).map(x=>x.meal_id)),pending=(meals||[]).find(m=>!done.has(m.id));
+ return {title:plan.name||'Tu dieta diaria',detail:meals.length?`${meals.filter(m=>done.has(m.id)).length}/${meals.length} comidas registradas hoy${pending?' · Siguiente sin registrar: '+pending.name:' · Todas registradas ✓'}`:'Tu plan todavía no tiene comidas.'};
+}
+async function loadClientDayPlans(token,clientId){
+ const valid=()=>token===clientDayLoadToken&&currentProfile?.id===clientId;
+ const planFor=async table=>{
+  const result=await sb.from(table).select('id,name').eq('client_id',clientId).eq('status','active').order('created_at',{ascending:false}).limit(1).maybeSingle();if(result.error)throw result.error;return result.data;
+ };
+ const tasks=[];
+ if(clientServiceEnabled('nutrition'))tasks.push((async()=>{
+  clientDaySet('clientDayNutritionTitle','Cargando tu dieta…');clientDaySet('clientDayNutritionMeta','Consultando la planificación de tu entrenador.');
+  try{
+   const plan=await planFor('nutrition_plans');let meals=[],logs=[];
+   if(plan){
+    const mealResult=await sb.from('nutrition_meals').select('id,name').eq('plan_id',plan.id).order('meal_order');if(mealResult.error)throw mealResult.error;meals=mealResult.data||[];
+    const logResult=await sb.from('nutrition_meal_logs').select('meal_id,completed').eq('client_id',clientId).eq('plan_id',plan.id).eq('log_date',nutritionToday());if(logResult.error)throw logResult.error;logs=logResult.data||[];
+   }
+   if(!valid())return;const summary=clientDayNutritionSummary(plan,meals,logs);clientDaySet('clientDayNutritionTitle',summary.title);clientDaySet('clientDayNutritionMeta',summary.detail);
+  }catch(error){if(valid()){clientDaySet('clientDayNutritionTitle','No se pudo cargar la dieta');clientDaySet('clientDayNutritionMeta','Pulsa Actualizar para reintentar.')}console.error(error)}
+ })());
+ if(clientServiceEnabled('supplements'))tasks.push((async()=>{
+  const card=document.getElementById('clientDaySupplementsCard');card.hidden=false;clientDaySet('clientDaySupplementsMeta','Cargando tu pauta…');
+  try{
+   const plan=await planFor('supplement_plans');let items=[];
+   if(plan){const result=await sb.from('supplement_items').select('supplement_name,dose_text,timing,frequency').eq('plan_id',plan.id).eq('active',true).order('item_order');if(result.error)throw result.error;items=result.data||[]}
+   if(!valid())return;card.hidden=!items.length;
+   // Keep the trainer's exact dose and frequency; this is a summary, never a new prescription.
+   const list=document.getElementById('clientDaySupplementsMeta');list.replaceChildren(...items.slice(0,3).map(i=>{const row=document.createElement('div');row.textContent=`${i.supplement_name} · ${i.dose_text||'Ver pauta'}${i.timing?' · '+i.timing:''} · ${suppFrequencyLabel(i.frequency)}`;return row}));
+   if(items.length>3){const more=document.createElement('div');more.textContent=`+${items.length-3} suplementos · ver pauta completa`;list.append(more)}
+  }catch(error){if(valid())clientDaySet('clientDaySupplementsMeta','No se pudo cargar la pauta. Pulsa Actualizar para reintentar.');console.error(error)}
+ })());
+ await Promise.all(tasks);
+}
+async function loadClientDay(){
+ if(currentProfile?.role!=='client')return;
+ const token=++clientDayLoadToken,clientId=currentProfile.id;
+ clientDaySet('clientDayDate',new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'}));
+ applyClientServiceVisibility();
+ const allowed=clientPlanningAccessAllowed!==false;
+ document.getElementById('clientDayPlanning').hidden=!allowed;
+ const tasks=[loadClientSteps(),loadClientCheckinStatus()];
+ if(allowed){
+  tasks.push(loadClientDayPlans(token,clientId));
+  if(clientServiceEnabled('training')){clientDaySet('clientHeroTitle','Cargando tu entrenamiento…');clientDaySet('clientHeroMeta','Consultando tu rutina actual.');const button=document.getElementById('clientHeroBtn');button.disabled=true;tasks.push(loadClientRoutines().finally(()=>{if(token===clientDayLoadToken)button.disabled=false}))}
+  if(clientServiceEnabled('nutrition'))tasks.push(loadClientWater());
+ }
+ await Promise.allSettled(tasks);
+}
+function openClientDaySteps(){document.getElementById('clientStepsCard')?.scrollIntoView({behavior:'smooth',block:'start'})}
+// END CLIENT MY DAY
+
 let clientRoutines=[];
 function renderClientRoutines(){
  const list=document.getElementById('clientRoutineList');
@@ -6320,13 +6438,7 @@ function renderClientRoutines(){
   return;
  }
  if(heroBtn)heroBtn.style.display='inline-block';
- const primary=clientRoutines[0];
- const primaryDays=[...(primary.days||[])].sort((a,b)=>(a.day_number||0)-(b.day_number||0));
- const firstDay=primaryDays[0];
- const exerciseCount=(firstDay?.exercises||[]).length;
- const totalSets=(firstDay?.exercises||[]).reduce((sum,ex)=>sum+(ex.sets||[]).length,0);
- if(heroTitle)heroTitle.textContent=firstDay?.name||primary.name||'Mi rutina';
- if(heroMeta)heroMeta.textContent=`${primary.name} · Bloque ${Number(primary.block_number)||1}${firstDay?` · ${exerciseCount?`${exerciseCount} ejercicio${exerciseCount===1?'':'s'} · ${totalSets} serie${totalSets===1?'':'s'}`:''}${exerciseCount&&firstDay.cardio_enabled?' · ':''}${firstDay.cardio_enabled?`Cardio ${firstDay.cardio_minutes||0} min`:''}${workoutScheduleText(firstDay)?' · '+workoutScheduleText(firstDay):''}`:''}`;
+ renderClientDayTraining();
  if(!list)return;
  list.innerHTML=clientRoutines.map(r=>`<div class="card real-routine-card">
    <div class="real-routine-head">
@@ -8533,12 +8645,13 @@ function nutritionSafetyReviewHtml(review,role='trainer'){
 function nutritionFoodVisual(value){
  const n=nutritionSafetyNorm(String(value||''));
  const rules=[
-  [['tortita','arroz'],'🍘'],[['arroz'],'🍚'],[['pasta'],'🍝'],[['quinoa'],'🌾'],[['patata'],'🥔'],[['boniato'],'🍠'],[['avena'],'🥣'],[['pan'],'🍞'],
-  [['pollo'],'🍗'],[['pavo'],'🍗'],[['ternera'],'🥩'],[['atun'],'🐟'],[['pescado'],'🐟'],[['salmon'],'🐟'],[['huevo'],'🥚'],[['claras'],'🥚'],[['yogur'],'🥣'],[['queso'],'🧀'],[['tofu'],'🥢'],
-  [['aceite','oliva'],'🫒'],[['aguacate'],'🥑'],[['nueces'],'🌰'],[['almendra'],'🌰'],[['cacahuete'],'🥜'],
-  [['brocoli'],'🥦'],[['calabacin'],'🥒'],[['ensalada'],'🥗'],[['platano'],'🍌'],[['banana'],'🍌'],[['manzana'],'🍎'],[['naranja'],'🍊'],[['frutos','rojos'],'🫐'],[['fresa'],'🍓'],[['fruta'],'🍎']
+  [/tortitas? de arroz/,'🍘'],[/arroz|rice/,'🍚'],[/pasta|espagueti|macarron/,'🍝'],[/quinoa|cuscus|couscous/,'🌾'],[/boniato|batata/,'🍠'],[/patata|\bpapa(s)?\b/,'🥔'],[/avena|muesli|yogur|yogurt|skyr|kefir/,'🥣'],[/\bpan\b|bocadillo|tostada/,'🍞'],[/wrap|pita|tortilla de trigo/,'🫓'],[/maiz/,'🌽'],
+  [/pollo|pavo/,'🍗'],[/ternera|cerdo|solomillo|lomo|jamon|conejo|carne/,'🥩'],[/atun|pescado|salmon|merluza|bacalao|dorada|lubina|lenguado|rape|caballa|sardina/,'🐟'],[/gamba|langostino/,'🦐'],[/pulpo/,'🐙'],[/mejillon|almeja/,'🦪'],[/huevo|clara/,'🥚'],[/queso/,'🧀'],[/leche|whey|proteina/,'🥛'],[/tofu|tempeh|seitan/,'🫘'],[/lenteja|garbanzo|alubia|edamame|judia(?!s? verdes)/,'🫘'],
+  [/aceite|oliva/,'🫒'],[/aguacate/,'🥑'],[/cacahuete/,'🥜'],[/nuez|nueces|almendra|pistacho|avellana|frutos secos/,'🌰'],[/chia|semilla|tahini|sesamo/,'🌱'],
+  [/brocoli/,'🥦'],[/calabacin|pepino/,'🥒'],[/ensalada|verdura|lechuga|espinaca|acelga|judia|puerro|esparrago|alcachofa|coliflor/,'🥬'],[/pimiento/,'🫑'],[/berenjena/,'🍆'],[/champinon|seta/,'🍄'],[/zanahoria/,'🥕'],[/calabaza/,'🎃'],[/tomate|gazpacho/,'🍅'],
+  [/platano|banana/,'🍌'],[/manzana/,'🍎'],[/mandarina|naranja|pomelo/,'🍊'],[/frutos rojos|arandano/,'🫐'],[/fresa/,'🍓'],[/kiwi/,'🥝'],[/pera/,'🍐'],[/pina/,'🍍'],[/cereza/,'🍒'],[/sandia/,'🍉'],[/melon/,'🍈'],[/melocoton|nectarina/,'🍑'],[/ciruela|uva/,'🍇'],[/mango|papaya/,'🥭'],[/granada|caqui|fruta/,'🍎']
  ];
- for(const [keys,emoji] of rules){if(keys.every(k=>n.includes(nutritionSafetyNorm(k))))return emoji}
+ for(const [pattern,emoji] of rules)if(pattern.test(n))return emoji;
  return '🍽️';
 }
 function nutritionFoodThumbSrc(food){
@@ -8547,8 +8660,8 @@ function nutritionFoodThumbSrc(food){
  return 'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg);
 }
 function nutritionFoodThumbHtml(food){
- const label=String(food?.food_name||'Alimento');
- return `<img class="nutrition-food-thumb" src="${nutritionFoodThumbSrc(food)}" alt="${nutritionEsc(label)}">`;
+ const label=String(food?.food_name??food??'Alimento');
+ return `<span class="nutrition-food-thumb native-food-icon" role="img" aria-label="${nutritionEsc(label)}" title="${nutritionEsc(label)}">${nutritionFoodVisual(label)}</span>`;
 }
 function nutritionSafetyFoodRowHtml(food,profile,role='trainer'){
  const reason=nutritionFoodBlockedReason(food.food_name,profile);
@@ -15394,6 +15507,8 @@ function renderClientWaterTarget(targetMl,errorState=false){
   const value=document.getElementById('clientWaterTarget');
   const meta=document.getElementById('clientWaterMeta');
   const target=Math.max(0,Number(targetMl)||0);
+  clientDaySet('clientDayWaterTarget',errorState?'No se pudo cargar la pauta':target>0?`${waterLiters(target)} al día`:'Sin pauta de agua');
+  clientDaySet('clientDayWaterMeta',errorState?'Pulsa Actualizar para reintentar.':target>0?'Cantidad indicada por tu entrenador. Distribúyela durante el día.':'Tu entrenador todavía no ha indicado una cantidad.');
   if(value)value.textContent=target>0?`${waterLiters(target)} al día`:'Sin pauta';
   if(meta){
     if(errorState)meta.textContent='No se pudo cargar la pauta de hidratación.';
@@ -15596,6 +15711,7 @@ async function loadClientSteps(options={}){
     renderClientSteps(Number(targetRes.data?.target_steps)||0,dailyRes.data||[]);
   }catch(error){
     console.error('loadClientSteps',error);
+    clientDaySet('clientDayStepsTitle','Pasos no disponibles');clientDaySet('clientDayStepsMeta','Pulsa Actualizar para reintentar.');
     const status=document.getElementById('clientStepsHealthStatus');if(status)status.textContent='No se pudieron cargar los pasos. Vuelve a intentarlo más tarde.';
   }
   const connected=localStorage.getItem('vicbangfit_steps_connected')==='1';
@@ -15611,6 +15727,8 @@ function renderClientSteps(target,rows){
   const remaining=target>0?Math.max(0,target-steps):null;
   const last=[...(rows||[])].filter(r=>r.synced_at).sort((a,b)=>new Date(b.synced_at)-new Date(a.synced_at))[0]||null;
   const set=(id,text)=>{const el=document.getElementById(id);if(el)el.textContent=text};
+  clientDaySet('clientDayStepsTitle',`${stepsFmt(steps)} pasos`);
+  clientDaySet('clientDayStepsMeta',target>0?`Objetivo: ${stepsFmt(target)} · ${remaining>0?'Faltan '+stepsFmt(remaining):'Objetivo registrado ✓'}`:'Tu entrenador todavía no ha pautado un objetivo.');
   set('clientStepsToday',`${stepsFmt(steps)} pasos`);
   set('clientStepsTarget',target>0?stepsFmt(target):'Sin pauta');
   set('clientStepsRemaining',remaining==null?'—':remaining>0?stepsFmt(remaining):'Objetivo ✓');

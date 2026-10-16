@@ -5,6 +5,8 @@ on:
       - 'web/**'
       - 'tests/exercise-guides*'
       - 'tests/nutrition-adjustments*'
+      - 'tests/client-my-day*'
+      - 'tests/nutrition-supplements*'
       - 'package*.json'
       - '.github/workflows/exercise-guides-checks.yml'
   workflow_dispatch:
@@ -25,3 +27,5 @@ jobs:
       - run: npx playwright install --with-deps chromium --only-shell
       - run: node tests/exercise-guides.test.cjs
       - run: node tests/nutrition-adjustments.test.cjs
+      - run: node tests/client-my-day.test.cjs
+      - run: node tests/nutrition-supplements.test.cjs
