@@ -1808,15 +1808,15 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
     scroll-padding-bottom:calc(110px + env(safe-area-inset-bottom));
   }
 
-  #client_supplements{
+  #clientNutritionSupplements{
     padding-bottom:calc(28px + env(safe-area-inset-bottom));
   }
 
-  #client_supplements #clientSuppList{
+  #clientNutritionSupplements #clientSuppList{
     padding-bottom:24px;
   }
 
-  #client_supplements .supp-complete-btn{
+  #clientNutritionSupplements .supp-complete-btn{
     min-height:56px;
     margin-bottom:6px;
   }
@@ -3441,7 +3441,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
       <div class="steps-privacy" id="clientStepsHealthStatus">Solo se leen tus totales diarios de pasos. VICBANGFIT no necesita tu ubicación ni tu recorrido.</div>
     </div>
 
-    <div class="client-nav"><button data-client-service="training" onclick="showPage('client_workout')">🏋 Entrenamiento</button><button data-client-service="nutrition" onclick="showPage('client_nutrition')">🥗 Nutrición</button><button data-client-service="supplements" onclick="showPage('client_supplements')">🧪 Suplementación</button><button data-client-service="presential" onclick="showPage('client_presential')">📅 Presencial</button><button onclick="showPage('client_progress')">📊 Progreso</button><button onclick="showPage('client_checkin')">📸 Check-in</button><button onclick="showPage('client_onboarding')">📝 Evaluación</button><button onclick="showPage('client_messages')">💬 Mensajes <span id="clientMessageNavBadge" class="message-badge-inline" style="display:none">0</span></button></div>
+    <div class="client-nav"><button data-client-service="training" onclick="showPage('client_workout')">🏋 Entrenamiento</button><button data-client-service="nutrition" onclick="showPage('client_nutrition')">🥗 Nutrición</button><button data-client-service="presential" onclick="showPage('client_presential')">📅 Presencial</button><button onclick="showPage('client_progress')">📊 Progreso</button><button onclick="showPage('client_checkin')">📸 Check-in</button><button onclick="showPage('client_onboarding')">📝 Evaluación</button><button onclick="showPage('client_messages')">💬 Mensajes <span id="clientMessageNavBadge" class="message-badge-inline" style="display:none">0</span></button></div>
     <div id="clientPaymentSummary" class="card payment-summary-client" style="display:none">
       <div class="payment-summary-grid">
         <div><div class="muted tiny">💳 MI CUOTA</div><div class="payment-summary-amount" id="clientPaymentAmount">—</div><div class="muted" id="clientPaymentDue">—</div></div>
@@ -3717,18 +3717,19 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     </div>
   </div>
 
-  <div id="clientNutritionMeals" class="nutrition-list"><div class="card empty-state">Cargando tu plan…</div></div>
-</section>
-
-<section id="client_supplements" class="section">
-  <div class="header"><div><h1>🧪 Mi suplementación</h1><div class="muted" id="clientSuppSubtitle">Plan asignado por tu entrenador.</div></div><button class="btn ghost" onclick="showPage('client_home')">← Inicio</button></div>
+<div id="clientNutritionSupplements" style="margin-top:16px" hidden>
+  <div class="header"><div><h1>💊 Tu suplementación diaria</h1><div class="muted" id="clientSuppSubtitle">Plan asignado por tu entrenador.</div></div></div>
   <div class="supp-client-summary">
     <div class="row"><div><div class="muted tiny">ADHERENCIA DE HOY</div><div class="big" id="clientSuppAdherence">—</div><div class="muted tiny" id="clientSuppAdherenceMeta">—</div></div><span class="supp-status">Plan activo</span></div>
     <div class="supp-adherence"><i id="clientSuppAdherenceBar" style="width:0%"></i></div>
   </div>
   <div class="supp-safety-note">La suplementación no sustituye una alimentación adecuada ni atención sanitaria. Si tienes una enfermedad, tomas medicación, estás embarazada/o o tienes dudas sobre interacciones, consulta con un profesional sanitario antes de usar suplementos.</div>
   <div id="clientSuppList" class="supp-list"><div class="card empty-state">Cargando tu suplementación…</div></div>
+</div>
+  <div id="clientNutritionMeals" class="nutrition-list"><div class="card empty-state">Cargando tu plan…</div></div>
 </section>
+
+
 
 <section id="client_progress" class="section">
   <div class="header"><div><h1>Mi progreso</h1><div class="muted">Tu evolución corporal y tu rendimiento real, guardados en Supabase.</div></div><button class="btn ghost" onclick="showPage('client_home')">← Inicio</button></div>
@@ -4348,7 +4349,7 @@ let currentProfile=null;
 let currentClientServices={training:true,nutrition:true,supplements:true,presential:false};
 function clientServiceEnabled(service){return currentClientServices?.[service]!==false}
 function applyClientServiceVisibility(){
- document.querySelectorAll('[data-client-service]').forEach(el=>{el.style.display=clientServiceEnabled(el.dataset.clientService)?'':'none'});
+ document.querySelectorAll('[data-client-service]').forEach(el=>{el.style.display=(clientServiceEnabled(el.dataset.clientService)||(el.dataset.clientService==='nutrition'&&clientServiceEnabled('supplements')))?'':'none'});
 }
 async function loadCurrentClientServices(){
  currentClientServices={training:true,nutrition:true,supplements:true,presential:false};
@@ -5114,9 +5115,10 @@ function vicGoBack(){
 window.vicGoBack=vicGoBack;
 
 function showPage(id,vicOptions={}){
+  if(currentProfile?.role==='client' && id==='client_supplements')id='client_nutrition';
   if(currentProfile?.role==='client'){
     const required={client_workout:'training',client_nutrition:'nutrition',client_supplements:'supplements',client_presential:'presential'}[id];
-    if(required&&!clientServiceEnabled(required)){toast('Este servicio no está incluido en tu plan actual.');id='client_home'}
+    if(required&&!clientServiceEnabled(required)&&!(id==='client_nutrition'&&clientServiceEnabled('supplements'))){toast('Este servicio no está incluido en tu plan actual.');id='client_home'}
   }
   if(currentProfile?.role==='trainer' && ['entrenamientos','nutricion','suplementacion'].includes(id)){
     if(vicOptions?.trainerClientScope!==true)trainerContentClientId=null;
@@ -5160,7 +5162,7 @@ function showPage(id,vicOptions={}){
   if(id==="calendario" && currentProfile?.role==="trainer")loadTrainerAgenda();
   if(id==="client_workout" && currentProfile?.role==="client")loadClientRoutines();
   if(id==="client_progress" && currentProfile?.role==="client"){loadClientProgress();loadClientBodyProgress();loadClientWeeklyComparison();loadClientWeeklyReports();loadClientGoal();loadClientMeasurements();loadClientPhotoComparison();}
-  if(id==="client_nutrition" && currentProfile?.role==="client"){loadClientNutrition();loadClientWater();}
+  if(id==="client_nutrition" && currentProfile?.role==="client"){loadClientNutrition();loadClientSupplements();if(clientServiceEnabled('nutrition'))loadClientWater();}
   if(id==="client_supplements" && currentProfile?.role==="client")loadClientSupplements();
   if(id==="client_presential" && currentProfile?.role==="client")loadClientAppointments();
   if(id==="client_checkin" && currentProfile?.role==="client")loadClientCheckin();
@@ -15966,15 +15968,34 @@ async function loadTrainerSupplements(){
  }catch(error){console.error(error);list.innerHTML='<div class="card empty-state">No se pudieron cargar los planes de suplementación.</div>'}
 }
 
+let clientNutritionSupplementItems=[];
+function renderNutritionMealSupplements(){
+ const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
+ document.querySelectorAll('[data-nutrition-supp-meal]').forEach(el=>{
+  const name=normalize(el.dataset.nutritionSuppMeal);
+  const items=clientNutritionSupplementItems.filter(i=>{
+   const timing=normalize(i.timing);
+   return timing==='con cada comida'||timing==='en cada comida'||(name&&[name,'con '+name,'en '+name,'con el '+name,'con la '+name].includes(timing));
+  });
+  el.innerHTML=items.length?'<b>💊 Suplementación con esta comida</b>'+items.map(i=>`<div>${suppEsc(i.supplement_name)} · ${suppEsc(i.dose_text||'Pauta individual')}<div class="muted tiny">${suppEsc(i.timing||'')} · ${suppEsc(suppFrequencyLabel(i.frequency))}</div></div>`).join(''):'';
+  el.hidden=!items.length;
+ });
+}
 async function loadClientSupplements(){
  if(currentProfile?.role!=='client')return;
  const list=document.getElementById('clientSuppList');if(!list)return;
+ const panel=document.getElementById('clientNutritionSupplements');
+ clientNutritionSupplementItems=[];renderNutritionMealSupplements();panel.hidden=true;
+ if(!clientServiceEnabled('supplements'))return;
  list.innerHTML='<div class="card empty-state">Cargando tu suplementación…</div>';
  try{
   const {data:plan,error:pErr}=await sb.from('supplement_plans').select('*').eq('client_id',currentProfile.id).eq('status','active').order('created_at',{ascending:false}).limit(1).maybeSingle();if(pErr)throw pErr;
   if(!plan){document.getElementById('clientSuppSubtitle').textContent='Tu entrenador todavía no te ha asignado un plan.';document.getElementById('clientSuppAdherence').textContent='—';document.getElementById('clientSuppAdherenceMeta').textContent='Sin plan activo';document.getElementById('clientSuppAdherenceBar').style.width='0%';list.innerHTML='<div class="card empty-state">Todavía no tienes un plan de suplementación activo.</div>';return}
+  panel.hidden=false;
   document.getElementById('clientSuppSubtitle').textContent=plan.name||'Plan de suplementación';
   const {data:items,error:iErr}=await sb.from('supplement_items').select('*').eq('plan_id',plan.id).eq('active',true).order('item_order');if(iErr)throw iErr;
+  clientNutritionSupplementItems=items||[];renderNutritionMealSupplements();
+  if(!clientNutritionSupplementItems.length){panel.hidden=true;return}
   const itemIds=(items||[]).map(i=>i.id);let logs=[];
   if(itemIds.length){const {data,error}=await sb.from('supplement_logs').select('item_id,taken,taken_at').eq('client_id',currentProfile.id).eq('plan_id',plan.id).eq('log_date',suppToday()).in('item_id',itemIds);if(error)throw error;logs=data||[]}
   const lm=new Map(logs.map(l=>[l.item_id,l])),done=(items||[]).filter(i=>lm.get(i.id)?.taken).length,total=(items||[]).length,pct=total?Math.round(done/total*100):0;
@@ -15990,7 +16011,7 @@ async function loadClientSupplements(){
     <button class="supp-complete-btn ${taken?'done':''}" type="button" onclick="toggleSupplementTaken('${plan.id}','${i.id}',${taken})">${taken?'✓ Tomado · desmarcar':'○ Marcar como tomado'}</button>
    </div>`}).join('')||'<div class="card empty-state">El plan todavía no tiene suplementos activos.</div>';
   if(plan.notes)list.insertAdjacentHTML('beforeend',`<div class="card"><b>Indicaciones del entrenador</b><div class="muted" style="margin-top:7px">${suppEsc(plan.notes)}</div></div>`);
- }catch(error){console.error(error);list.innerHTML='<div class="card empty-state">No se pudo cargar tu plan de suplementación.</div>'}
+ }catch(error){console.error(error);panel.hidden=false;list.innerHTML='<div class="card empty-state">No se pudo cargar tu plan de suplementación. Vuelve a entrar en Nutrición para reintentar.</div>'}
 }
 
 async function toggleSupplementTaken(planId,itemId,currentlyTaken){
@@ -16004,6 +16025,8 @@ async function toggleSupplementTaken(planId,itemId,currentlyTaken){
 
 async function loadClientNutrition(){
  if(currentProfile?.role!=='client')return;const mealsEl=document.getElementById('clientNutritionMeals');if(!mealsEl)return;mealsEl.innerHTML='<div class="card empty-state">Cargando tu plan nutricional…</div>';
+ document.querySelectorAll('#client_nutrition > .grid4, #client_nutrition > .card, #clientWaterCard').forEach(el=>el.hidden=!clientServiceEnabled('nutrition'));
+ if(!clientServiceEnabled('nutrition')){mealsEl.innerHTML='';document.getElementById('clientNutritionSubtitle').textContent='Consulta tu suplementación diaria.';return}
  try{
   const {data:plan,error:pErr}=await sb.from('nutrition_plans').select('id,name,target_calories,target_protein_g,target_carbs_g,target_fat_g,notes,created_at,food_rules').eq('client_id',currentProfile.id).eq('status','active').order('created_at',{ascending:false}).limit(1).maybeSingle();if(pErr)throw pErr;
   if(!plan){document.getElementById('clientNutritionSubtitle').textContent='Tu entrenador todavía no te ha asignado un plan.';['Calories','Protein','Carbs','Fat'].forEach(k=>document.getElementById('clientNutrition'+k).textContent='—');document.getElementById('clientNutritionAdherence').textContent='—';document.getElementById('clientNutritionAdherenceMeta').textContent='Sin plan activo';document.getElementById('clientNutritionAdherenceBar').style.width='0%';mealsEl.innerHTML='<div class="card nutrition-empty">Todavía no tienes un plan nutricional activo.</div>';return}
@@ -16014,7 +16037,8 @@ async function loadClientNutrition(){
   const clientSafetyProfile=await nutritionLoadSafetyProfile(currentProfile.id);
   const foodsByMeal=new Map();for(const f of foods){if(!foodsByMeal.has(f.meal_id))foodsByMeal.set(f.meal_id,[]);foodsByMeal.get(f.meal_id).push(f)}const logMap=new Map(logs.map(l=>[l.meal_id,l]));const done=(meals||[]).filter(m=>logMap.get(m.id)?.completed).length;const total=(meals||[]).length;const pct=total?Math.round(done/total*100):0;document.getElementById('clientNutritionAdherence').textContent=total?pct+'%':'—';document.getElementById('clientNutritionAdherenceMeta').textContent=total?`${done} de ${total} comidas realizadas hoy`:'Sin comidas';document.getElementById('clientNutritionAdherenceBar').style.width=pct+'%';
   const clientSafetyReview=nutritionSafetyPlanReview(clientSafetyProfile,meals||[],foodsByMeal);
-  mealsEl.innerHTML=nutritionWeightNoticeHtml()+nutritionSafetyReviewHtml(clientSafetyReview,'client')+(meals||[]).map(m=>{const completed=!!logMap.get(m.id)?.completed;return `<div class="nutrition-plan-card"><div class="nutrition-meal-top"><div><h2 style="margin:0">${nutritionEsc(m.name)}</h2><div class="muted tiny">${nutritionMealTime(m.target_time)?'🔔 Recordatorio · '+nutritionMealTime(m.target_time):'Sin hora fija'}</div></div>${completed?'<span class="nutrition-status">✓ Realizada</span>':''}</div>${m.notes?`<div class="nutrition-meal-target">${nutritionEsc(m.notes)}</div>`:''}<div class="nutrition-foods" style="margin-top:12px">${(foodsByMeal.get(m.id)||[]).map(f=>nutritionSafetyFoodRowHtml(f,clientSafetyProfile,'client')).join('')||'<div class="muted tiny">Sin alimentos detallados.</div>'}</div><button class="nutrition-complete-btn ${completed?'done':''}" type="button" onclick="toggleNutritionMeal('${plan.id}','${m.id}',${completed})">${completed?'✓ Comida realizada · desmarcar':'○ Marcar comida como realizada'}</button></div>`}).join('')||'<div class="card nutrition-empty">El plan todavía no tiene comidas.</div>';
+  mealsEl.innerHTML=nutritionWeightNoticeHtml()+nutritionSafetyReviewHtml(clientSafetyReview,'client')+(meals||[]).map(m=>{const completed=!!logMap.get(m.id)?.completed;return `<div class="nutrition-plan-card"><div class="nutrition-meal-top"><div><h2 style="margin:0">${nutritionEsc(m.name)}</h2><div class="muted tiny">${nutritionMealTime(m.target_time)?'🔔 Recordatorio · '+nutritionMealTime(m.target_time):'Sin hora fija'}</div></div>${completed?'<span class="nutrition-status">✓ Realizada</span>':''}</div>${m.notes?`<div class="nutrition-meal-target">${nutritionEsc(m.notes)}</div>`:''}<div class="nutrition-foods" style="margin-top:12px">${(foodsByMeal.get(m.id)||[]).map(f=>nutritionSafetyFoodRowHtml(f,clientSafetyProfile,'client')).join('')||'<div class="muted tiny">Sin alimentos detallados.</div>'}</div><div class="card nutrition-meal-supplements" data-nutrition-supp-meal="${nutritionEsc(m.name)}" data-meal-time="${nutritionMealTime(m.target_time)}" hidden></div><button class="nutrition-complete-btn ${completed?'done':''}" type="button" onclick="toggleNutritionMeal('${plan.id}','${m.id}',${completed})">${completed?'✓ Comida realizada · desmarcar':'○ Marcar comida como realizada'}</button></div>`}).join('')||'<div class="card nutrition-empty">El plan todavía no tiene comidas.</div>';
+  renderNutritionMealSupplements();
   if(plan.notes)mealsEl.insertAdjacentHTML('beforeend',`<div class="card"><b>Indicaciones de tu entrenador</b><div class="muted" style="margin-top:8px">${nutritionEsc(plan.notes)}</div></div>`);
  }catch(error){console.error(error);mealsEl.innerHTML='<div class="card nutrition-empty">No se pudo cargar tu plan nutricional.</div>'}
 }
