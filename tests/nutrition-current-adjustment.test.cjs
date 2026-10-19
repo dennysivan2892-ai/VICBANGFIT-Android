@@ -8,7 +8,7 @@ const catalog=html.slice(html.indexOf('const nutritionSubstitutionCatalog='),htm
  await page.setContent('<style>'+html.match(/<style>([\s\S]*?)<\/style>/)[1]+'</style>'+block('<div id="nutritionBuilderModal"','<div id="monthlyNutritionReviewModal"'));
  await page.addScriptTag({content:`let nutritionEditingPlanId='diet',nutritionSaving=false,nutritionMealEditorSeq=0,currentProfile={id:'trainer',role:'trainer'},calls=[],messages=[];
  const toast=m=>messages.push(m),scheduleNutritionBuilderSafety=()=>{},nutritionLoadSafetyProfile=async()=>({});
- const sb={from(table){calls.push(table);return {select(){return this},eq(){return this},async maybeSingle(){return {data:{maintenance_kcal:2000,updated_at:'2026-10-20'},error:null}}}}};
+ const sb={from(table){calls.push(table);return {select(){return this},eq(){return this},order(){return this},limit(){return this},async maybeSingle(){return {data:table==='checkins'?{weight_kg:80,checkin_date:'2026-10-20'}:table==='client_details'?{current_weight_kg:85}:{maintenance_kcal:2000,weight_kg:90,updated_at:'2026-10-20'},error:null}}}}};
  ${catalog}\n${['nutritionEsc','nutritionSafetyNorm','nutritionSwapNormalize','nutritionSwapFindFood','nutritionSwapMacros','nutritionAutoLimits','nutritionAutoRound5','nutritionWeightDisplayName','nutritionFoodEditorLine','nutritionParseFoodLine','nutritionMealTime'].map(fn).join('\n')}
  ${block('// BEGIN NUTRITION ADJUSTMENTS','// END NUTRITION ADJUSTMENTS')}
  ${block('// BEGIN CURRENT DIET ADJUSTMENT','// END CURRENT DIET ADJUSTMENT')}
@@ -25,6 +25,7 @@ const catalog=html.slice(html.indexOf('const nutritionSubstitutionCatalog='),htm
  assert.match(await page.locator('#nutritionQuickCurrent').innerText(),/2200 kcal.*150 g.*250 g/);
  assert.match(await page.locator('#nutritionQuickReference').textContent(),/superávit de 10.0/);
  // Returning from +10% to maintenance uses the maintenance baseline, not minus 10%.
+ await page.evaluate(()=>nutritionQuickLoadReference());
  await page.locator('#nutritionQuickMode').selectOption('maintenance');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2000');
  assert.equal(await page.locator('#nutritionQuickProtein').inputValue(),'150');assert.equal(await page.locator('#nutritionQuickFat').inputValue(),'66.7');
  assert.ok(Math.abs(Number(await page.locator('#nutritionQuickCarbs').inputValue())-199.9)<.2);
@@ -45,9 +46,22 @@ const catalog=html.slice(html.indexOf('const nutritionSubstitutionCatalog='),htm
  assert.equal(await page.evaluate(()=>nutritionRulesRead(document.querySelector('.nutrition-meal-editor')).exclude_groups[0]),'fruit');
  assert.equal(await page.locator('#nutritionCalories').inputValue(),'2000');
  assert.equal(await page.evaluate(()=>nutritionEnergyRulesForSave().energy_context.adjustment_pct),0);
+ // Dropdowns use the latest client check-in weight and convert g/kg automatically.
+ assert.equal(await page.locator('#nutritionQuickWeight').inputValue(),'80');
+ assert.equal(await page.locator('#nutritionQuickPercent').isVisible(),false);
+ for(const [rate,grams] of [['2.2','176'],['2.4','192'],['2.5','200']]){
+  await page.locator('#nutritionQuickProteinKg').selectOption(rate);assert.equal(await page.locator('#nutritionQuickProtein').inputValue(),grams);assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2000');
+ }
+ await page.locator('#nutritionQuickFatKg').selectOption('0.8');assert.equal(await page.locator('#nutritionQuickFat').inputValue(),'64');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2000');
+ await page.locator('#nutritionQuickMode').selectOption('deficit_15');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'1700');assert.equal(await page.locator('#nutritionQuickProtein').inputValue(),'200');
+ await page.locator('#nutritionQuickMode').selectOption('surplus_5');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2100');
+ await page.locator('#nutritionQuickMode').selectOption('maintenance');
+ await page.locator('#nutritionQuickCarbsKg').selectOption('2');assert.equal(await page.locator('#nutritionQuickCarbs').inputValue(),'160');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2016');assert.equal(await page.locator('#nutritionQuickMode').inputValue(),'manual');
+ await page.locator('#nutritionQuickWeight').fill('');await page.locator('#nutritionQuickWeight').dispatchEvent('change');assert.equal(await page.locator('#nutritionQuickProteinKg').isDisabled(),true);
+ await page.locator('#nutritionQuickWeight').fill('80');await page.locator('#nutritionQuickWeight').dispatchEvent('change');
  // +10% and -10% are both calculated from the same editable maintenance.
- await page.locator('#nutritionQuickMode').selectOption('surplus');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2200');
- await page.locator('#nutritionQuickMode').selectOption('deficit');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'1800');
+ await page.locator('#nutritionQuickMode').selectOption('surplus_10');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2200');
+ await page.locator('#nutritionQuickMode').selectOption('deficit_10');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'1800');
  // Unknown food units remain unchanged; no foods disappear or get substituted.
  const unknown=await page.evaluate(()=>nutritionQuickPortions([{name:'Prueba',foods:[{food_name:'Alimento personalizado',amount:1,unit:'unidad'}]}],{p:150,c:200,f:60,k:2000}));
  assert.equal(unknown.meals[0].foods[0].amount,1);assert.equal(unknown.totals.unknown,1);
