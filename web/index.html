@@ -3006,6 +3006,8 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
   </div>
 
 
+  <div id="trainerNutritionList" class="nutrition-list"><div class="card empty-state">Cargando planes nutricionales…</div></div>
+
   <div class="card smart-nutrition-card">
     <div class="smart-nutrition-head">
       <div>
@@ -3060,7 +3062,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     </div>
   </div>
 
-  <div id="trainerNutritionList" class="nutrition-list"><div class="card empty-state">Cargando planes nutricionales…</div></div>
+
 </section>
 
 
@@ -8404,6 +8406,8 @@ async function smartNutritionUseInRealPlan(){
 }
 
 let nutritionEditingPlanId=null;
+let nutritionEditingBaseline=null;
+let nutritionSaving=false;
 let nutritionMealEditorSeq=0;
 let trainerNutritionPlans=[];
 let monthlyNutritionReviewState=null;
@@ -9166,6 +9170,7 @@ function nutritionBuilderRenderSafety(profile,conflicts){
   list.innerHTML=hasProfile?`<div class="nutrition-safety-ok">0 conflictos detectados con el perfil nutricional registrado.</div>`:`<div class="muted tiny">El cliente no tiene restricciones nutricionales registradas que bloqueen este plan.</div>`;
   btn.disabled=false;btn.textContent='Guardar plan';
  }
+ if(nutritionSaving){btn.disabled=true;btn.textContent='Guardando…'}
  nutritionBuilderSafetyLast={blocked,conflicts,profile};
 }
 async function validateNutritionBuilderSafety(){
@@ -9177,6 +9182,7 @@ async function validateNutritionBuilderSafety(){
  return {blocked:conflicts.length>0,conflicts,profile};
 }
 function scheduleNutritionBuilderSafety(){
+ if(nutritionSaving)return;
  clearTimeout(nutritionBuilderSafetyTimer);
  nutritionBuilderSafetyTimer=setTimeout(()=>validateNutritionBuilderSafety().catch(console.error),250);
 }
@@ -9214,19 +9220,7 @@ function focusNutritionBuilderConflict(index=0){
  },3500);
 }
 
-async function handleNutritionSaveButton(){
- const check=await validateNutritionBuilderSafety();
- if(check.blocked){
-  const msg=document.getElementById('nutritionBuilderMsg');
-  if(msg){
-   msg.textContent=`Plan bloqueado: corrige ${check.conflicts.length} conflicto${check.conflicts.length===1?'':'s'} antes de guardar.`;
-   msg.classList.remove('auth-success');
-  }
-  focusNutritionBuilderConflict(0);
-  return;
- }
- await saveNutritionPlan();
-}
+async function handleNutritionSaveButton(){await saveNutritionPlan();}
 
 function initNutritionBuilderSafetyListeners(){
  const modal=document.getElementById('nutritionBuilderModal');
@@ -9240,10 +9234,10 @@ function initNutritionBuilderSafetyListeners(){
  });
 }
 
-function closeNutritionBuilder(){document.getElementById('nutritionBuilderModal').style.display='none';nutritionEditingPlanId=null}
+function closeNutritionBuilder(){if(nutritionSaving)return;document.getElementById('nutritionBuilderModal').style.display='none';nutritionEditingPlanId=null;nutritionEditingBaseline=null}
 function resetNutritionBuilder(){
  nutritionSetGlobalRules();nutritionRenewMealRules=[];document.getElementById("nutritionAdjustmentResult").textContent="";
- nutritionEditingPlanId=null;nutritionMealEditorSeq=0;
+ nutritionEditingPlanId=null;nutritionEditingBaseline=null;nutritionMealEditorSeq=0;
  document.getElementById('nutritionModalTitle').textContent='Crear plan nutricional';
  document.getElementById('nutritionPlanName').value='';document.getElementById('nutritionCalories').value='';document.getElementById('nutritionProtein').value='';document.getElementById('nutritionCarbs').value='';document.getElementById('nutritionFat').value='';document.getElementById('nutritionNotes').value='';document.getElementById('nutritionBuilderMsg').textContent='';
  document.getElementById('nutritionMealEditors').innerHTML='';
@@ -9685,7 +9679,7 @@ async function editNutritionPlan(planId,mealId=null){
  if(currentProfile?.role!=='trainer'||trainerProposalBusy)return false;
  try{
   const {plan,meals}=await loadNutritionPlanDetails(planId);
-  resetNutritionBuilder();nutritionSetGlobalRules(plan.food_rules);nutritionEditingPlanId=planId;fillNutritionClients(plan.client_id);document.getElementById('nutritionClient').disabled=true;
+  resetNutritionBuilder();nutritionEditingBaseline={planId,meals};nutritionSetGlobalRules(plan.food_rules);nutritionEditingPlanId=planId;fillNutritionClients(plan.client_id);document.getElementById('nutritionClient').disabled=true;
   document.getElementById('nutritionModalTitle').textContent='Actualizar plan nutricional';
   const msg=document.getElementById('nutritionBuilderMsg');
   if(msg){msg.innerHTML='<div class="nutrition-history-protected">🔒 Historial protegido: los cambios se guardarán sobre este mismo plan sin reiniciar la adherencia ni las comidas realizadas.</div>';msg.classList.remove('auth-success')}
@@ -9717,20 +9711,40 @@ async function archiveNutritionPlan(planId){
  const {error}=await sb.from('nutrition_plans').update({status:'archived'}).eq('id',planId).eq('trainer_id',currentProfile.id);
  if(error){console.error(error);toast('No se pudo quitar el plan');return}toast('Plan quitado de activos');await loadTrainerNutrition();
 }
+function nutritionMealSaveShape(meal){
+ return {
+  meta:JSON.stringify({order:Number(meal.order??meal.meal_order),name:meal.name||'',time:nutritionMealTime(meal.time??meal.target_time)||null,notes:meal.notes||null,food_rules:nutritionRulesClean(meal.food_rules)}),
+  foods:JSON.stringify((meal.foods||[]).map(food=>nutritionParseFoodLine(nutritionFoodEditorLine(food))))
+ };
+}
+function nutritionMealSaveChanges(meal,baseline){
+ if(!baseline)return {meta:true,foods:true};
+ const a=nutritionMealSaveShape(meal),b=nutritionMealSaveShape(baseline);
+ return {meta:a.meta!==b.meta,foods:a.foods!==b.foods};
+}
+async function nutritionNotifyAfterSave(planId,clientId,action){
+ try{
+  const {data,error}=await sb.functions.invoke('trainer-notify-nutrition',{body:{plan_id:planId,client_id:clientId,action}});
+  if(error||data?.error){console.warn('nutrition notification',error||data.error);toast('Dieta guardada · no se pudo enviar el aviso al cliente')}
+ }catch(error){console.warn('nutrition notification',error);toast('Dieta guardada · no se pudo enviar el aviso al cliente')}
+}
 async function saveNutritionPlan(){
- const btn=document.getElementById('saveNutritionBtn');if(trainerProposalBusy||!btn||btn.disabled||vicDataMutationActive())return;const msg=document.getElementById('nutritionBuilderMsg');msg.textContent='';
+ const btn=document.getElementById('saveNutritionBtn');if(currentProfile?.role!=='trainer'||nutritionSaving||trainerProposalBusy||!btn||btn.disabled||vicDataMutationActive())return;const msg=document.getElementById('nutritionBuilderMsg');msg.textContent='';
  const clientId=document.getElementById('nutritionClient').value;const name=document.getElementById('nutritionPlanName').value.trim()||'Plan nutricional';
  const meals=[...document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor')].map((el,i)=>({id:el.dataset.mealId||null,order:i+1,name:el.querySelector('.nutrition-meal-name').value.trim(),time:el.querySelector('.nutrition-meal-time').value||null,notes:el.querySelector('.nutrition-meal-notes')?.value.trim()||null,food_rules:nutritionRulesRead(el),foods:el.querySelector('.nutrition-meal-foods').value.split('\n').map(nutritionParseFoodLine).filter(Boolean)})).filter(m=>m.name);
  if(!clientId){msg.textContent='Selecciona un cliente.';return}if(!meals.length){msg.textContent='Añade al menos una comida.';return}
  if(meals.some(m=>!m.foods.length)){msg.textContent='Revisa las comidas vacías: añade sus alimentos antes de guardar.';return}
+ nutritionSaving=true;clearTimeout(nutritionBuilderSafetyTimer);
+ const lockedControls=[...document.querySelectorAll('#nutritionBuilderModal input,#nutritionBuilderModal select,#nutritionBuilderModal textarea,#nutritionBuilderModal button')].filter(el=>!el.disabled);
+ lockedControls.forEach(el=>el.disabled=true);btn.disabled=true;btn.textContent='Comprobando ajustes…';vicBeginDataMutation();
+ try{
  const safetyCheck=await validateNutritionBuilderSafety();
  if(safetyCheck.blocked){
   msg.textContent=`Plan bloqueado por seguridad: corrige ${safetyCheck.conflicts.length} conflicto${safetyCheck.conflicts.length===1?'':'s'} antes de guardar.`;
   msg.classList.remove('auth-success');
   return;
  }
- btn.disabled=true;btn.textContent='Guardando…';vicBeginDataMutation();
- try{
+ btn.disabled=true;btn.textContent='Guardando…';
   const oldPlanId=nutritionEditingPlanId;
   const planPayload={food_rules:nutritionGlobalRules(),trainer_id:currentProfile.id,client_id:clientId,name,status:'active',target_calories:Number(document.getElementById('nutritionCalories').value)||null,target_protein_g:Number(document.getElementById('nutritionProtein').value)||null,target_carbs_g:Number(document.getElementById('nutritionCarbs').value)||null,target_fat_g:Number(document.getElementById('nutritionFat').value)||null,notes:document.getElementById('nutritionNotes').value.trim()||null};
   let savedPlanId=null;
@@ -9740,6 +9754,8 @@ async function saveNutritionPlan(){
    const {data:existingMeals,error:eErr}=await sb.from('nutrition_meals').select('id,name,meal_order').eq('plan_id',oldPlanId).order('meal_order');
    if(eErr)throw eErr;
 
+   const existingIds=new Set((existingMeals||[]).map(m=>String(m.id)));
+   if(meals.some(m=>m.id&&!existingIds.has(String(m.id))))throw new Error('Una comida ha cambiado desde que abriste la dieta. Vuelve a abrirla antes de guardar.');
    const currentMealIds=new Set(meals.map(m=>String(m.id||'')).filter(Boolean));
    const removedMeals=(existingMeals||[]).filter(m=>!currentMealIds.has(String(m.id)));
 
@@ -9768,20 +9784,24 @@ async function saveNutritionPlan(){
    }).eq('id',oldPlanId).eq('trainer_id',currentProfile.id).eq('client_id',clientId);
    if(pErr)throw pErr;
 
-   for(const meal of meals){
+   const baseline=nutritionEditingBaseline?.planId===oldPlanId?nutritionEditingBaseline.meals:[];
+   const changedMeals=meals.map(meal=>({meal,changes:nutritionMealSaveChanges(meal,baseline.find(m=>String(m.id)===String(meal.id)))})).filter(x=>x.changes.meta||x.changes.foods);
+   let completedMeals=0;
+   await routineWritePool(changedMeals,async ({meal,changes})=>{
+    msg.textContent=`Guardando ajustes: ${completedMeals}/${changedMeals.length} comidas…`;
     let mealId=meal.id;
     if(mealId){
-     const {error:mErr}=await sb.from('nutrition_meals').update({
+     if(changes.meta){const {error:mErr}=await sb.from('nutrition_meals').update({
       meal_order:meal.order,
       name:meal.name,
       target_time:meal.time,
       notes:meal.notes,food_rules:meal.food_rules
      }).eq('id',mealId).eq('plan_id',oldPlanId);
-     if(mErr)throw mErr;
+     if(mErr)throw mErr;}
 
      // Los alimentos pueden cambiar sin tocar el meal_id; así los logs siguen vinculados.
-     const {error:dfErr}=await sb.from('nutrition_foods').delete().eq('meal_id',mealId);
-     if(dfErr)throw dfErr;
+     if(changes.foods){const {error:dfErr}=await sb.from('nutrition_foods').delete().eq('meal_id',mealId);
+     if(dfErr)throw dfErr;}
     }else{
      const {data:m,error:mErr}=await sb.from('nutrition_meals').insert({
       plan_id:oldPlanId,
@@ -9794,7 +9814,7 @@ async function saveNutritionPlan(){
      mealId=m.id;
     }
 
-    if(meal.foods.length){
+    if(changes.foods&&meal.foods.length){
      const rows=meal.foods.map((food,i)=>({
       meal_id:mealId,
       food_order:i+1,
@@ -9807,7 +9827,8 @@ async function saveNutritionPlan(){
      const {error:fErr}=await sb.from('nutrition_foods').insert(rows);
      if(fErr)throw fErr;
     }
-   }
+    completedMeals++;msg.textContent=`Guardando ajustes: ${completedMeals}/${changedMeals.length} comidas…`;
+   },3);
 
    savedPlanId=oldPlanId;
 
@@ -9851,26 +9872,17 @@ async function saveNutritionPlan(){
    if(aErr)throw aErr;
   }
 
-  let nutritionNotificationSuffix='';
-  try{
-   const {data:notifyData,error:notifyError}=await sb.functions.invoke('trainer-notify-nutrition',{
-    body:{plan_id:savedPlanId,client_id:clientId,action:oldPlanId?'updated':'assigned'}
-   });
-   if(!notifyError && !notifyData?.error){
-    const sent=Number(notifyData?.push?.sent||0);
-    nutritionNotificationSuffix=sent>0?` · Push enviado (${sent})`:' · Aviso guardado';
-   }else{
-    console.error(notifyError||notifyData?.error);
-    nutritionNotificationSuffix=' · Aviso no enviado';
-   }
-  }catch(notifyErr){console.error(notifyErr);nutritionNotificationSuffix=' · Aviso no enviado'}
-  msg.textContent=(oldPlanId?'Plan actualizado sin reiniciar el historial':'Plan guardado correctamente')+nutritionNotificationSuffix+'.';msg.classList.add('auth-success');
-  toast((oldPlanId?'Plan actualizado · historial conservado':'Plan nutricional guardado')+nutritionNotificationSuffix);
-  setTimeout(()=>closeNutritionBuilder(),650);await loadTrainerNutrition();
+  msg.textContent=oldPlanId?'Cambios guardados en la misma dieta · historial conservado.':'Plan nutricional guardado.';msg.classList.add('auth-success');
+  toast(oldPlanId?'Cambios guardados · historial conservado':'Plan nutricional guardado');
+  // Release the editor immediately; notification delivery is a separate task.
+  nutritionSaving=false;closeNutritionBuilder();
+  void nutritionNotifyAfterSave(savedPlanId,clientId,oldPlanId?'updated':'assigned');
+  void loadTrainerNutrition().catch(error=>console.warn('nutrition list refresh',error));
  }catch(error){console.error(error);msg.textContent=vicError(error,'No se pudo guardar el plan.');msg.classList.remove('auth-success')}
  finally{
-  document.getElementById('nutritionClient').disabled=false;
-  if(nutritionBuilderSafetyLast.blocked){btn.disabled=false;btn.textContent='⛔ Corrige conflictos'}else{btn.disabled=false;btn.textContent='Guardar plan'}
+  nutritionSaving=false;lockedControls.forEach(el=>el.disabled=false);
+  document.getElementById('nutritionClient').disabled=Boolean(nutritionEditingPlanId);
+  if(nutritionBuilderSafetyLast.blocked){btn.disabled=false;btn.textContent='⛔ Corrige conflictos'}else{btn.disabled=false;btn.textContent=nutritionEditingPlanId?'Guardar cambios en esta dieta':'Guardar plan'}
   vicEndDataMutation();
  }
 }
