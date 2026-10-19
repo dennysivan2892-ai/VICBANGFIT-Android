@@ -49,9 +49,13 @@ const catalog=html.slice(html.indexOf('const nutritionSubstitutionCatalog='),htm
  // Dropdowns use the latest client check-in weight and convert g/kg automatically.
  assert.equal(await page.locator('#nutritionQuickWeight').inputValue(),'80');
  assert.equal(await page.locator('#nutritionQuickPercent').isVisible(),false);
+ const savedReference=await page.locator('#nutritionQuickBaseline').textContent();assert.match(savedReference,/150/);assert.match(savedReference,/1,875/);
+ assert.ok(Math.abs(Number(await page.locator('#nutritionQuickProteinKg').inputValue())-150/80)<1e-9,'selector is derived from the stored grams and client weight');
  for(const [rate,grams] of [['2.2','176'],['2.4','192'],['2.5','200']]){
   await page.locator('#nutritionQuickProteinKg').selectOption(rate);assert.equal(await page.locator('#nutritionQuickProtein').inputValue(),grams);assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2000');
  }
+ assert.equal(await page.locator('#nutritionQuickBaseline').textContent(),savedReference,'saved reference does not move with the selectors');
+ assert.match(await page.locator('#nutritionQuickProteinTotal').textContent(),/Guardado: 1,875 g\/kg · 150 g\/día/);assert.match(await page.locator('#nutritionQuickProteinTotal').textContent(),/Ajuste: 2,5 g\/kg · 200 g\/día/);
  await page.locator('#nutritionQuickFatKg').selectOption('0.8');assert.equal(await page.locator('#nutritionQuickFat').inputValue(),'64');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2000');
  await page.locator('#nutritionQuickMode').selectOption('deficit_15');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'1700');assert.equal(await page.locator('#nutritionQuickProtein').inputValue(),'200');
  await page.locator('#nutritionQuickMode').selectOption('surplus_5');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2100');
@@ -66,6 +70,8 @@ const catalog=html.slice(html.indexOf('const nutritionSubstitutionCatalog='),htm
  const unknown=await page.evaluate(()=>nutritionQuickPortions([{name:'Prueba',foods:[{food_name:'Alimento personalizado',amount:1,unit:'unidad'}]}],{p:150,c:200,f:60,k:2000}));
  assert.equal(unknown.meals[0].foods[0].amount,1);assert.equal(unknown.totals.unknown,1);
  const prepared=await page.evaluate(()=>nutritionBuilderCollectMeals()[0].foods[0]);assert.ok(Math.abs(prepared.prepared_amount/prepared.amount-3)<.05);
+ await page.evaluate(()=>{nutritionQuickInit({...plan,target_protein_g:300});document.getElementById('nutritionQuickWeight').value=150;nutritionQuickSyncKg()});assert.match(await page.locator('#nutritionQuickProteinTotal').textContent(),/Guardado: 2 g\/kg · 300 g\/día/);
+ await page.evaluate(()=>{document.getElementById('nutritionQuickWeight').value=100;nutritionQuickSyncKg()});assert.match(await page.locator('#nutritionQuickProteinTotal').textContent(),/Guardado: 3 g\/kg · 300 g\/día/);
  // Saved context takes priority; a missing reference falls back to an explicitly labelled estimate.
  await page.evaluate(()=>nutritionQuickInit({...plan,notes:'',food_rules:{energy_context:{maintenance_kcal:2100,reference_source:'Referencia guardada'}}}));assert.equal(await page.locator('#nutritionQuickMaintenance').inputValue(),'2100');
  await page.evaluate(async()=>{nutritionQuickInit({...plan,notes:''});await nutritionQuickLoadReference()});assert.match(await page.locator('#nutritionQuickReference').textContent(),/estimado en la evaluación/);

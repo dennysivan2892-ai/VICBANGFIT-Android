@@ -4159,16 +4159,16 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     <button class="btn dark" type="button" onclick="prepareNutritionProposal()">✨ Cargar propuesta de la evaluación</button>
     <details id="nutritionCurrentAdjustment" hidden style="margin:14px 0;padding:14px;border:1px solid #b99b55;border-radius:14px" ontoggle="if(this.open)nutritionQuickLoadReference()">
       <summary><b>⚖️ Ajustar dieta actual · mismos alimentos</b></summary>
-      <p id="nutritionQuickCurrent"></p><p id="nutritionQuickReference" class="muted tiny"></p>
+      <p id="nutritionQuickCurrent"></p><div id="nutritionQuickBaseline" style="margin:12px 0;padding:10px;border:1px solid var(--line);border-radius:12px"></div><p id="nutritionQuickReference" class="muted tiny"></p>
       <div class="form-grid">
         <div class="field"><label>Mantenimiento de referencia (kcal, editable)</label><input id="nutritionQuickMaintenance" type="number" min="1" step="1" onchange="nutritionQuickTargetFromMode()"></div>
         <div class="field"><label>Objetivo del ajuste</label><select id="nutritionQuickMode" onchange="nutritionQuickTargetFromMode()"><option value="manual">Personalizado / situación actual</option><option value="maintenance">Mantenimiento</option><option value="deficit_5">Déficit 5 %</option><option value="deficit_10">Déficit 10 %</option><option value="deficit_15">Déficit 15 %</option><option value="surplus_5">Superávit 5 %</option><option value="surplus_10">Superávit 10 %</option></select></div>
         <input id="nutritionQuickPercent" type="hidden" value="10">
         <div class="field"><label>Peso de referencia del cliente (kg)</label><input id="nutritionQuickWeight" type="number" min="1" step="0.1" onchange="nutritionQuickWeightChanged()"><div id="nutritionQuickWeightSource" class="muted tiny"></div></div>
         <div class="field"><label>Nuevo objetivo (kcal)</label><input id="nutritionQuickCalories" type="number" min="1" step="1" oninput="document.getElementById('nutritionQuickMode').value='manual';nutritionQuickMacrosFromCalories()"></div>
-        <div class="field"><label>Proteína · g/kg</label><select id="nutritionQuickProteinKg" onchange="nutritionQuickKgChanged('Protein')"></select><input id="nutritionQuickProtein" type="hidden"><div id="nutritionQuickProteinTotal" class="muted tiny"></div></div>
-        <div class="field"><label>Carbohidratos · g/kg</label><select id="nutritionQuickCarbsKg" onchange="nutritionQuickKgChanged('Carbs')"></select><input id="nutritionQuickCarbs" type="hidden"><div id="nutritionQuickCarbsTotal" class="muted tiny"></div></div>
-        <div class="field"><label>Grasas · g/kg</label><select id="nutritionQuickFatKg" onchange="nutritionQuickKgChanged('Fat')"></select><input id="nutritionQuickFat" type="hidden"><div id="nutritionQuickFatTotal" class="muted tiny"></div></div>
+        <div class="field"><label>Proteína · g/kg</label><select id="nutritionQuickProteinKg" onchange="nutritionQuickKgChanged('Protein')"></select><input id="nutritionQuickProtein" type="hidden"><div id="nutritionQuickProteinTotal" class="muted tiny" style="white-space:pre-line;line-height:1.6"></div></div>
+        <div class="field"><label>Carbohidratos · g/kg</label><select id="nutritionQuickCarbsKg" onchange="nutritionQuickKgChanged('Carbs')"></select><input id="nutritionQuickCarbs" type="hidden"><div id="nutritionQuickCarbsTotal" class="muted tiny" style="white-space:pre-line;line-height:1.6"></div></div>
+        <div class="field"><label>Grasas · g/kg</label><select id="nutritionQuickFatKg" onchange="nutritionQuickKgChanged('Fat')"></select><input id="nutritionQuickFat" type="hidden"><div id="nutritionQuickFatTotal" class="muted tiny" style="white-space:pre-line;line-height:1.6"></div></div>
         <div class="field"><label>Repartir el ajuste de calorías</label><select id="nutritionQuickDistribution" onchange="nutritionQuickMacrosFromCalories()"><option value="carbs">Ajustar carbohidratos; mantener grasas</option><option value="split">Repartir entre carbohidratos y grasas</option><option value="fats">Ajustar grasas; mantener carbohidratos</option></select></div>
       </div>
       <label style="display:block;margin:12px 0"><input id="nutritionQuickKeepProtein" type="checkbox" checked onchange="nutritionQuickMacrosFromCalories()"> Mantener la proteína seleccionada al cambiar calorías</label>
@@ -9193,11 +9193,23 @@ function nutritionQuickPortions(source,desired){
 }
 function nutritionQuickReset(){nutritionQuickState=null;nutritionEnergyContext=null;const panel=document.getElementById('nutritionCurrentAdjustment');if(panel){panel.hidden=true;panel.open=false}}
 function nutritionQuickBase(){return {k:Number(nutritionQuickState.plan.target_calories)||0,p:Number(nutritionQuickState.plan.target_protein_g)||0,c:Number(nutritionQuickState.plan.target_carbs_g)||0,f:Number(nutritionQuickState.plan.target_fat_g)||0}}
+function nutritionQuickStoredMacro(key){
+ const field={Protein:'target_protein_g',Carbs:'target_carbs_g',Fat:'target_fat_g'}[key],raw=nutritionQuickState?.plan?.[field];
+ return raw!=null&&raw!==''&&Number.isFinite(Number(raw))?Number(raw):null;
+}
+function nutritionQuickFormatNumber(value){return Number(value).toLocaleString('es-ES',{maximumFractionDigits:3});}
+function nutritionQuickRenderBaseline(){
+ const box=document.getElementById('nutritionQuickBaseline');if(!box||!nutritionQuickState)return;
+ const weight=Number(document.getElementById('nutritionQuickWeight').value),valid=Number.isFinite(weight)&&weight>0;
+ box.innerHTML=`<b>Referencia de la dieta guardada</b><div class="muted tiny" style="margin:5px 0">${valid?'Calculada con '+nutritionQuickFormatNumber(weight)+' kg de referencia.':'Introduce el peso para calcular los g/kg.'} Esta referencia se mantiene mientras haces el ajuste.</div><table style="width:100%;font-size:12px;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:5px 3px">Macro</th><th style="padding:5px 3px">g/día</th><th style="padding:5px 3px">g/kg</th></tr></thead><tbody>${[['Protein','Proteína'],['Carbs','Carbohidratos'],['Fat','Grasas']].map(([key,label])=>{const grams=nutritionQuickStoredMacro(key);return `<tr><td style="padding:5px 3px">${label}</td><td style="padding:5px 3px">${grams==null?'Sin registrar':nutritionQuickFormatNumber(grams)}</td><td style="padding:5px 3px"><b>${grams!=null&&valid?nutritionQuickFormatNumber(grams/weight):'—'}</b></td></tr>`}).join('')}</tbody></table>`;
+}
 function nutritionQuickSyncKg(){
- const weight=Number(document.getElementById('nutritionQuickWeight').value);
+ const weight=Number(document.getElementById('nutritionQuickWeight').value);nutritionQuickRenderBaseline();
  for(const [key,min,max] of [['Protein',1,3.5],['Carbs',0,10],['Fat',.3,2]]){
   const grams=Number(document.getElementById('nutritionQuick'+key).value)||0,select=document.getElementById('nutritionQuick'+key+'Kg');
-  document.getElementById('nutritionQuick'+key+'Total').textContent=`${Math.round(grams*10)/10} g al día${weight>0?' · '+weight+' kg de referencia':''}`;
+  const stored=nutritionQuickStoredMacro(key),valid=Number.isFinite(weight)&&weight>0;
+  const reference=stored==null?'Guardado: sin objetivo registrado.':`Guardado: ${valid?nutritionQuickFormatNumber(stored/weight)+' g/kg · ':''}${nutritionQuickFormatNumber(stored)} g/día.`;
+  document.getElementById('nutritionQuick'+key+'Total').textContent=reference+'\n'+`Ajuste: ${valid?nutritionQuickFormatNumber(grams/weight)+' g/kg · ':''}${nutritionQuickFormatNumber(grams)} g/día.`;
   if(!Number.isFinite(weight)||weight<=0){select.innerHTML='<option value="">Indica el peso del cliente</option>';select.disabled=true;continue}
   select.disabled=false;const current=grams/weight,values=[];for(let i=Math.round(min*10);i<=Math.round(max*10);i++)values.push(i/10);
   if(!values.some(v=>Math.abs(v-current)<1e-8))values.push(current);values.sort((a,b)=>a-b);
