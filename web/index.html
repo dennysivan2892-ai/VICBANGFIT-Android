@@ -2995,7 +2995,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 <section id="nutricion" class="section">
   <div class="header">
     <div><h1 id="trainerNutritionTitle">Nutrición real</h1><div id="trainerNutritionSubtitle" class="muted">Planes, comidas y adherencia guardados en Supabase.</div></div>
-    <div class="header-actions"><button class="btn dark" type="button" onclick="loadTrainerNutrition()">↻ Actualizar</button><button class="btn dark" type="button" onclick="openMonthlyNutritionReviewForSelected()">📈 Revisión mensual</button><button class="btn" type="button" onclick="openNutritionBuilder()">＋ Crear plan</button></div>
+    <div class="header-actions"><button class="btn dark" type="button" onclick="loadTrainerNutrition()">↻ Actualizar</button><button class="btn dark" type="button" onclick="openMonthlyNutritionReviewForSelected()">📈 Revisión mensual</button><button class="btn" type="button" onclick="openNutritionBuilderWithProposal()">＋ Crear plan</button></div>
   </div>
   <div id="trainerNutritionScope" class="trainer-client-scope"></div>
   <div class="grid4">
@@ -4090,6 +4090,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
       <div class="field"><label>Nombre de la rutina</label><input id="routineName" placeholder="Ej. Hipertrofia 4 días"></div>
       <div class="field"><label>Objetivo</label><input id="routineGoal" placeholder="Ej. Ganancia muscular"></div>
     </div>
+    <button class="btn dark" type="button" onclick="prepareRoutineProposal()">✨ Cargar propuesta de la evaluación</button>
     <div id="routineSystemBox" class="routine-system-box">
       <div class="row"><div><b>✨ Configurar o cambiar toda la estructura</b><div class="muted tiny" style="margin-top:4px">Elige el sistema y las prioridades. Se generará una propuesta editable; nada se guarda hasta que la revises.</div></div><span class="pill blue">SOLO ENTRENADOR</span></div>
       <div class="routine-system-grid">
@@ -4143,7 +4144,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 
 <div id="nutritionBuilderModal" class="client-modal" onclick="if(event.target===this)closeNutritionBuilder()">
   <div class="client-modal-card nutrition-builder-card">
-    <div class="row"><div><h2 id="nutritionModalTitle">Crear plan nutricional</h2><div class="muted tiny">El cliente verá este plan y podrá marcar sus comidas realizadas.</div></div><button class="btn ghost" type="button" onclick="closeNutritionBuilder()">✕</button></div>
+    <div class="row"><div><h2 id="nutritionModalTitle">Crear plan nutricional</h2><div class="muted tiny">Revisa y ajusta la propuesta. El cliente la verá cuando pulses Guardar plan.</div></div><button class="btn ghost" type="button" onclick="closeNutritionBuilder()">✕</button></div>
     <div class="form-grid" style="margin-top:14px">
       <div class="field"><label>Cliente</label><select id="nutritionClient"></select></div>
       <div class="field"><label>Nombre del plan</label><input id="nutritionPlanName" placeholder="Ej. Definición 2200 kcal"></div>
@@ -4153,6 +4154,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
       <div class="field"><label>Grasas (g)</label><input id="nutritionFat" type="number" min="0" step="1" placeholder="Ej. 70"></div>
     </div>
 
+    <button class="btn dark" type="button" onclick="prepareNutritionProposal()">✨ Cargar propuesta de la evaluación</button>
     <div id="nutritionGlobalRules"></div>
     <details style="margin:12px 0"><summary><b>Ajustar calorías y revisar variantes (opcional)</b></summary><p class="muted tiny">Puedes escribir un objetivo en Calorías objetivo o reducir los objetivos actuales por porcentaje. Solo se modifica el cliente al guardar el plan.</p><div class="field"><label>Reducción proporcional de calorías y macros (%)</label><input id="nutritionReductionPercent" type="number" min="1" max="99" value="15"></div><button class="btn ghost" type="button" onclick="nutritionReduceTarget()">Reducir objetivos</button><button class="btn dark" type="button" onclick="nutritionPreviewAdjustments()">Recalcular respetando mis ajustes</button><div id="nutritionAdjustmentResult" style="margin-top:12px" aria-live="polite"></div></details>
     <div class="nutrition-auto-box">
@@ -6286,7 +6288,7 @@ function routineBlockMeta(r){
 }
 function renderTrainerRoutines(){
  const el=document.getElementById('trainerRoutinesList');if(!el)return;
- if(!trainerRoutines.length){el.innerHTML='<div class="empty-state card">Todavía no hay rutinas guardadas. Pulsa “+ Crear rutina”.</div>';return}
+ if(!trainerRoutines.length){el.innerHTML='<div class="empty-state card">Todavía no hay rutinas asignadas. Puedes preparar una propuesta privada y revisarla antes de asignar.<br><button class="btn" type="button" onclick="openRoutineBuilder()">✨ Preparar rutina</button></div>';return}
  el.innerHTML=trainerRoutines.map(r=>`<div class="card real-routine-card">
    <div class="client-plan-identity">${profileAvatarHtml({name:r.client_name,avatarUrl:r.client_avatar_url},'client-plan-avatar')}<div class="client-plan-copy"><div class="client-plan-label">Rutina de</div><div class="client-plan-name">${escHtml(r.client_name||'Cliente')}</div><div class="client-plan-detail">${escHtml(r.name||'Rutina')} · ${escHtml(routineBlockMeta(r))}</div></div></div>
    <div class="real-routine-head">
@@ -6836,7 +6838,7 @@ async function loadRoutineExerciseLibrary(){
 function setupRoutineModal(mode){
  const isEdit=mode==='edit';
  const title=document.getElementById('routineModalTitle');if(title)title.textContent=isEdit?'Editar rutina':'Crear rutina';
- const copy=document.getElementById('routineModalCopy');if(copy)copy.textContent=isEdit?'Modifica fuerza y cardio: días, ejercicios, series, minutos e intensidad.':'Asigna fuerza, cardio o ambos a uno de tus clientes.';
+ const copy=document.getElementById('routineModalCopy');if(copy)copy.textContent=isEdit?'Modifica fuerza y cardio: días, ejercicios, series, minutos e intensidad.':'Prepara fuerza, cardio o ambos. Revisa la propuesta y pulsa Guardar rutina para asignarla al cliente.';
  const save=document.getElementById('saveRoutineBtn');if(save)save.textContent=isEdit?'Guardar cambios':'Guardar rutina';
  const systemBox=document.getElementById('routineSystemBox');if(systemBox)systemBox.style.display='block';
 }
@@ -6878,7 +6880,8 @@ async function openRoutineBuilder(){
  const volumeSummary=document.getElementById('routineVolumeSummary');if(volumeSummary){volumeSummary.classList.remove('active');volumeSummary.innerHTML=''}
  addRoutineDay();modal.classList.add('open');
  routineActiveRecoveryKey=routineRecoveryKey();
- document.getElementById('routineRecoveryStatus').textContent='';restoreRoutineRecovery();
+ document.getElementById('routineRecoveryStatus').textContent='';const recovered=restoreRoutineRecovery();
+ if(!recovered&&!editingRoutineId)await prepareRoutineProposal(false);
 }
 async function openEditRoutine(routineId){
  if(currentProfile?.role!=="trainer")return;
@@ -7480,6 +7483,7 @@ function restoreRoutineRecovery(){
   }
  }
  document.getElementById('routineRecoveryStatus').textContent='Cambios recuperados · pulsa Guardar cambios para guardarlos en la cuenta';
+ return true;
 }
 // Limit simultaneous writes and wait for every started operation even when one
 // fails. Otherwise a retry can overlap late writes from the previous attempt.
@@ -7500,7 +7504,7 @@ window.addEventListener('pagehide',saveRoutineRecovery);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveRoutineRecovery()});
 
 async function saveRoutine(){
- if(routineSaving||vicDataMutationActive())return;
+ if(trainerProposalBusy||routineSaving||vicDataMutationActive())return;
  const btn=document.getElementById('saveRoutineBtn');
  const client_id=document.getElementById('routineClient').value;
  const name=document.getElementById('routineName').value.trim();
@@ -8385,8 +8389,8 @@ async function smartNutritionUseInRealPlan(){
   if(error)throw error;
   if((activePlans||[]).length>1){toast('Hay varios planes activos. Elige primero cuál quieres conservar.');await loadTrainerNutrition();return}
   if((activePlans||[]).length===1)await editNutritionPlan(activePlans[0].id);
-  else openNutritionBuilder(clientId);
-  setTimeout(()=>{
+  else if(!openNutritionBuilder(clientId))return;
+  {
    document.getElementById('nutritionPlanName').value=`${goalLabel} · ${target} kcal`;
    document.getElementById('nutritionCalories').value=target;
    document.getElementById('nutritionProtein').value=protein;
@@ -8394,7 +8398,8 @@ async function smartNutritionUseInRealPlan(){
    document.getElementById('nutritionFat').value=fat;
    const notes=document.getElementById('nutritionNotes');
    if(notes&&!notes.value)notes.value=`Propuesta inicial calculada por VICBANGFIT: ajuste energético ${smartNutritionNum('smartNutAdjustment',0)}%, proteína fijada en ${smartNutritionNum('smartNutProteinKg',2).toFixed(1)} g/kg, grasas fijadas en ${smartNutritionNum('smartNutFatKg',0.8).toFixed(1)} g/kg y carbohidratos ajustados al resto de calorías (${smartNutritionNum('smartNutCarbKg',2.5).toFixed(1)} g/kg). Revisar según evolución, rendimiento, hambre y adherencia.`;
-  },0);
+  }
+  if(!(activePlans||[]).length){document.getElementById('nutritionMealEditors').innerHTML='';nutritionMealEditorSeq=0;await generateNutritionMealsFromTargets();}
  }catch(error){console.error(error);toast('No se pudo preparar el plan real')}
 }
 
@@ -9257,11 +9262,63 @@ function fillNutritionClients(selectedId=''){
  if(selectedId)select.value=selectedId;
 }
 function openNutritionBuilder(clientId=''){
- if(currentProfile?.role!=='trainer')return;document.getElementById('nutritionClient').disabled=false;
- if(!clients.some(c=>c.services?.nutrition!==false)){toast('No hay clientes con nutrición activa');return}
- resetNutritionBuilder();fillNutritionClients(clientId||trainerContentClientId||clients[0]?.id);
+ if(currentProfile?.role!=='trainer')return false;document.getElementById('nutritionClient').disabled=false;
+ if(!clients.some(c=>c.services?.nutrition!==false)){toast('No hay clientes con nutrición activa');return false}
+ if(clientId&&!clients.some(c=>String(c.id)===String(clientId)&&c.services?.nutrition!==false)){toast('Este cliente no tiene nutrición activa');return false}
+ resetNutritionBuilder();const eligible=clients.filter(c=>c.services?.nutrition!==false);
+ fillNutritionClients(clientId||eligible.find(c=>String(c.id)===String(trainerContentClientId))?.id||eligible[0]?.id);
  document.getElementById('nutritionBuilderModal').style.display='grid';
  initNutritionBuilderSafetyListeners();setTimeout(()=>validateNutritionBuilderSafety().catch(console.error),0);
+ return true;
+}
+// Proposal preparation is read-only: assignment remains the explicit save action.
+let trainerProposalBusy=false;
+async function prepareRoutineProposal(ask=true){
+ if(currentProfile?.role!=='trainer'||trainerProposalBusy||editingRoutineId)return;
+ const clientId=document.getElementById('routineClient')?.value;
+ if(!clients.some(c=>String(c.id)===String(clientId)))return;
+ if(ask&&!confirm('¿Sustituir el contenido del editor por una propuesta de la evaluación?'))return;
+ trainerProposalBusy=true;
+ const controls=[...document.querySelectorAll('#routineBuilderModal input,#routineBuilderModal select,#routineBuilderModal textarea,#routineBuilderModal button')].filter(el=>!el.disabled);
+ controls.forEach(el=>el.disabled=true);
+ try{
+  await loadSmartTrainingPlan(clientId);
+  if(document.getElementById('routineClient').value!==clientId||!document.getElementById('routineBuilderModal').classList.contains('open'))return;
+  if(!smartTrainingPlan||smartTrainingPlan.clientId!==clientId){setAuthMessage('routineMsg','No se pudo preparar la propuesta. Comprueba la evaluación inicial del cliente. También puedes generar la estructura manualmente.');return}
+  await smartPlanToRoutineBuilder();
+ }catch(error){setAuthMessage('routineMsg',vicError(error,'No se pudo preparar la rutina.'))}
+ finally{trainerProposalBusy=false;controls.forEach(el=>el.disabled=false)}
+}
+async function openNutritionBuilderWithProposal(clientId=''){
+ if(!openNutritionBuilder(clientId))return;
+ await prepareNutritionProposal(false);
+}
+async function prepareNutritionProposal(ask=true,assessment=null){
+ if(currentProfile?.role!=='trainer'||trainerProposalBusy||nutritionEditingPlanId)return;
+ const clientId=document.getElementById('nutritionClient')?.value;
+ if(!clients.some(c=>String(c.id)===String(clientId)&&c.services?.nutrition!==false))return;
+ if(ask&&!confirm('¿Sustituir los objetivos y comidas del editor por una propuesta de la evaluación?'))return;
+ trainerProposalBusy=true;
+ const msg=document.getElementById('nutritionBuilderMsg');
+ const controls=[...document.querySelectorAll('#nutritionBuilderModal input,#nutritionBuilderModal select,#nutritionBuilderModal textarea,#nutritionBuilderModal button')].filter(el=>!el.disabled);
+ controls.forEach(el=>el.disabled=true);
+ msg.textContent='Preparando propuesta privada…';
+ try{
+  let row=assessment;
+  if(!row){const result=await sb.from('client_onboarding_assessments').select('*').eq('trainer_id',currentProfile.id).eq('client_id',clientId).maybeSingle();if(result.error)throw result.error;row=result.data}
+  if(document.getElementById('nutritionClient').value!==clientId||document.getElementById('nutritionBuilderModal').style.display==='none')return;
+  if(!row||String(row.client_id)!==String(clientId))throw new Error('Completa primero la evaluación inicial de este cliente para generar su propuesta.');
+  const generated=initialAssessmentCalculate(row,nutritionProfileExtract(row.additional_notes).profile);
+  const values=row.target_calories?{calories:row.target_calories,protein:row.target_protein_g,carbs:row.target_carbs_g,fat:row.target_fat_g}:generated?{calories:generated.calc.targetCalories,protein:generated.calc.protein,carbs:generated.calc.carbs,fat:generated.calc.fat}:null;
+  if(!values||!Number(values.calories)||!Number(values.protein)||values.carbs==null||values.fat==null||!Number.isFinite(Number(values.carbs))||!Number.isFinite(Number(values.fat)))throw new Error('Faltan datos en la evaluación: revisa edad, sexo, altura, peso, actividad y objetivo.');
+  document.getElementById('nutritionPlanName').value=`${row.primary_goal||'Plan inicial'} · ${Math.round(Number(values.calories))} kcal`;
+  for(const [id,key] of [['nutritionCalories','calories'],['nutritionProtein','protein'],['nutritionCarbs','carbs'],['nutritionFat','fat']])document.getElementById(id).value=Math.round(Number(values[key]));
+  document.getElementById('nutritionNotes').value=row.recommendation_json?.nutrition||generated?.recommendations?.nutrition||'';
+  document.getElementById('nutritionMealEditors').innerHTML='';nutritionMealEditorSeq=0;
+  await generateNutritionMealsFromTargets();
+  msg.textContent='Propuesta privada lista. Ajusta macros, alimentos y cantidades; pulsa Guardar plan para asignarla al cliente.';
+ }catch(error){msg.textContent=vicError(error,'No se pudo preparar la propuesta nutricional.')}
+ finally{trainerProposalBusy=false;controls.forEach(el=>el.disabled=false);scheduleNutritionBuilderSafety()}
 }
 function addNutritionMealEditor(data={}){
  const seq=++nutritionMealEditorSeq;
@@ -9640,7 +9697,7 @@ async function archiveNutritionPlan(planId){
  if(error){console.error(error);toast('No se pudo quitar el plan');return}toast('Plan quitado de activos');await loadTrainerNutrition();
 }
 async function saveNutritionPlan(){
- const btn=document.getElementById('saveNutritionBtn');if(!btn||btn.disabled||vicDataMutationActive())return;const msg=document.getElementById('nutritionBuilderMsg');msg.textContent='';
+ const btn=document.getElementById('saveNutritionBtn');if(trainerProposalBusy||!btn||btn.disabled||vicDataMutationActive())return;const msg=document.getElementById('nutritionBuilderMsg');msg.textContent='';
  const clientId=document.getElementById('nutritionClient').value;const name=document.getElementById('nutritionPlanName').value.trim()||'Plan nutricional';
  const meals=[...document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor')].map((el,i)=>({id:el.dataset.mealId||null,order:i+1,name:el.querySelector('.nutrition-meal-name').value.trim(),time:el.querySelector('.nutrition-meal-time').value||null,notes:el.querySelector('.nutrition-meal-notes')?.value.trim()||null,food_rules:nutritionRulesRead(el),foods:el.querySelector('.nutrition-meal-foods').value.split('\n').map(nutritionParseFoodLine).filter(Boolean)})).filter(m=>m.name);
  if(!clientId){msg.textContent='Selecciona un cliente.';return}if(!meals.length){msg.textContent='Añade al menos una comida.';return}
@@ -9830,7 +9887,7 @@ async function loadTrainerNutrition(){
   const todayDone=new Set();for(const p of trainerNutritionPlans){for(const mealId of (doneByPlanDate.get(`${p.id}|${today}`)||new Set()))todayDone.add(mealId)}
   const totalMeals=meals.length,doneMeals=meals.filter(m=>todayDone.has(m.id)).length,adh=totalMeals?Math.round(doneMeals/totalMeals*100):0;const calVals=trainerNutritionPlans.map(p=>Number(p.target_calories)).filter(Number.isFinite);const avgCal=calVals.length?Math.round(calVals.reduce((a,b)=>a+b,0)/calVals.length):0;
   document.getElementById('nutritionActivePlans').textContent=trainerNutritionPlans.length;document.getElementById('nutritionMealsToday').textContent=`${doneMeals}/${totalMeals}`;document.getElementById('nutritionAdherenceToday').textContent=totalMeals?adh+'%':'—';document.getElementById('nutritionAvgCalories').textContent=avgCal?avgCal.toLocaleString('es-ES'):'—';
-  if(!trainerNutritionPlans.length){list.innerHTML='<div class="card nutrition-empty">Todavía no hay planes reales. Pulsa “+ Crear plan” para asignar el primero.</div>';return}
+  if(!trainerNutritionPlans.length){list.innerHTML='<div class="card nutrition-empty">Todavía no hay nutrición asignada. Prepara una propuesta editable antes de enviarla.<br><button class="btn" type="button" onclick="openNutritionBuilderWithProposal()">✨ Preparar nutrición</button></div>';return}
   list.innerHTML=trainerNutritionPlans.map(plan=>{const profile=pm.get(plan.client_id)||{};const ms=mealsByPlan.get(plan.id)||[];const safetyProfile=safetyProfiles.get(plan.client_id)||nutritionProfileBlank();const safetyReview=nutritionSafetyPlanReview(safetyProfile,ms,foodsByMeal);const doneSet=doneByPlanDate.get(`${plan.id}|${today}`)||new Set();const done=ms.filter(m=>doneSet.has(m.id)).length;const pct=ms.length?Math.round(done/ms.length*100):0;const history=nutritionPlanHistory(plan,ms,doneByPlanDate,historyDates);const duplicatesForClient=trainerNutritionPlans.filter(x=>String(x.client_id)===String(plan.client_id)).length>1;return `<div class="nutrition-plan-card"><div class="nutrition-plan-head"><div><span class="nutrition-status">● Activo</span><span class="nutrition-plan-lock ${safetyReview.conflicts.length?'blocked':''}">${safetyReview.conflicts.length?'⛔ Bloqueado':'🛡️ Validado'}</span><h2 style="margin-top:9px">${nutritionEsc(plan.name)}</h2><div class="muted">${nutritionEsc(profile.full_name||profile.email||'Cliente')}</div></div><div class="row">${duplicatesForClient?`<button class="btn" type="button" onclick="chooseNutritionPlan('${plan.id}')">✓ Dejar este</button>`:''}<button class="btn dark" type="button" onclick="editNutritionPlan('${plan.id}')">✎ Editar</button><button class="btn ghost" type="button" onclick="archiveNutritionPlan('${plan.id}')">🗑 Quitar</button></div></div><div class="nutrition-macros"><div class="nutrition-macro"><b>${nutritionNum(plan.target_calories)}</b><span>kcal</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_protein_g,' g')}</b><span>proteína</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_carbs_g,' g')}</b><span>carbo</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_fat_g,' g')}</b><span>grasa</span></div></div>${nutritionWeightNoticeHtml()}${nutritionSafetyReviewHtml(safetyReview,'trainer')}<div class="row" style="margin-top:14px"><b>Adherencia hoy</b><span class="green">${ms.length?pct+'%':'Sin comidas'}</span></div><div class="nutrition-adherence"><i style="width:${pct}%"></i></div>${nutritionHistoryHtml(history)}<div class="nutrition-meals">${ms.map(m=>`<div class="nutrition-meal"><div class="nutrition-meal-top"><b>${nutritionEsc(m.name)}</b><span class="muted tiny">${nutritionMealTime(m.target_time)?'🔔 '+nutritionMealTime(m.target_time):''} ${doneSet.has(m.id)?'· ✓ Hecha':''}</span></div>${m.notes?`<div class="nutrition-meal-target">${nutritionEsc(m.notes)}</div>`:''}<div class="nutrition-foods" style="margin-top:${m.notes?'10px':'0'}">${(foodsByMeal.get(m.id)||[]).map(f=>nutritionSafetyFoodRowHtml(f,safetyProfile,'trainer')).join('')||'<div class="muted tiny">Sin alimentos añadidos</div>'}</div></div>`).join('')}</div>${plan.notes?`<div class="muted tiny" style="margin-top:12px">Notas: ${nutritionEsc(plan.notes)}</div>`:''}</div>`}).join('');
   [...list.querySelectorAll('.nutrition-plan-card')].forEach((card,index)=>{
    const plan=trainerNutritionPlans[index],profile=pm.get(plan?.client_id)||{},head=card.querySelector('.nutrition-plan-head');
@@ -12151,6 +12208,7 @@ function smartPlanApplyAdjustments(){
 
 async function loadSmartTrainingPlan(clientId){
  if(currentProfile?.role!=='trainer'||!clientId)return;
+ smartTrainingPlan=null;
  const box=document.getElementById('smartPlanContent');
  if(box)box.innerHTML='<div class="smart-plan-empty">Analizando evaluación, objetivo y contexto…</div>';
  try{
@@ -12160,8 +12218,8 @@ async function loadSmartTrainingPlan(clientId){
    sb.from('client_private_profiles').select('injuries,preferences,secondary_goals,tags').eq('trainer_id',currentProfile.id).eq('client_id',clientId).maybeSingle()
   ]);
   if(onboardRes.error)throw onboardRes.error;
-  if(goalRes.error)throw goalRes.error;
-  if(privateRes.error)throw privateRes.error;
+  if(goalRes.error)console.warn('optional training goal',goalRes.error);
+  if(privateRes.error)console.warn('optional private training profile',privateRes.error);
   const o=onboardRes.data;
   if(!o){smartTrainingPlan=null;smartPlanRender();return}
   const goalText=o.primary_goal||goalRes.data?.title||'Acondicionamiento general';
@@ -12288,8 +12346,9 @@ async function smartPlanToRoutineBuilder(){
   addRoutineDay({name:d.name,weekday:null,reminder_time:null,exercises});
  }
  smartRenderVolumeSummary(p.days,p.priorities,p.volumeProfile);
+ routineActiveRecoveryKey=routineRecoveryKey();
  modal.classList.add('open');
- setAuthMessage('routineMsg','Propuesta cargada. Revisa ejercicios, series, repeticiones, RIR y descanso antes de guardar.');
+ setAuthMessage('routineMsg','Propuesta privada cargada. Revisa ejercicios, series, repeticiones, RIR y descanso antes de guardar.');
 }
 
 
@@ -12710,7 +12769,12 @@ async function loadInitialRecommendation(clientId,recalculate=false){
  if(currentProfile?.role!=='trainer'||!clientId)return;const box=document.getElementById('initialRecommendationContent');if(box)box.innerHTML='<div class="smart-plan-empty">Calculando propuesta inicial…</div>';
  try{const {data,error}=await sb.from('client_onboarding_assessments').select('*').eq('trainer_id',currentProfile.id).eq('client_id',clientId).maybeSingle();if(error)throw error;if(!data){initialRecommendationRender(null);return}const profile=nutritionProfileExtract(data.additional_notes).profile;const generated=initialAssessmentCalculate(data,profile);let row=data;if(generated&&(recalculate||!data.target_calories||!data.recommendations_generated_at)){const patch={activity_factor:generated.calc.activityFactor,bmr_kcal:generated.calc.bmr,maintenance_kcal:generated.calc.maintenance,target_calories:generated.calc.targetCalories,target_protein_g:generated.calc.protein,target_carbs_g:generated.calc.carbs,target_fat_g:generated.calc.fat,calorie_adjustment_pct:generated.calc.adjustment,recommendation_json:generated.recommendations,recommendations_generated_at:new Date().toISOString(),updated_at:new Date().toISOString()};const {data:updated,error:updateErr}=await sb.from('client_onboarding_assessments').update(patch).eq('id',data.id).select().single();if(updateErr)throw updateErr;row=updated}initialRecommendationRender(row)}catch(error){console.error('initial recommendation',error);initialRecommendationData=null;const badge=document.getElementById('initialRecommendationBadge');if(badge)badge.textContent='Error';if(box)box.innerHTML='<div class="smart-plan-empty">No se pudo generar la propuesta inicial.</div>'}
 }
-function initialRecommendationToNutrition(){const row=initialRecommendationData;if(!row?.client_id||!row?.target_calories){toast('Todavía no hay una propuesta nutricional completa');return}openNutritionBuilder(row.client_id);setTimeout(()=>{const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val??''};set('nutritionPlanName',`${row.primary_goal||'Plan inicial'} · ${Math.round(Number(row.target_calories))} kcal`);set('nutritionCalories',Math.round(Number(row.target_calories)));set('nutritionProtein',Math.round(Number(row.target_protein_g||0)));set('nutritionCarbs',Math.round(Number(row.target_carbs_g||0)));set('nutritionFat',Math.round(Number(row.target_fat_g||0)));const notes=document.getElementById('nutritionNotes');if(notes&&!notes.value)notes.value=`Propuesta inicial 360º VICBANGFIT. ${row.recommendation_json?.nutrition||''}`},60)}
+async function initialRecommendationToNutrition(){
+ const row=initialRecommendationData;
+ if(!row?.client_id||!row?.target_calories){toast('Todavía no hay una propuesta nutricional completa');return}
+ if(!openNutritionBuilder(row.client_id))return;
+ await prepareNutritionProposal(false,row);
+}
 function initialRecommendationToSupplements(){const row=initialRecommendationData;if(!row?.client_id){toast('Todavía no hay evaluación inicial');return}openSupplementBuilder();setTimeout(()=>{const sel=document.getElementById('suppClient');if(sel)sel.value=row.client_id;const goal=document.getElementById('suppGoal');if(goal)goal.value=initialRecommendationGoalToSupp(initialGoalKind(row.primary_goal));const notes=document.getElementById('suppPlanNotes');if(notes)notes.value=row.recommendation_json?.supplementation||''},40)}
 
 let client360Data=null;
