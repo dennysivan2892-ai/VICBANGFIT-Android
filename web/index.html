@@ -2995,7 +2995,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 <section id="nutricion" class="section">
   <div class="header">
     <div><h1 id="trainerNutritionTitle">Nutrición real</h1><div id="trainerNutritionSubtitle" class="muted">Planes, comidas y adherencia guardados en Supabase.</div></div>
-    <div class="header-actions"><button class="btn dark" type="button" onclick="loadTrainerNutrition()">↻ Actualizar</button><button class="btn dark" type="button" onclick="openMonthlyNutritionReviewForSelected()">📈 Revisión mensual</button><button class="btn" type="button" onclick="openNutritionBuilderWithProposal()">＋ Crear plan</button></div>
+    <div class="header-actions"><button class="btn" type="button" onclick="editCurrentClientNutrition()">✎ Editar dieta completa</button><button class="btn dark" type="button" onclick="loadTrainerNutrition()">↻ Actualizar</button><button class="btn dark" type="button" onclick="openMonthlyNutritionReviewForSelected()">📈 Revisión mensual</button><button class="btn" type="button" onclick="openNutritionBuilderWithProposal()">＋ Crear plan</button></div>
   </div>
   <div id="trainerNutritionScope" class="trainer-client-scope"></div>
   <div class="grid4">
@@ -8388,7 +8388,7 @@ async function smartNutritionUseInRealPlan(){
    .order('created_at',{ascending:false});
   if(error)throw error;
   if((activePlans||[]).length>1){toast('Hay varios planes activos. Elige primero cuál quieres conservar.');await loadTrainerNutrition();return}
-  if((activePlans||[]).length===1)await editNutritionPlan(activePlans[0].id);
+  if((activePlans||[]).length===1){if(!await editNutritionPlan(activePlans[0].id))return}
   else if(!openNutritionBuilder(clientId))return;
   {
    document.getElementById('nutritionPlanName').value=`${goalLabel} · ${target} kcal`;
@@ -9658,8 +9658,11 @@ async function generateNutritionMealsFromTargets(){
 }
 
 async function loadNutritionPlanDetails(planId){
- const plan=trainerNutritionPlans.find(p=>p.id===planId);
- if(!plan)throw new Error('No se encontró el plan');
+ if(currentProfile?.role!=='trainer')throw new Error('Solo el entrenador puede editar esta dieta.');
+ // Read the exact owned plan even when the list has not finished loading.
+ const {data:plan,error:pErr}=await sb.from('nutrition_plans').select('id,trainer_id,client_id,name,status,target_calories,target_protein_g,target_carbs_g,target_fat_g,notes,created_at,food_rules').eq('id',planId).eq('trainer_id',currentProfile.id).maybeSingle();
+ if(pErr)throw pErr;
+ if(!plan)throw new Error('No se encontró esta dieta entre tus planes. Vuelve a abrir la ficha del cliente.');
  const {data:meals,error:mErr}=await sb.from('nutrition_meals').select('id,plan_id,meal_order,name,target_time,notes,food_rules').eq('plan_id',planId).order('meal_order');
  if(mErr)throw mErr;
  const mealIds=(meals||[]).map(m=>m.id);let foods=[];
@@ -9667,7 +9670,19 @@ async function loadNutritionPlanDetails(planId){
  const foodMap=new Map();for(const f of foods){if(!foodMap.has(f.meal_id))foodMap.set(f.meal_id,[]);foodMap.get(f.meal_id).push(f)}
  return {plan,meals:(meals||[]).map(m=>({...m,foods:foodMap.get(m.id)||[]}))};
 }
-async function editNutritionPlan(planId){
+async function editCurrentClientNutrition(clientId=trainerContentClientId||document.getElementById('smartNutClient')?.value){
+ if(currentProfile?.role!=='trainer')return;
+ if(!clientId||!clients.some(c=>String(c.id)===String(clientId))){toast('Selecciona al cliente desde su ficha para editar su dieta.');return}
+ try{
+  const {data,error}=await sb.from('nutrition_plans').select('id').eq('trainer_id',currentProfile.id).eq('client_id',clientId).eq('status','active').order('created_at',{ascending:false}).limit(2);
+  if(error)throw error;
+  if(!data?.length){toast('Este cliente todavía no tiene una dieta guardada. Guarda primero su propuesta.');return}
+  if(data.length>1){toast('Hay varias dietas activas. Pulsa Editar dieta completa en la dieta que quieras modificar.');return}
+  return await editNutritionPlan(data[0].id);
+ }catch(error){toast(vicError(error,'No se pudo abrir la dieta del cliente.'));return false}
+}
+async function editNutritionPlan(planId,mealId=null){
+ if(currentProfile?.role!=='trainer'||trainerProposalBusy)return false;
  try{
   const {plan,meals}=await loadNutritionPlanDetails(planId);
   resetNutritionBuilder();nutritionSetGlobalRules(plan.food_rules);nutritionEditingPlanId=planId;fillNutritionClients(plan.client_id);document.getElementById('nutritionClient').disabled=true;
@@ -9677,8 +9692,14 @@ async function editNutritionPlan(planId){
   document.getElementById('nutritionPlanName').value=plan.name||'';document.getElementById('nutritionCalories').value=plan.target_calories??'';document.getElementById('nutritionProtein').value=plan.target_protein_g??'';document.getElementById('nutritionCarbs').value=plan.target_carbs_g??'';document.getElementById('nutritionFat').value=plan.target_fat_g??'';document.getElementById('nutritionNotes').value=plan.notes||'';
   document.getElementById('nutritionMealEditors').innerHTML='';nutritionMealEditorSeq=0;(meals.length?meals:[{name:'Comida',foods:[]}]).forEach(m=>addNutritionMealEditor({id:m.id,name:m.name,time:m.target_time,notes:m.notes||'',foods:m.foods,food_rules:m.food_rules}));
   document.getElementById('nutritionBuilderModal').style.display='grid';
+  document.getElementById('saveNutritionBtn').textContent='Guardar cambios en esta dieta';
+  if(mealId){
+   const meal=[...document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor')].find(el=>el.dataset.mealId===String(mealId));
+   if(meal){const rules=meal.querySelector('.nutrition-rules');if(rules)rules.open=true;meal.scrollIntoView({block:'start'});meal.querySelector('.nutrition-meal-foods')?.focus({preventScroll:true})}
+  }
   initNutritionBuilderSafetyListeners();setTimeout(()=>validateNutritionBuilderSafety().catch(console.error),0);
- }catch(error){console.error(error);toast('No se pudo abrir el plan')}
+  return true;
+ }catch(error){console.error(error);toast(vicError(error,'No se pudo abrir el plan'));return false}
 }
 async function chooseNutritionPlan(planId){
  try{
@@ -9888,7 +9909,7 @@ async function loadTrainerNutrition(){
   const totalMeals=meals.length,doneMeals=meals.filter(m=>todayDone.has(m.id)).length,adh=totalMeals?Math.round(doneMeals/totalMeals*100):0;const calVals=trainerNutritionPlans.map(p=>Number(p.target_calories)).filter(Number.isFinite);const avgCal=calVals.length?Math.round(calVals.reduce((a,b)=>a+b,0)/calVals.length):0;
   document.getElementById('nutritionActivePlans').textContent=trainerNutritionPlans.length;document.getElementById('nutritionMealsToday').textContent=`${doneMeals}/${totalMeals}`;document.getElementById('nutritionAdherenceToday').textContent=totalMeals?adh+'%':'—';document.getElementById('nutritionAvgCalories').textContent=avgCal?avgCal.toLocaleString('es-ES'):'—';
   if(!trainerNutritionPlans.length){list.innerHTML='<div class="card nutrition-empty">Todavía no hay nutrición asignada. Prepara una propuesta editable antes de enviarla.<br><button class="btn" type="button" onclick="openNutritionBuilderWithProposal()">✨ Preparar nutrición</button></div>';return}
-  list.innerHTML=trainerNutritionPlans.map(plan=>{const profile=pm.get(plan.client_id)||{};const ms=mealsByPlan.get(plan.id)||[];const safetyProfile=safetyProfiles.get(plan.client_id)||nutritionProfileBlank();const safetyReview=nutritionSafetyPlanReview(safetyProfile,ms,foodsByMeal);const doneSet=doneByPlanDate.get(`${plan.id}|${today}`)||new Set();const done=ms.filter(m=>doneSet.has(m.id)).length;const pct=ms.length?Math.round(done/ms.length*100):0;const history=nutritionPlanHistory(plan,ms,doneByPlanDate,historyDates);const duplicatesForClient=trainerNutritionPlans.filter(x=>String(x.client_id)===String(plan.client_id)).length>1;return `<div class="nutrition-plan-card"><div class="nutrition-plan-head"><div><span class="nutrition-status">● Activo</span><span class="nutrition-plan-lock ${safetyReview.conflicts.length?'blocked':''}">${safetyReview.conflicts.length?'⛔ Bloqueado':'🛡️ Validado'}</span><h2 style="margin-top:9px">${nutritionEsc(plan.name)}</h2><div class="muted">${nutritionEsc(profile.full_name||profile.email||'Cliente')}</div></div><div class="row">${duplicatesForClient?`<button class="btn" type="button" onclick="chooseNutritionPlan('${plan.id}')">✓ Dejar este</button>`:''}<button class="btn dark" type="button" onclick="editNutritionPlan('${plan.id}')">✎ Editar</button><button class="btn ghost" type="button" onclick="archiveNutritionPlan('${plan.id}')">🗑 Quitar</button></div></div><div class="nutrition-macros"><div class="nutrition-macro"><b>${nutritionNum(plan.target_calories)}</b><span>kcal</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_protein_g,' g')}</b><span>proteína</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_carbs_g,' g')}</b><span>carbo</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_fat_g,' g')}</b><span>grasa</span></div></div>${nutritionWeightNoticeHtml()}${nutritionSafetyReviewHtml(safetyReview,'trainer')}<div class="row" style="margin-top:14px"><b>Adherencia hoy</b><span class="green">${ms.length?pct+'%':'Sin comidas'}</span></div><div class="nutrition-adherence"><i style="width:${pct}%"></i></div>${nutritionHistoryHtml(history)}<div class="nutrition-meals">${ms.map(m=>`<div class="nutrition-meal"><div class="nutrition-meal-top"><b>${nutritionEsc(m.name)}</b><span class="muted tiny">${nutritionMealTime(m.target_time)?'🔔 '+nutritionMealTime(m.target_time):''} ${doneSet.has(m.id)?'· ✓ Hecha':''}</span></div>${m.notes?`<div class="nutrition-meal-target">${nutritionEsc(m.notes)}</div>`:''}<div class="nutrition-foods" style="margin-top:${m.notes?'10px':'0'}">${(foodsByMeal.get(m.id)||[]).map(f=>nutritionSafetyFoodRowHtml(f,safetyProfile,'trainer')).join('')||'<div class="muted tiny">Sin alimentos añadidos</div>'}</div></div>`).join('')}</div>${plan.notes?`<div class="muted tiny" style="margin-top:12px">Notas: ${nutritionEsc(plan.notes)}</div>`:''}</div>`}).join('');
+  list.innerHTML=trainerNutritionPlans.map(plan=>{const profile=pm.get(plan.client_id)||{};const ms=mealsByPlan.get(plan.id)||[];const safetyProfile=safetyProfiles.get(plan.client_id)||nutritionProfileBlank();const safetyReview=nutritionSafetyPlanReview(safetyProfile,ms,foodsByMeal);const doneSet=doneByPlanDate.get(`${plan.id}|${today}`)||new Set();const done=ms.filter(m=>doneSet.has(m.id)).length;const pct=ms.length?Math.round(done/ms.length*100):0;const history=nutritionPlanHistory(plan,ms,doneByPlanDate,historyDates);const duplicatesForClient=trainerNutritionPlans.filter(x=>String(x.client_id)===String(plan.client_id)).length>1;return `<div class="nutrition-plan-card"><div class="nutrition-plan-head"><div><span class="nutrition-status">● Activo</span><span class="nutrition-plan-lock ${safetyReview.conflicts.length?'blocked':''}">${safetyReview.conflicts.length?'⛔ Bloqueado':'🛡️ Validado'}</span><h2 style="margin-top:9px">${nutritionEsc(plan.name)}</h2><div class="muted">${nutritionEsc(profile.full_name||profile.email||'Cliente')}</div></div><div class="row">${duplicatesForClient?`<button class="btn" type="button" onclick="chooseNutritionPlan('${plan.id}')">✓ Dejar este</button>`:''}<button class="btn dark" type="button" onclick="editNutritionPlan('${plan.id}')">✎ Editar dieta completa</button><button class="btn ghost" type="button" onclick="archiveNutritionPlan('${plan.id}')">🗑 Quitar</button></div></div><div class="nutrition-macros"><div class="nutrition-macro"><b>${nutritionNum(plan.target_calories)}</b><span>kcal</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_protein_g,' g')}</b><span>proteína</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_carbs_g,' g')}</b><span>carbo</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_fat_g,' g')}</b><span>grasa</span></div></div>${nutritionWeightNoticeHtml()}${nutritionSafetyReviewHtml(safetyReview,'trainer')}<div class="row" style="margin-top:14px"><b>Adherencia hoy</b><span class="green">${ms.length?pct+'%':'Sin comidas'}</span></div><div class="nutrition-adherence"><i style="width:${pct}%"></i></div>${nutritionHistoryHtml(history)}<div class="nutrition-meals">${ms.map(m=>`<div class="nutrition-meal"><div class="nutrition-meal-top"><b>${nutritionEsc(m.name)}</b><button class="btn dark" type="button" onclick="editNutritionPlan('${plan.id}','${m.id}')">✎ Editar esta comida</button><span class="muted tiny">${nutritionMealTime(m.target_time)?'🔔 '+nutritionMealTime(m.target_time):''} ${doneSet.has(m.id)?'· ✓ Hecha':''}</span></div>${m.notes?`<div class="nutrition-meal-target">${nutritionEsc(m.notes)}</div>`:''}<div class="nutrition-foods" style="margin-top:${m.notes?'10px':'0'}">${(foodsByMeal.get(m.id)||[]).map(f=>nutritionSafetyFoodRowHtml(f,safetyProfile,'trainer')).join('')||'<div class="muted tiny">Sin alimentos añadidos</div>'}</div></div>`).join('')}</div>${plan.notes?`<div class="muted tiny" style="margin-top:12px">Notas: ${nutritionEsc(plan.notes)}</div>`:''}</div>`}).join('');
   [...list.querySelectorAll('.nutrition-plan-card')].forEach((card,index)=>{
    const plan=trainerNutritionPlans[index],profile=pm.get(plan?.client_id)||{},head=card.querySelector('.nutrition-plan-head');
    if(!head)return;
