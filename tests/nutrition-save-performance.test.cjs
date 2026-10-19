@@ -15,7 +15,7 @@ for(const [id,value] of Object.entries({nutritionClient:'client',nutritionPlanNa
 const editors=edited.map(m=>({dataset:{mealId:m.id},querySelector(sel){return {value:sel.includes('name')?m.name:sel.includes('time')?'08:00':sel.includes('notes')?'':m.foods.map(JSON.stringify).join('\\n')}},meal:m}));
 const document={getElementById:get,querySelectorAll(sel){return sel==='#nutritionMealEditors .nutrition-meal-editor'?editors:[get('saveNutritionBtn'),get('nutritionClient')]}};
 const nutritionMealTime=x=>String(x||'').slice(0,5),nutritionRulesClean=r=>({enabled:!!r?.enabled}),nutritionGlobalRules=()=>({enabled:false}),nutritionRulesRead=el=>el.meal.food_rules;
-const nutritionParseFoodLine=JSON.parse,nutritionFoodEditorLine=JSON.stringify;
+const nutritionParseFoodLine=JSON.parse,nutritionFoodEditorLine=JSON.stringify,nutritionEnergyRulesForSave=nutritionGlobalRules;
 const validateNutritionBuilderSafety=async()=>{validations++;await Promise.resolve();return {blocked:false}};
 const vicDataMutationActive=()=>mutation,vicBeginDataMutation=()=>mutation=true,vicEndDataMutation=()=>mutation=false;
 const closeNutritionBuilder=()=>{closed++;nutritionEditingPlanId=null},toast=()=>{},vicError=(e,m)=>e.message||m;

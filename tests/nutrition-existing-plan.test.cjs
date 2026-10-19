@@ -3,6 +3,8 @@ const html=fs.readFileSync('web/index.html','utf8');
 const code=html.slice(html.indexOf('async function loadNutritionPlanDetails('),html.indexOf('async function chooseNutritionPlan('));
 const context=vm.createContext({console});
 vm.runInContext(`
+const nutritionQuickInit=()=>{};
+let nutritionSaving=false;
 let currentProfile={role:'trainer',id:'trainer'},trainerProposalBusy=false,trainerContentClientId='client';
 let clients=[{id:'client'}],trainerNutritionPlans=[],nutritionEditingPlanId=null,nutritionMealEditorSeq=0;
 let queries=[],messages=[],editors=[],globalRules=null,fail=false;

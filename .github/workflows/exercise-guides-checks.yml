@@ -4,7 +4,7 @@ on:
     paths:
       - 'web/**'
       - 'tests/exercise-guides*'
-      - 'tests/nutrition-adjustments*'
+      - 'tests/nutrition-*'
       - 'tests/client-my-day*'
       - 'tests/nutrition-supplements*'
       - 'package*.json'
@@ -29,3 +29,7 @@ jobs:
       - run: node tests/nutrition-adjustments.test.cjs
       - run: node tests/client-my-day.test.cjs
       - run: node tests/nutrition-supplements.test.cjs
+      - run: node tests/trainer-proposals.test.cjs
+      - run: node tests/nutrition-existing-plan.test.cjs
+      - run: node tests/nutrition-save-performance.test.cjs
+      - run: node tests/nutrition-current-adjustment.test.cjs
