@@ -1788,7 +1788,8 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 .steps-day .track{height:68px;border-radius:9px;background:#17180f;border:1px solid #2c2e1c;display:flex;align-items:flex-end;overflow:hidden}
 .steps-day .fill{width:100%;min-height:2px;background:linear-gradient(180deg,#d8d75a,#77752d);border-radius:8px 8px 0 0}
 .steps-day strong{display:block;font-size:10px;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.steps-day span{display:block;font-size:9px;color:#888;margin-top:2px}
+.steps-day span{display:block;font-size:11px;color:#eee;margin-top:2px;font-weight:800}
+.steps-history{width:100%;margin-top:14px;border-collapse:collapse;font-size:12px}.steps-history th,.steps-history td{padding:8px 4px;text-align:right;border-bottom:1px solid #303020}.steps-history th:first-child,.steps-history td:first-child{text-align:left}
 .steps-target-edit{display:flex;align-items:center;gap:7px;margin-top:12px;flex-wrap:wrap}
 .steps-target-edit input{width:105px!important;min-height:38px!important;padding:7px 9px!important;border-radius:10px!important;text-align:center!important;font-size:14px!important;font-weight:900!important}
 .steps-target-edit span{font-size:11px;color:#b5b59b;font-weight:800}
@@ -15962,19 +15963,24 @@ function stepsParseNativeResult(result){
   }
   return [];
 }
-function stepsWeekHtml(rows,target=0){
+function stepsWeekHtml(rows,target=0,weightKg=null){
   const byDate=new Map((rows||[]).map(r=>[String(r.step_date).slice(0,10),Number(r.steps)||0]));
   const values=[];
   for(let i=-6;i<=0;i++){const d=stepsShiftDate(i),iso=stepsDateISO(d);values.push({iso,steps:byDate.get(iso)||0})}
   const max=Math.max(1,target||0,...values.map(v=>v.steps));
-  return values.map(v=>{
+  const chart=values.map(v=>{
     const h=Math.max(2,Math.min(100,Math.round(v.steps/max*100)));
     return `<div class="steps-day" title="${stepsFmt(v.steps)} pasos"><div class="track"><div class="fill" style="height:${h}%"></div></div><strong>${stepsShortDate(v.iso)}</strong><span>${v.steps?stepsFmt(v.steps):'0'}</span></div>`;
   }).join('');
+  const history=values.map(v=>{
+    const recorded=byDate.has(v.iso),kcal=recorded?stepsEstimateKcal(v.steps,weightKg):null;
+    return `<tr><td>${v.iso.slice(8,10)}/${v.iso.slice(5,7)} · ${stepsShortDate(v.iso)}</td><td>${recorded?stepsFmt(v.steps):'Sin datos'}</td>${weightKg!==null?`<td>${!recorded?'Sin datos':kcal==null?'Falta peso':`≈ ${stepsFmt(kcal)} kcal`}</td>`:''}</tr>`;
+  }).join('');
+  return chart+`<table class="steps-history" style="grid-column:1/-1"><thead><tr><th>Día</th><th>Pasos</th>${weightKg!==null?'<th>Gasto estimado</th>':''}</tr></thead><tbody>${history}</tbody></table>`;
 }
 function stepsEstimateKcal(steps,weightKg){
   const st=Math.max(0,Number(steps)||0),kg=Number(weightKg)||0;
-  if(!st||!kg)return null;
+  if(!Number.isFinite(kg)||kg<=0)return null;
   return Math.round(st*kg*0.00038);
 }
 function stepsClientWeightKg(clientId){
@@ -16116,10 +16122,10 @@ function renderTrainerClientSteps(clientId,target,rows){
   const set=(id,text)=>{const el=document.getElementById(id);if(el)el.textContent=text};
   set('trainerClientStepsToday',steps?`${stepsFmt(steps)} pasos`:'0 pasos');
   set('trainerClientStepsRemaining',remaining==null?'—':remaining>0?`${stepsFmt(remaining)} pasos`:'Objetivo ✓');
-  set('trainerClientStepsKcal',kcal!=null?`≈ ${stepsFmt(kcal)} kcal`:'—');
-  const week=document.getElementById('trainerClientStepsWeek');if(week)week.innerHTML=stepsWeekHtml(rows,target);
+  set('trainerClientStepsKcal',!todayRow?'Sin datos hoy':kcal!=null?`≈ ${stepsFmt(kcal)} kcal`:'Falta peso');
+  const week=document.getElementById('trainerClientStepsWeek');if(week)week.innerHTML=stepsWeekHtml(rows,target,kg||0);
   const latest=[...(rows||[])].filter(r=>r.synced_at).sort((a,b)=>new Date(b.synced_at)-new Date(a.synced_at))[0]||null;
-  const meta=document.getElementById('trainerClientStepsSyncMeta');if(meta)meta.textContent=latest?`Última sincronización: ${stepsSyncLabel(latest.synced_at)} · ${stepsSourceLabel(latest.source)}${kg?` · gasto por pasos estimado con ${String(kg).replace('.',',')} kg`:''}.`:'El cliente todavía no ha sincronizado pasos desde su móvil.';
+  const meta=document.getElementById('trainerClientStepsSyncMeta');if(meta)meta.textContent=latest?`Última sincronización: ${stepsSyncLabel(latest.synced_at)} · ${stepsSourceLabel(latest.source)}${kg?` · gasto por pasos estimado con ${String(kg).replace('.',',')} kg (peso actual; cálculo orientativo)`: ' · añade el peso del cliente para estimar las calorías'}.`:'El cliente todavía no ha sincronizado pasos desde su móvil.';
 }
 function renderTrainerStepsAssignment(target){
  const active=Number(target)>0,badge=document.getElementById('trainerClientStepsBadge'),view=document.getElementById('trainerClientStepsActiveView'),editor=document.getElementById('trainerClientStepsEditor'),text=document.getElementById('trainerClientStepsActiveText');
