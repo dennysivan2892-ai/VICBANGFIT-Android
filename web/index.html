@@ -4093,21 +4093,21 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
       <div class="field"><label>Nombre de la rutina</label><input id="routineName" placeholder="Ej. Hipertrofia 4 días"></div>
       <div class="field"><label>Objetivo</label><input id="routineGoal" placeholder="Ej. Ganancia muscular"></div>
     </div>
+    <div class="field"><label for="routineAutoLevel">Nivel del cliente</label><select id="routineAutoLevel" onchange="routineUpdateVolumeProfileCopy()"><option value="beginner">Principiante</option><option value="intermediate">Intermedio</option><option value="advanced">Avanzado</option></select><div class="muted tiny">Punto de partida editable. Series de trabajo semanales; calentamiento excluido. Valora también el trabajo indirecto en brazos.</div></div>
     <button class="btn dark" type="button" onclick="prepareRoutineProposal()">✨ Cargar propuesta de la evaluación</button>
     <div id="routineSystemBox" class="routine-system-box">
       <div class="row"><div><b>✨ Configurar o cambiar toda la estructura</b><div class="muted tiny" style="margin-top:4px">Elige el sistema y las prioridades. Se generará una propuesta editable; nada se guarda hasta que la revises.</div></div><span class="pill blue">SOLO ENTRENADOR</span></div>
       <div class="routine-system-grid">
         <div class="field"><label>Días</label><select id="routineAutoDays"><option value="1">1 día</option><option value="2">2 días</option><option value="3">3 días</option><option value="4" selected>4 días</option><option value="5">5 días</option><option value="6">6 días</option></select></div>
         <div class="field"><label>Sistema</label><select id="routineAutoSystem"><option value="recommended">Recomendado</option><option value="fullbody">Full Body</option><option value="upper_lower">Torso / Pierna</option><option value="ppl">Push / Pull / Legs</option><option value="bodypart">División por músculos</option><option value="specialization">Especialización muscular</option></select></div>
-        <div class="field"><label for="routineAutoLevel">Nivel del cliente</label><select id="routineAutoLevel" onchange="routineUpdateVolumeProfileCopy()"><option value="beginner">Principiante</option><option value="intermediate">Intermedio</option><option value="advanced">Avanzado</option></select><div class="muted tiny">Punto de partida editable. Series de trabajo semanales; calentamiento excluido. Valora también el trabajo indirecto en brazos.</div></div>
-        <div class="field"><label>Perfil de volumen</label><select id="routineAutoVolumeProfile" onchange="routineUpdateVolumeProfileCopy()"><option value="male">Hombre</option><option value="female_lower">Mujer · pierna y glúteos</option><option value="female_balanced">Mujer · equilibrada</option></select></div>
+        <div class="field"><label>Distribución muscular</label><select id="routineAutoVolumeProfile" onchange="routineUpdateVolumeProfileCopy()"><option value="male">Equilibrado</option><option value="female_lower">Prioridad pierna y glúteos</option><option value="female_balanced" hidden>Equilibrado</option></select></div>
         <div class="field"><label>Prioridad 1</label><select id="routineAutoPriorityOne"><option value="">Sin prioridad</option><option>Pecho</option><option>Espalda</option><option>Hombros</option><option>Bíceps</option><option>Tríceps</option><option>Cuádriceps</option><option>Femoral</option><option>Glúteos</option><option>Gemelos</option><option>Abdominales</option></select></div>
         <div class="field"><label>Frecuencia</label><select id="routineAutoFrequencyOne"><option value="1">F1</option><option value="2" selected>F2</option><option value="3">F3</option></select></div>
         <div class="field"><label>Series extra prioridad 1</label><select id="routineAutoBonusOne"><option value="1">+1 serie semanal</option><option value="2" selected>+2 series semanales</option></select></div>
         <div class="field"><label>Prioridad 2</label><select id="routineAutoPriorityTwo"><option value="">Sin segunda prioridad</option><option>Pecho</option><option>Espalda</option><option>Hombros</option><option>Bíceps</option><option>Tríceps</option><option>Cuádriceps</option><option>Femoral</option><option>Glúteos</option><option>Gemelos</option><option>Abdominales</option></select></div>
         <div class="field"><label>Frecuencia</label><select id="routineAutoFrequencyTwo"><option value="1">F1</option><option value="2" selected>F2</option><option value="3">F3</option></select></div>
         <div class="field"><label>Series extra prioridad 2</label><select id="routineAutoBonusTwo"><option value="1">+1 serie semanal</option><option value="2" selected>+2 series semanales</option></select></div>
-        <div class="field"><label>Volumen semanal base</label><div id="routineAutoVolumeCopy" class="input-like">Hombre · grandes: 15 · pequeños: 8</div></div>
+        <div class="field"><label>Volumen semanal base</label><div id="routineAutoVolumeCopy" class="input-like">Volumen según nivel · igual para mujeres y hombres</div></div>
         <div class="field"><label>Crear propuesta</label><button class="btn" style="width:100%" type="button" onclick="generateRoutineStructureFromBuilder()">✨ Generar estructura</button></div>
       </div>
     </div>
@@ -6865,9 +6865,9 @@ function setupRoutineModal(mode){
  const systemBox=document.getElementById('routineSystemBox');if(systemBox)systemBox.style.display='block';
 }
 function routineVolumeProfileCopy(profile){
- if(profile==='female_lower')return 'Mujer · prioridad en pierna y glúteos; torso reducido';
- if(profile==='female_balanced')return 'Mujer · volumen equilibrado de cuerpo completo';
- return 'Hombre · grandes: 15 · pequeños: 8';
+ if(profile==='female_lower')return 'Prioridad en pierna y glúteos';
+ if(profile==='female_balanced')return 'Equilibrado de cuerpo completo';
+ return 'Volumen según nivel · igual para mujeres y hombres';
 }
 function routineUpdateVolumeProfileCopy(){
  const profile=document.getElementById('routineAutoVolumeProfile')?.value||'male';
@@ -6882,7 +6882,7 @@ async function routineSyncVolumeProfileForClient(){
  try{
   const {data,error}=await sb.from('client_onboarding_assessments').select('sex,training_experience').eq('trainer_id',currentProfile.id).eq('client_id',clientId).maybeSingle();
   if(error)throw error;
-  select.value=data?.sex==='female'?'female_lower':'male';
+  select.value='male';
   document.getElementById('routineAutoLevel').value=smartLevel(data?.training_experience);
  }catch(error){
   console.warn('routine volume profile',error);
@@ -6906,7 +6906,7 @@ async function openRoutineBuilder(){
  addRoutineDay();modal.classList.add('open');
  routineActiveRecoveryKey=routineRecoveryKey();
  document.getElementById('routineRecoveryStatus').textContent='';const recovered=restoreRoutineRecovery();
- if(!recovered&&!editingRoutineId)await prepareRoutineProposal(false);
+ if(!recovered&&!editingRoutineId)setAuthMessage('routineMsg','Selecciona el nivel del cliente y genera una estructura o carga la propuesta de su evaluación.');
 }
 async function openEditRoutine(routineId){
  if(currentProfile?.role!=="trainer")return;
@@ -9477,6 +9477,12 @@ async function prepareRoutineProposal(ask=true){
   await loadSmartTrainingPlan(clientId);
   if(document.getElementById('routineClient').value!==clientId||!document.getElementById('routineBuilderModal').classList.contains('open'))return;
   if(!smartTrainingPlan||smartTrainingPlan.clientId!==clientId){setAuthMessage('routineMsg','No se pudo preparar la propuesta. Comprueba la evaluación inicial del cliente. También puedes generar la estructura manualmente.');return}
+  const selectedLevel=document.getElementById('routineAutoLevel')?.value;
+  if(['beginner','intermediate','advanced'].includes(selectedLevel)){
+   smartTrainingPlan.level=selectedLevel;
+   smartTrainingPlan.levelLabel={beginner:'Principiante',intermediate:'Intermedio',advanced:'Avanzado'}[selectedLevel];
+   smartTrainingPlan.prescription=smartPrescription(smartTrainingPlan.goalType,selectedLevel);
+  }
   await smartPlanToRoutineBuilder();
  }catch(error){setAuthMessage('routineMsg',vicError(error,'No se pudo preparar la rutina.'))}
  finally{trainerProposalBusy=false;controls.forEach(el=>el.disabled=false)}
@@ -12271,19 +12277,12 @@ function smartDayExerciseCount(sessionMinutes,day){
  return Math.min(base,day.muscles.length);
 }
 const SMART_BIG_MUSCLES=new Set(['Pecho','Espalda','Cuádriceps','Femoral','Glúteos']);
-const SMART_FEMALE_LOWER_VOLUME={Pecho:6,Espalda:8,Hombros:8,Bíceps:4,Tríceps:4,Cuádriceps:10,Femoral:10,Glúteos:15,Gemelos:6,Abdominales:6};
-const SMART_FEMALE_BALANCED_VOLUME={Pecho:10,Espalda:10,Hombros:6,Bíceps:6,Tríceps:6,Cuádriceps:10,Femoral:10,Glúteos:12,Gemelos:6,Abdominales:6};
 function smartVolumeProfileLabel(profile){
- return profile==='female_lower'?'Mujer · pierna y glúteos':profile==='female_balanced'?'Mujer · equilibrada':'Hombre';
+ return profile==='female_lower'?'Prioridad pierna y glúteos':'Equilibrado';
 }
 function smartWeeklySeries(muscle,priorities=[],volumeProfile='male',level='advanced'){
- let base;
- if(volumeProfile==='female_lower')base=SMART_FEMALE_LOWER_VOLUME[muscle]??6;
- else if(volumeProfile==='female_balanced')base=SMART_FEMALE_BALANCED_VOLUME[muscle]??6;
- else base=SMART_BIG_MUSCLES.has(muscle)?15:8;
  const preset={beginner:{big:6,small:4},intermediate:{big:10,small:6},advanced:{big:15,small:8}}[level]||{big:6,small:4};
- if(volumeProfile==='male')base=SMART_BIG_MUSCLES.has(muscle)?preset.big:preset.small;
- else if(level!=='advanced')base=Math.max(1,Math.round(base*(SMART_BIG_MUSCLES.has(muscle)?preset.big/15:preset.small/8)));
+ const base=SMART_BIG_MUSCLES.has(muscle)?preset.big:preset.small;
  const priority=(priorities||[]).find(p=>p?.muscle===muscle);
  return base+(priority?smartClamp(Number(priority.bonus)||1,1,2):0);
 }
@@ -12350,7 +12349,7 @@ function smartPlanRender(){
    <div class="form-grid" style="margin-top:12px">
     <div class="field"><label>Días de entrenamiento</label><select id="smartEditDays">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===p.days.length?'selected':''}>${n} día${n===1?'':'s'}</option>`).join('')}</select></div>
     <div class="field"><label>Sistema de entrenamiento</label><select id="smartEditSystem"><option value="recommended" ${p.system==='recommended'?'selected':''}>Recomendado según días</option><option value="fullbody" ${p.system==='fullbody'?'selected':''}>Full Body</option><option value="upper_lower" ${p.system==='upper_lower'?'selected':''}>Torso / Pierna</option><option value="ppl" ${p.system==='ppl'?'selected':''}>Push / Pull / Legs</option><option value="bodypart" ${p.system==='bodypart'?'selected':''}>División por músculos</option><option value="specialization" ${p.system==='specialization'?'selected':''}>Especialización muscular</option></select></div>
-    <div class="field"><label>Perfil de volumen</label><select id="smartEditVolumeProfile"><option value="male" ${p.volumeProfile==='male'?'selected':''}>Hombre</option><option value="female_lower" ${p.volumeProfile==='female_lower'?'selected':''}>Mujer · pierna y glúteos</option><option value="female_balanced" ${p.volumeProfile==='female_balanced'?'selected':''}>Mujer · equilibrada</option></select></div>
+    <div class="field"><label>Distribución muscular</label><select id="smartEditVolumeProfile"><option value="male" ${p.volumeProfile==='male'?'selected':''}>Equilibrado</option><option value="female_lower" ${p.volumeProfile==='female_lower'?'selected':''}>Prioridad pierna y glúteos</option><option value="female_balanced" hidden ${p.volumeProfile==='female_balanced'?'selected':''}>Equilibrado</option></select></div>
     <div class="field"><label>Duración por sesión</label><input id="smartEditMinutes" type="number" min="30" max="120" step="5" value="${p.sessionMinutes}"></div>
     <div class="field"><label>Objetivo</label><select id="smartEditGoal"><option value="muscle" ${p.goalType==='muscle'?'selected':''}>Hipertrofia</option><option value="fatloss" ${p.goalType==='fatloss'?'selected':''}>Pérdida de grasa</option><option value="strength" ${p.goalType==='strength'?'selected':''}>Fuerza</option><option value="general" ${p.goalType==='general'?'selected':''}>Acondicionamiento</option></select></div>
     <div class="field"><label>Nivel</label><select id="smartEditLevel"><option value="beginner" ${p.level==='beginner'?'selected':''}>Principiante</option><option value="intermediate" ${p.level==='intermediate'?'selected':''}>Intermedio</option><option value="advanced" ${p.level==='advanced'?'selected':''}>Avanzado</option></select></div>
@@ -12466,7 +12465,7 @@ async function loadSmartTrainingPlan(clientId){
   const sessionMinutes=smartSessionMinutes(o.session_minutes);
   const prescription=smartPrescription(goalType,level);
   const privateRow=privateRes.data||null;
-  const volumeProfile=o.sex==='female'?'female_lower':'male';
+  const volumeProfile='male';
   smartTrainingPlan={
    clientId,
    goalText,
@@ -12702,7 +12701,7 @@ function initialTrainingSuggestion(fields){
  const level=smartLevel(fields.training_experience);
  const available=Number(fields.days_per_week)||3;
  const days=smartRecommendedDays(available,level);
- const volumeProfile=fields.sex==='female'?'female_lower':'male';
+ const volumeProfile='male';
  const split=smartSplit(days,'recommended',[],volumeProfile).map(x=>x.name).join(' · ');
  const goal=initialGoalKind(fields.primary_goal);
  const p=smartPrescription(goal==='fatloss'?'fatloss':goal==='muscle'?'muscle':goal==='strength'?'strength':'general',level);

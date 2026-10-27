@@ -6,6 +6,7 @@ on:
       - 'tests/exercise-guides*'
       - 'tests/nutrition-*'
       - 'tests/client-my-day*'
+      - 'tests/training-levels*'
       - 'tests/nutrition-supplements*'
       - 'package*.json'
       - '.github/workflows/exercise-guides-checks.yml'
@@ -30,6 +31,7 @@ jobs:
       - run: node tests/client-my-day.test.cjs
       - run: node tests/nutrition-supplements.test.cjs
       - run: node tests/trainer-proposals.test.cjs
+      - run: node tests/training-levels.test.cjs
       - run: node tests/nutrition-existing-plan.test.cjs
       - run: node tests/nutrition-save-performance.test.cjs
       - run: node tests/nutrition-current-adjustment.test.cjs

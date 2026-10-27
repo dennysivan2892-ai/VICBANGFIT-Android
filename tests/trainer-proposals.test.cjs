@@ -17,6 +17,7 @@ const generateNutritionMealsFromTargets=async()=>{generated.push(['nutritionCalo
 const openNutritionBuilder=()=>true;
 let smartTrainingPlan=null;
 const loadSmartTrainingPlan=async id=>{smartTrainingPlan=row?{clientId:id}:null};
+const smartPrescription=(goal,level)=>({level});
 const smartPlanToRoutineBuilder=async()=>{routineCalls++};const setAuthMessage=(id,m)=>document.getElementById(id).textContent=m;
 document.getElementById('nutritionClient').value='new';document.getElementById('routineClient').value='new';
 ${code}`,ctx);
@@ -30,10 +31,15 @@ const run=s=>vm.runInContext(s,ctx);
  // A legitimate zero carbohydrate target survives proposal preparation.
  await run('row.target_carbs_g=0;prepareNutritionProposal(false)');assert.equal(run('generated.at(-1)[2]'),0);
  await run('prepareRoutineProposal(false)');assert.equal(run('routineCalls'),1);
+ // Loading the assessment must respect the level selected in the builder.
+ await run("document.getElementById('routineAutoLevel').value='advanced';prepareRoutineProposal(false)");
+ assert.equal(run('smartTrainingPlan.level'),'advanced');
+ assert.equal(run('smartTrainingPlan.prescription.level'),'advanced');
+ await run("document.getElementById('routineAutoLevel').value=''");
  // Missing assessment and network errors must be visible and unlock the editor.
  await run('row=null;prepareNutritionProposal(false)');assert.match(run("document.getElementById('nutritionBuilderMsg').textContent"),/evaluación inicial/);
  await run('queryError={message:"Sin conexión"};prepareNutritionProposal(false)');assert.equal(run("document.getElementById('nutritionBuilderMsg').textContent"),'Sin conexión');assert.equal(run('trainerProposalBusy'),false);
- await run('queryError=null;prepareRoutineProposal(false)');assert.match(run("document.getElementById('routineMsg').textContent"),/evaluación inicial/);assert.equal(run('routineCalls'),1);
+ await run('queryError=null;prepareRoutineProposal(false)');assert.match(run("document.getElementById('routineMsg').textContent"),/evaluación inicial/);assert.equal(run('routineCalls'),2);
  // An unassigned client cannot cause a read or create another client's proposal.
  const before=run('reads.length');await run("document.getElementById('nutritionClient').value='other';prepareNutritionProposal(false)");assert.equal(run('reads.length'),before);
  // Never overwrite an existing plan through the initial-proposal action.
