@@ -1160,6 +1160,7 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 .payment-state.none{color:#aaa;background:#171717}
 .payment-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .payment-history{display:grid;gap:7px;margin-top:13px}
+.payment-history-row>.payment-actions{grid-column:1/-1;flex-wrap:wrap}
 .payment-history-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid #242424;font-size:12px}
 .payment-summary-client{margin-top:14px;background:linear-gradient(135deg,#15100a,#111);border:1px solid #3c3020}
 .payment-summary-grid{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
@@ -3347,11 +3348,15 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 </section>
 
 <section id="pagos" class="section">
-  <div class="header"><div><h1>Pagos reales</h1><div class="muted">Cuotas, vencimientos e ingresos guardados en Supabase.</div></div><button class="btn" onclick="openPaymentBilling()">＋ Configurar cuota</button></div>
+  <div class="header"><div><h1>Pagos reales</h1><div class="muted">Cobros reales, vencimientos y acceso manual independiente.</div></div><button class="btn" onclick="openPaymentBilling()">＋ Configurar cuota</button></div>
+  <div class="card" style="margin-bottom:14px"><div class="form-grid">
+    <div class="field"><label>Mes del resumen</label><input id="paymentSummaryMonth" type="month" onchange="loadTrainerPayments()"></div>
+    <div class="field"><label>Meta de ingresos del mes (€)</label><input id="paymentRevenueGoal" type="number" min="0" step="0.01"><button class="btn dark" onclick="savePaymentRevenueGoal()">Guardar meta</button></div>
+  </div><p id="paymentGoalProgress" class="muted"></p><p id="paymentReviewNotice" class="orange"></p><p class="muted tiny">El vencimiento avisa de la deuda. Solo tu entrenador suspende o reactiva la planificación. Los ingresos cuentan el dinero recibido en el mes de cobro.</p></div>
   <div class="grid4">
     <div class="card kpi"><div class="label">INGRESOS · MES</div><div class="value" id="paymentMonthRevenue">—</div><div class="green" id="paymentMonthRevenueMeta">Cobros confirmados</div></div>
     <div class="card kpi"><div class="label">CUOTAS ACTIVAS</div><div class="value" id="paymentActiveBilling">—</div><div class="green">Clientes con cuota</div></div>
-    <div class="card kpi"><div class="label">PENDIENTES</div><div class="value" id="paymentPendingCount">—</div><div class="orange" id="paymentPendingMeta">Próximos cobros</div></div>
+    <div class="card kpi"><div class="label">POR COBRAR · MES</div><div class="value" id="paymentPendingCount">—</div><div class="orange" id="paymentPendingMeta">Próximos cobros</div></div>
     <div class="card kpi"><div class="label">TICKET MEDIO</div><div class="value" id="paymentAverageTicket">—</div><div class="muted">Cobros del mes</div></div>
   </div>
   <div id="paymentClientList" class="payment-list"><div class="payment-empty">Cargando pagos…</div></div>
@@ -3716,10 +3721,10 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
   <div class="payment-plan-lock">
     <div class="lock-icon">🔒</div>
     <h1>Planificación bloqueada</h1>
-    <p id="clientPlanningLockText">Tu periodo pagado ha terminado. Realiza la siguiente cuota por el método acordado con tu entrenador. Cuando el pago quede registrado, se desbloqueará automáticamente.</p>
+    <p id="clientPlanningLockText">Tu entrenador ha suspendido manualmente el acceso a la planificación. Contacta con él para revisar tu situación y solicitar la reactivación.</p>
     <div id="clientPlanningLockUntil" class="lock-until">Pago pendiente</div>
     <div class="lock-actions">
-      <button class="btn" type="button" onclick="refreshManualPaymentAccess()">✓ Ya he realizado el pago · Comprobar</button>
+      <button class="btn" type="button" onclick="refreshManualPaymentAccess()">↻ Comprobar acceso</button>
       <button class="btn ghost" type="button" onclick="showPage('client_messages')">💬 Contactar entrenador</button>
     </div>
     <div class="lock-safe">Tu historial, progreso, check-ins y mensajes siguen disponibles. Solo se protege la planificación activa.</div>
@@ -4264,7 +4269,8 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     <div class="row"><div><h2 id="paymentBillingTitle">Configurar cuota</h2><div class="muted tiny">Control manual de cobros. No realiza cargos bancarios automáticos.</div></div><button class="btn ghost" type="button" onclick="closePaymentBilling()">✕</button></div>
     <div class="form-grid" style="margin-top:14px">
       <div class="field"><label>Cliente</label><select id="paymentBillingClient"></select></div>
-      <div class="field"><label>Cuota mensual (€)</label><input id="paymentBillingFee" type="number" min="0" step="0.01" placeholder="Ej. 100"></div>
+      <div class="field"><label>Importe total del periodo (€)</label><input id="paymentBillingFee" type="number" min="0" step="0.01" placeholder="Ej. 100"></div>
+      <div class="field"><label>Duración del plan</label><select id="paymentBillingMonths"><option value="1">Mensual · 1 mes</option><option value="3">Trimestral · 3 meses</option><option value="6">Semestral · 6 meses</option><option value="12">Anual · 12 meses</option></select></div>
       <div class="field"><label>Próximo vencimiento</label><input id="paymentBillingDue" type="date"></div>
       <div class="field"><label>Estado</label><select id="paymentBillingStatus"><option value="active">Activa</option><option value="paused">Pausada</option></select></div>
     </div>
@@ -4279,6 +4285,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     <div class="row"><div><h2>Registrar pago</h2><div class="muted tiny" id="paymentPaidSubtitle">Confirma el cobro recibido.</div></div><button class="btn ghost" type="button" onclick="closePaymentPaid()">✕</button></div>
     <div class="form-grid" style="margin-top:14px">
       <div class="field"><label>Importe (€)</label><input id="paymentPaidAmount" type="number" min="0" step="0.01"></div>
+      <div class="field"><label>Fecha real del cobro</label><input id="paymentPaidDate" type="date"></div><div class="field"><label>Siguiente vencimiento (editable)</label><input id="paymentPaidNextDue" type="date"></div>
       <div class="field"><label>Método</label><select id="paymentPaidMethod"><option value="bizum">Bizum</option><option value="bank_transfer">Transferencia</option><option value="cash">Efectivo</option><option value="card">Tarjeta</option><option value="other">Otro</option></select></div>
     </div>
     <div class="field" style="margin-top:10px"><label>Nota opcional</label><input id="paymentPaidNotes" placeholder="Ej. Pago agosto"></div>
@@ -4934,22 +4941,12 @@ function clientPlanningProtectedPage(id){
 }
 
 function clientPlanningAccessLabel(){
-  if(!clientPlanningBillingConfigured)return 'Sin cuota configurada · acceso normal';
-  if(!clientPlanningAccessUntil)return 'Pago pendiente';
-  const d=new Date(clientPlanningAccessUntil);
-  if(Number.isNaN(d.getTime()))return 'Pago pendiente';
-  return 'Acceso disponible hasta '+d.toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'});
+  return clientPlanningAccessAllowed?'Acceso activo · gestionado por tu entrenador':'Acceso suspendido por tu entrenador';
 }
-
 function applyManualPlanningAccess(billing){
   clientPlanningBillingConfigured=Boolean(billing);
-  clientPlanningAccessUntil=billing?.planning_access_until||null;
-  if(!billing){
-    clientPlanningAccessAllowed=true;
-  }else{
-    const until=clientPlanningAccessUntil?new Date(clientPlanningAccessUntil).getTime():0;
-    clientPlanningAccessAllowed=Boolean(until&&Number.isFinite(until)&&Date.now()<until);
-  }
+  clientPlanningAccessUntil=null;
+  clientPlanningAccessAllowed=!billing?.access_suspended;
   const note=document.getElementById('clientPaymentAccessNote');
   if(note)note.textContent='🔐 '+clientPlanningAccessLabel();
 }
@@ -4958,8 +4955,8 @@ async function refreshClientPlanningAccess(){
   if(currentProfile?.role!=='client')return true;
   try{
     const {data:b,error}=await sb.from('client_billing')
-      .select('id,monthly_fee,currency,next_due_date,status,planning_access_until')
-      .eq('client_id',currentProfile.id).eq('status','active').limit(1).maybeSingle();
+      .select('id,monthly_fee,currency,next_due_date,status,access_suspended,billing_months')
+      .eq('client_id',currentProfile.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
     if(error)throw error;
     applyManualPlanningAccess(b);
   }catch(error){
@@ -4987,14 +4984,14 @@ async function refreshManualPaymentAccess(){
   await refreshClientPlanningAccess();
   await loadClientPaymentSummary();
   if(clientPlanningAccessAllowed){
-    toast('Pago registrado · planificación desbloqueada ✓');
+    toast('Acceso a planificación activo ✓');
     const target=clientPlanningLockedTarget||'client_workout';
-    if(btn){btn.disabled=false;btn.textContent='✓ Ya he realizado el pago · Comprobar'}
+    if(btn){btn.disabled=false;btn.textContent='↻ Comprobar acceso'}
     showPage(target);
     return;
   }
-  toast('El pago todavía no aparece registrado');
-  if(btn){btn.disabled=false;btn.textContent='✓ Ya he realizado el pago · Comprobar'}
+  toast('El acceso sigue suspendido por tu entrenador');
+  if(btn){btn.disabled=false;btn.textContent='↻ Comprobar acceso'}
 }
 
 let clients=[];
@@ -5452,26 +5449,23 @@ function paymentState(record){
 function paymentMethodLabel(v){
  return ({bizum:'Bizum',bank_transfer:'Transferencia',cash:'Efectivo',card:'Tarjeta',other:'Otro'})[v]||'—';
 }
-function paymentAddMonthISO(iso){
+function paymentAddMonthISO(iso,months=1){
  const [y,m,d]=iso.split('-').map(Number);
- const targetMonth=m; // Date usa meses 0-based: m representa el mes siguiente
- const last=new Date(y,targetMonth+1,0).getDate();
- const nd=Math.min(d,last);
- const dt=new Date(y,targetMonth,nd,12);
+ const target=m-1+Number(months);
+ const dt=new Date(y,target,Math.min(d,new Date(y,target+1,0).getDate()),12);
  return nutritionDateISO(dt);
 }
+function paymentMonthISO(date=new Date()){
+ return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit'}).format(date);
+}
+function paymentPlanLabel(months){return ({1:'Mensual',3:'Trimestral',6:'Semestral',12:'Anual'})[months]||'Mensual'}
 async function loadDashboardPaymentKpi(){
  const revenue=document.getElementById('dashboardRevenue'),meta=document.getElementById('dashboardRevenueMeta');
  if(currentProfile?.role!=='trainer'||!revenue)return;
  try{
-  const now=new Date();const monthStart=new Date(now.getFullYear(),now.getMonth(),1).toISOString();
-  const {data:paid,error:pErr}=await sb.from('payment_records').select('amount,paid_at').eq('trainer_id',currentProfile.id).eq('status','paid').gte('paid_at',monthStart);
-  if(pErr)throw pErr;
-  const {count,error:bErr}=await sb.from('client_billing').select('id',{count:'exact',head:true}).eq('trainer_id',currentProfile.id).eq('status','active');
-  if(bErr)throw bErr;
-  const total=(paid||[]).reduce((s,p)=>s+Number(p.amount||0),0);
-  revenue.textContent=paymentMoney(total);
-  meta.textContent=(count||0)?`${count} cuota${count===1?'':'s'} activa${count===1?'':'s'}`:'Sin cuotas configuradas';
+  const {data,error}=await sb.rpc('client_revenue_summary',{p_month:paymentMonthISO()+'-01'});if(error)throw error;
+  revenue.textContent=paymentMoney(data.received);
+  meta.textContent=data.review_count?`${data.review_count} cobros por revisar`:`${data.receipts} cobros confirmados este mes`;
  }catch(error){console.error(error);revenue.textContent='—';meta.textContent='No disponible'}
 }
 
@@ -15600,7 +15594,7 @@ async function loadTrainerPayments(){
  if(list)list.innerHTML='<div class="payment-empty">Cargando pagos…</div>';
  try{
   const {data:billings,error:bErr}=await sb.from('client_billing')
-   .select('id,trainer_id,client_id,monthly_fee,currency,next_due_date,status,notes,created_at,updated_at')
+   .select('id,trainer_id,client_id,monthly_fee,currency,next_due_date,status,notes,created_at,updated_at,access_suspended,billing_months')
    .eq('trainer_id',currentProfile.id)
    .order('created_at',{ascending:false});
   if(bErr)throw bErr;
@@ -15608,31 +15602,27 @@ async function loadTrainerPayments(){
   const billingIds=trainerBilling.map(b=>b.id);
   let records=[];
   if(billingIds.length){
-   const {data,error}=await sb.from('payment_records')
-    .select('id,billing_id,client_id,amount,due_date,status,paid_at,payment_method,notes,created_at')
-    .in('billing_id',billingIds)
-    .order('due_date',{ascending:false})
-    .limit(120);
-   if(error)throw error;
-   records=data||[];
+   for(let offset=0;;offset+=500){
+    const {data,error}=await sb.from('payment_records').select('id,billing_id,client_id,amount,due_date,status,paid_at,payment_method,notes,created_at,collection_review_required')
+      .eq('trainer_id',currentProfile.id).order('due_date',{ascending:false}).order('id').range(offset,offset+499);
+    if(error)throw error;records.push(...(data||[]));if((data||[]).length<500)break;
+   }
   }
   trainerPaymentRecords=records;
-
-  const now=new Date();
-  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
-  const nextMonth=new Date(now.getFullYear(),now.getMonth()+1,1);
-  const paidThisMonth=records.filter(r=>r.status==='paid'&&r.paid_at&&new Date(r.paid_at)>=monthStart&&new Date(r.paid_at)<nextMonth);
-  const revenue=paidThisMonth.reduce((s,r)=>s+Number(r.amount||0),0);
-  const avg=paidThisMonth.length?revenue/paidThisMonth.length:0;
-  const pending=records.filter(r=>r.status==='pending');
-  const overdue=pending.filter(r=>r.due_date<paymentToday()).length;
-
-  document.getElementById('paymentMonthRevenue').textContent=paymentMoney(revenue);
-  document.getElementById('paymentMonthRevenueMeta').textContent=paidThisMonth.length===1?'1 cobro confirmado':`${paidThisMonth.length} cobros confirmados`;
+  const monthInput=document.getElementById('paymentSummaryMonth');if(!monthInput.value)monthInput.value=paymentMonthISO();
+  const month=monthInput.value+'-01';
+  const {data:summary,error:sErr}=await sb.rpc('client_revenue_summary',{p_month:month});if(sErr)throw sErr;
+  const {data:goal,error:gErr}=await sb.from('trainer_revenue_goals').select('amount').eq('trainer_id',currentProfile.id).eq('month',month).maybeSingle();if(gErr)throw gErr;
+  document.getElementById('paymentRevenueGoal').value=goal?.amount??'';
+  document.getElementById('paymentMonthRevenue').textContent=paymentMoney(summary.received);
+  document.getElementById('paymentMonthRevenueMeta').textContent=`${summary.receipts} cobros confirmados`;
   document.getElementById('paymentActiveBilling').textContent=trainerBilling.filter(b=>b.status==='active').length;
-  document.getElementById('paymentPendingCount').textContent=pending.length;
-  document.getElementById('paymentPendingMeta').textContent=overdue?`${overdue} vencido${overdue===1?'':'s'}`:'Sin vencidos';
-  document.getElementById('paymentAverageTicket').textContent=paidThisMonth.length?paymentMoney(avg):'—';
+  document.getElementById('paymentPendingCount').textContent=paymentMoney(summary.pending);
+  document.getElementById('paymentPendingMeta').textContent=`${summary.pending_count} pendientes este mes · ${summary.overdue_count} vencidos en total`;
+  document.getElementById('paymentAverageTicket').textContent=summary.receipts?paymentMoney(summary.received/summary.receipts):'—';
+  document.getElementById('paymentReviewNotice').textContent=summary.review_count?`${summary.review_count} cobros anteriores por revisar (${paymentMoney(summary.review_amount)}). No cuentan como ingresos confirmados. Revisa el historial de cada cliente.`:'';
+  const target=Number(goal?.amount||0),received=Number(summary.received);
+  document.getElementById('paymentGoalProgress').textContent=target>0?`Meta: ${paymentMoney(target)} · ${Math.round(received/target*100)}% conseguido · ${received>=target?'Meta alcanzada':paymentMoney(target-received)+' por conseguir'}`:'Configura una meta para este mes.';
 
   renderTrainerPayments();
   loadDashboardPaymentKpi();
@@ -15652,20 +15642,21 @@ function renderTrainerPayments(){
   const history=trainerPaymentRecords.filter(r=>r.billing_id===b.id);
   const pending=[...history].filter(r=>r.status==='pending').sort((a,b)=>a.due_date.localeCompare(b.due_date))[0]||null;
   const state=paymentState(pending);
-  const latest=history.slice(0,4);
+  const latest=history;
   return `<div class="payment-client-card">
     <div class="payment-client-head">
-      <div><h2 style="margin:0">${escHtml(c.name)}</h2><div class="muted tiny">${b.status==='active'?'Cuota activa':'Cuota pausada'}</div></div>
+      <div><h2 style="margin:0">${escHtml(c.name)}</h2><div class="muted tiny">${paymentPlanLabel(b.billing_months)} · ${b.access_suspended?'Acceso suspendido':'Acceso activo'}</div></div>
       <span class="payment-state ${b.status==='paused'?'none':state.key}">${b.status==='paused'?'Pausada':state.label}</span>
     </div>
     <div style="margin-top:14px"><div class="payment-main-amount">${paymentMoney(b.monthly_fee,b.currency)}</div><div class="muted">${pending?`Vence ${paymentDateLabel(pending.due_date)}`:(b.next_due_date?`Próximo ${paymentDateLabel(b.next_due_date)}`:'Sin próximo vencimiento')}</div></div>
     <div class="payment-actions">
       <button class="btn dark" onclick="openPaymentBilling('${c.id}','${b.id}')">✎ Editar cuota</button>
-      ${pending&&b.status==='active'?`<button class="btn" onclick="openPaymentPaid('${pending.id}')">✓ Marcar pagado</button>`:''}
+      ${pending&&b.status==='active'?`<button class="btn" onclick="openPaymentPaid('${pending.id}')">Registrar cobro recibido</button>`:''}
     </div>
-    <div class="payment-history">
-      ${latest.length?latest.map(r=>{const st=paymentState(r);return `<div class="payment-history-row"><div><b>${paymentDateLabel(r.due_date)}</b><div class="muted tiny">${paymentMoney(r.amount,b.currency)}</div></div><span class="payment-state ${st.key}">${st.label}</span><span class="payment-method muted">${r.status==='paid'?paymentMethodLabel(r.payment_method):''}</span></div>`}).join(''):'<div class="muted tiny">Todavía no hay cobros registrados.</div>'}
-    </div>
+    <button class="btn ghost" onclick="setPaymentClientAccess('${b.id}',${!b.access_suspended})">${b.access_suspended?'Dar acceso':'Suspender acceso'}</button>
+    <details class="payment-history"><summary>Historial y revisión de cobros (${latest.length})</summary>
+      ${latest.length?latest.map(r=>{const st=paymentState(r);return `<div class="payment-history-row"><div><b>${paymentDateLabel(r.due_date)}</b><div class="muted tiny">${paymentMoney(r.amount,b.currency)}${r.paid_at?' · Cobrado: '+paymentDateLabel(String(r.paid_at).slice(0,10)):''}</div></div><span class="payment-state ${st.key}">${st.label}</span><span class="payment-method muted">${r.status==='paid'?paymentMethodLabel(r.payment_method):''}</span>${r.status==='paid'?`<span class="payment-actions">${r.collection_review_required?`<b class="orange">Por revisar</b><button class="btn dark" onclick="reviewPaymentReceipt('${r.id}',true)">Sí lo cobré</button>`:''}<button class="btn ghost" onclick="reviewPaymentReceipt('${r.id}',false)">No se recibió este dinero</button></span>`:''}</div>`}).join(''):'<div class="muted tiny">Todavía no hay cobros registrados.</div>'}
+    </details>
   </div>`;
  }).join('');
 }
@@ -15679,6 +15670,7 @@ function openPaymentBilling(clientId='',billingId=''){
  const chosen=b?.client_id||clientId||clients[0]?.id||'';
  select.value=chosen;select.disabled=Boolean(billingId);
  document.getElementById('paymentBillingFee').value=b?.monthly_fee??'';
+ document.getElementById('paymentBillingMonths').value=b?.billing_months||1;
  document.getElementById('paymentBillingDue').value=b?.next_due_date||'';
  document.getElementById('paymentBillingStatus').value=b?.status==='paused'?'paused':'active';
  document.getElementById('paymentBillingNotes').value=b?.notes||'';
@@ -15693,6 +15685,7 @@ async function savePaymentBilling(){
  const btn=document.getElementById('paymentBillingSaveBtn'),msg=document.getElementById('paymentBillingMsg');
  const client_id=document.getElementById('paymentBillingClient').value;
  const fee=Number(document.getElementById('paymentBillingFee').value);
+ const billing_months=Number(document.getElementById('paymentBillingMonths').value);
  const next_due_date=document.getElementById('paymentBillingDue').value||null;
  const status=document.getElementById('paymentBillingStatus').value;
  const notes=document.getElementById('paymentBillingNotes').value.trim()||null;
@@ -15701,21 +15694,10 @@ async function savePaymentBilling(){
  if(status==='active'&&!next_due_date){msg.textContent='Selecciona el próximo vencimiento.';return}
  btn.disabled=true;btn.textContent='Guardando…';
  try{
-  let billing=null;
-  if(paymentEditingBillingId){
-   const {data,error}=await sb.from('client_billing').update({monthly_fee:fee,currency:'EUR',next_due_date,status,notes,updated_at:new Date().toISOString()}).eq('id',paymentEditingBillingId).eq('trainer_id',currentProfile.id).select().single();if(error)throw error;billing=data;
-  }else{
-   const {data,error}=await sb.from('client_billing').upsert({trainer_id:currentProfile.id,client_id,monthly_fee:fee,currency:'EUR',next_due_date,status,notes,updated_at:new Date().toISOString()},{onConflict:'trainer_id,client_id'}).select().single();if(error)throw error;billing=data;
-  }
-
-  if(status==='active'&&next_due_date){
-   const {data:existing,error:eErr}=await sb.from('payment_records').select('id,due_date,status').eq('billing_id',billing.id).eq('status','pending').order('due_date',{ascending:true}).limit(1).maybeSingle();if(eErr)throw eErr;
-   if(existing){
-    const {error:uErr}=await sb.from('payment_records').update({amount:fee,due_date:next_due_date,updated_at:new Date().toISOString()}).eq('id',existing.id);if(uErr)throw uErr;
-   }else{
-    const {error:iErr}=await sb.from('payment_records').upsert({billing_id:billing.id,trainer_id:currentProfile.id,client_id,amount:fee,due_date:next_due_date,status:'pending'},{onConflict:'billing_id,due_date'});if(iErr)throw iErr;
-   }
-  }
+  const {data:billingId,error}=await sb.rpc('save_client_billing',{
+   p_client:client_id,p_fee:fee,p_months:billing_months,p_due:next_due_date,p_status:status,p_notes:notes
+  });if(error)throw error;
+  const billing={id:billingId};
 
   let suffix='';
   try{
@@ -15733,6 +15715,10 @@ function openPaymentPaid(recordId){
  const r=trainerPaymentRecords.find(x=>x.id===recordId);if(!r)return;
  paymentPayingRecordId=recordId;
  document.getElementById('paymentPaidAmount').value=r.amount??'';
+ document.getElementById('paymentPaidDate').value=paymentToday();
+ document.getElementById('paymentPaidDate').max=paymentToday();
+ const billing=trainerBilling.find(b=>b.id===r.billing_id);
+ document.getElementById('paymentPaidNextDue').value=paymentAddMonthISO(r.due_date,billing?.billing_months||1);
  document.getElementById('paymentPaidMethod').value='bizum';
  document.getElementById('paymentPaidNotes').value='';
  document.getElementById('paymentPaidSubtitle').textContent=`Vencimiento ${paymentDateLabel(r.due_date)}`;
@@ -15748,14 +15734,13 @@ async function confirmPaymentPaid(){
  const amount=Number(document.getElementById('paymentPaidAmount').value);
  const payment_method=document.getElementById('paymentPaidMethod').value;
  const notes=document.getElementById('paymentPaidNotes').value.trim()||null;
- if(!Number.isFinite(amount)||amount<0){msg.textContent='Importe no válido.';return}
+ if(!Number.isFinite(amount)||amount<=0){msg.textContent='Introduce un importe recibido mayor que cero.';return}
  btn.disabled=true;btn.textContent='Guardando…';msg.textContent='';
  try{
-  const paid_at=new Date().toISOString();
-  const {error:pErr}=await sb.from('payment_records').update({amount,status:'paid',paid_at,payment_method,notes,updated_at:paid_at}).eq('id',r.id).eq('trainer_id',currentProfile.id);if(pErr)throw pErr;
-  const nextDue=paymentAddMonthISO(r.due_date);
-  const {error:bErr}=await sb.from('client_billing').update({next_due_date:nextDue,updated_at:paid_at}).eq('id',billing.id);if(bErr)throw bErr;
-  const {error:nErr}=await sb.from('payment_records').upsert({billing_id:billing.id,trainer_id:currentProfile.id,client_id:r.client_id,amount:billing.monthly_fee,due_date:nextDue,status:'pending'},{onConflict:'billing_id,due_date'});if(nErr)throw nErr;
+  const {error}=await sb.rpc('record_client_receipt',{
+   p_record:r.id,p_amount:amount,p_paid_date:document.getElementById('paymentPaidDate').value,
+   p_method:payment_method,p_notes:notes,p_next_due:document.getElementById('paymentPaidNextDue').value
+  });if(error)throw error;
 
   let suffix='';
   try{
@@ -15768,11 +15753,35 @@ async function confirmPaymentPaid(){
  finally{btn.disabled=false;btn.textContent='✓ Marcar pagado'}
 }
 
+async function setPaymentClientAccess(billingId,suspended){
+ const b=trainerBilling.find(x=>x.id===billingId);if(!b)return;
+ if(suspended&&!confirm('¿Suspender la planificación de este cliente? Los mensajes, check-ins y progreso siguen disponibles. No se modifica ningún cobro.'))return;
+ try{
+  const {data,error}=await sb.from('client_billing').update({access_suspended:suspended,updated_at:new Date().toISOString()}).eq('id',billingId).eq('trainer_id',currentProfile.id).select('id').single();if(error||!data)throw error||new Error('No se pudo cambiar el acceso');
+  toast(suspended?'Acceso suspendido':'Acceso activo');await loadTrainerPayments();
+ }catch(error){toast(vicError(error,'No se pudo cambiar el acceso'))}
+}
+async function reviewPaymentReceipt(recordId,received){
+ if(!confirm(received?'¿Confirmas que recibiste este dinero en la fecha registrada? Contará como ingreso real.':'¿Confirmas que este cobro no se recibió? Volverá a pendiente y se conservará la corrección en el historial. El acceso no cambia.'))return;
+ try{
+  const {error}=await sb.rpc('review_client_receipt',{p_record:recordId,p_received:received});if(error)throw error;
+  toast(received?'Cobro confirmado':'Cobro corregido a pendiente');await loadTrainerPayments();
+ }catch(error){toast(vicError(error,'No se pudo revisar el cobro'))}
+}
+async function savePaymentRevenueGoal(){
+ const month=document.getElementById('paymentSummaryMonth').value||paymentMonthISO();
+ const amount=Number(document.getElementById('paymentRevenueGoal').value);if(!Number.isFinite(amount)||amount<0){toast('Meta no válida');return}
+ try{
+  const {error}=await sb.from('trainer_revenue_goals').upsert({trainer_id:currentProfile.id,month:month+'-01',amount},{onConflict:'trainer_id,month'});if(error)throw error;
+  toast('Meta guardada');await loadTrainerPayments();
+ }catch(error){toast(vicError(error,'No se pudo guardar la meta'))}
+}
+
 async function loadClientPaymentSummary(){
  if(currentProfile?.role!=='client')return;
  const box=document.getElementById('clientPaymentSummary');if(!box)return;
  try{
-  const {data:b,error:bErr}=await sb.from('client_billing').select('id,monthly_fee,currency,next_due_date,status,planning_access_until').eq('client_id',currentProfile.id).eq('status','active').limit(1).maybeSingle();if(bErr)throw bErr;
+  const {data:b,error:bErr}=await sb.from('client_billing').select('id,monthly_fee,currency,next_due_date,status,access_suspended,billing_months').eq('client_id',currentProfile.id).order('created_at',{ascending:false}).limit(1).maybeSingle();if(bErr)throw bErr;
   applyManualPlanningAccess(b);
   if(!b){box.style.display='none';return}
   const {data:r,error:rErr}=await sb.from('payment_records').select('id,amount,due_date,status,paid_at').eq('billing_id',b.id).eq('status','pending').order('due_date',{ascending:true}).limit(1).maybeSingle();if(rErr)throw rErr;
