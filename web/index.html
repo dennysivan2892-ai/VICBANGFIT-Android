@@ -2162,6 +2162,8 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 #client_home [hidden]{display:none!important}
 @media(max-width:600px){.client-day-grid{grid-template-columns:1fr}.client-day-heading h2{font-size:27px}.client-day-card,.client-day-grid .client-hero{padding:18px}.client-day-grid .client-hero h2{font-size:24px}}
 
+
+#shareRoutineModal input[type="search"],#shareRoutineModal select{min-height:44px;padding:10px 12px;border:1px solid #675321;border-radius:10px;background:#111;color:#f5f0df;font:inherit;font-size:16px;box-sizing:border-box}#shareRoutineModal input[type="checkbox"]{accent-color:#d2ad52}#shareRoutineSave{background:linear-gradient(135deg,#e0c472,#b68a2e);border-color:#dbc16d;color:#151108;min-height:44px}#shareRoutineModal .row h2{font-size:24px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0/dist/umd/supabase.min.js"></script>
   <script type="module">
@@ -4088,6 +4090,21 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
       <div class="modal-actions"><button class="btn ghost" type="button" onclick="closeAddClientModal()">Cancelar</button><button id="newClientBtn" class="btn" type="submit">Añadir cliente</button></div>
     </form>
   </div>
+</div>
+
+<div id="shareRoutineModal" class="client-modal" role="dialog" aria-modal="true" aria-labelledby="shareRoutineTitle">
+ <div class="client-modal-card" style="width:min(600px,94vw);max-height:90vh;overflow:auto">
+  <div class="row"><h2 id="shareRoutineTitle">Compartir rutina</h2><button class="btn dark" type="button" onclick="closeShareRoutine()">Cerrar</button></div>
+  <p id="shareRoutineSource" class="muted"></p>
+  <label for="shareRoutineMode">Cómo asignarla</label>
+  <select id="shareRoutineMode" onchange="shareRoutineRequestId=crypto.randomUUID()" style="width:100%"><option value="linked">Mantener vinculadas · actualizar juntas</option><option value="copy">Copiar una vez · editar por separado</option></select>
+  <p class="muted tiny">Cada cliente conserva sus propios pesos, sesiones e historial. Disponible para mujeres y hombres. Para adaptar una rutina vinculada por separado, usa «Desvincular y adaptar».</p>
+  <label for="shareRoutineSearch">Buscar clientes</label><input id="shareRoutineSearch" type="search" placeholder="Nombre del cliente" oninput="filterShareRoutineClients()" style="width:100%">
+  <div id="shareRoutineClients" style="display:grid;gap:8px;margin:14px 0;max-height:35vh;overflow:auto"></div>
+  <p class="muted tiny">Al asignar, se archivarán las rutinas activas anteriores de los clientes elegidos. Su historial se conservará. Los compañeros de esos grupos seguirán vinculados entre sí.</p>
+  <div id="shareRoutineMsg" class="auth-error" role="status"></div>
+  <button id="shareRoutineSave" class="btn" type="button" onclick="saveSharedRoutine()">Asignar rutina</button>
+ </div>
 </div>
 
 <div id="routineBuilderModal" class="client-modal" onclick="if(event.target===this)closeRoutineBuilder()">
@@ -6302,15 +6319,94 @@ function routineBlockMeta(r){
  const a=routineBlockDateLabel(r.start_date),b=routineBlockDateLabel(r.end_date);
  return `Bloque ${n}${a&&b?` · ${a}–${b}`:''}`;
 }
+// BEGIN SHARED TRAINING
+let shareRoutineSourceId=null,shareRoutineRequestId=null,shareRoutineBusy=false,routineGroupCheckBusy=false;
+function sharedRoutineMembers(r){
+ const root=r.shared_source_routine_id||r.id;
+ return trainerRoutines.filter(x=>x.status==='active'&&(x.id===root||x.shared_source_routine_id===root));
+}
+function sharedRoutineNames(r){return sharedRoutineMembers(r).map(x=>x.client_name||'Cliente').join(', ')}
+function sharedRoutineActions(r){
+ if(r.status!=='active')return '';
+ const grouped=Boolean(r.shared_source_routine_id)||sharedRoutineMembers(r).length>1;
+ return `<button class="btn dark" type="button" onclick="openShareRoutine('${r.id}')">⇄ Compartir rutina</button>${grouped?`<button class="btn dark" type="button" onclick="detachSharedRoutine('${r.id}',true)">Desvincular y adaptar</button><button class="btn dark" type="button" onclick="detachSharedRoutine('${r.id}',false)">Desvincular</button>${!r.shared_source_routine_id?`<button class="btn dark" type="button" onclick="retrySharedRoutineSync('${r.id}')">Actualizar grupo</button>`:''}`:''}`;
+}
+function filterShareRoutineClients(){
+ const q=(document.getElementById('shareRoutineSearch').value||'').toLocaleLowerCase('es');
+ document.querySelectorAll('#shareRoutineClients label').forEach(el=>{const match=el.textContent.toLocaleLowerCase('es').includes(q);el.hidden=!match;el.style.display=match?'flex':'none'});
+}
+function openShareRoutine(id){
+ if(currentProfile?.role!=='trainer'||shareRoutineBusy||routineSaving)return;
+ const selected=trainerRoutines.find(r=>r.id===id);if(!selected)return;
+ const source=trainerRoutines.find(r=>r.id===(selected.shared_source_routine_id||id));
+ if(!source||source.status!=='active'){toast('La rutina principal no está activa. Desvincula esta rutina para compartirla.');return}
+ shareRoutineSourceId=source.id;shareRoutineRequestId=crypto.randomUUID();
+ document.getElementById('shareRoutineSource').textContent=`${source.name} · Planificación de ${source.client_name}`;
+ document.getElementById('shareRoutineMode').value='linked';document.getElementById('shareRoutineSearch').value='';
+ const linked=new Set(sharedRoutineMembers(source).map(r=>r.client_id));
+ document.getElementById('shareRoutineClients').innerHTML=clients.filter(c=>c.id!==source.client_id&&c.services?.training!==false).map(c=>`<label style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid #57491d;border-radius:10px"><input type="checkbox" value="${escHtml(c.id)}" ${linked.has(c.id)?'disabled':''} onchange="shareRoutineRequestId=crypto.randomUUID()" style="width:22px;height:22px;flex-shrink:0"><span>${escHtml(c.name)}${linked.has(c.id)?' · Ya vinculada':''}</span></label>`).join('')||'<p>No hay otros clientes con entrenamiento activo.</p>';
+ setAuthMessage('shareRoutineMsg','');document.getElementById('shareRoutineModal').classList.add('open');
+}
+function closeShareRoutine(){if(!shareRoutineBusy)document.getElementById('shareRoutineModal').classList.remove('open')}
+async function saveSharedRoutine(){
+ if(currentProfile?.role!=='trainer'||shareRoutineBusy)return;
+ const ids=[...document.querySelectorAll('#shareRoutineClients input:checked:not(:disabled)')].map(x=>x.value);
+ if(!ids.length){setAuthMessage('shareRoutineMsg','Selecciona al menos un cliente.');return}
+ const linked=document.getElementById('shareRoutineMode').value==='linked';
+ const names=ids.map(id=>clients.find(c=>c.id===id)?.name||'Cliente').join(', ');
+ if(!confirm(`Asignar ${linked?'y vincular':'una copia independiente de'} esta rutina a ${names}? Se archivarán sus rutinas activas anteriores conservando el historial.`))return;
+ shareRoutineBusy=true;
+ const controls=[...document.querySelectorAll('#shareRoutineModal input,#shareRoutineModal select,#shareRoutineModal button')].filter(el=>!el.disabled);controls.forEach(el=>el.disabled=true);
+ const btn=document.getElementById('shareRoutineSave');btn.textContent='Asignando…';setAuthMessage('shareRoutineMsg','');
+ try{
+  const {error}=await routineRequest(sb.rpc('share_training_routine',{p_source:shareRoutineSourceId,p_clients:ids,p_link:linked,p_request:shareRoutineRequestId}));if(error)throw error;
+  document.getElementById('shareRoutineModal').classList.remove('open');
+  await loadTrainerRoutines();toast(linked?'Rutinas vinculadas · progreso individual conservado':'Copias independientes asignadas');
+ }catch(error){console.error(error);setAuthMessage('shareRoutineMsg',vicError(error,'No se pudo confirmar la asignación. Puedes reintentar sin duplicar rutinas.'))}
+ finally{shareRoutineBusy=false;controls.forEach(el=>el.disabled=false);btn.textContent='Asignar rutina'}
+}
+async function detachSharedRoutine(id,edit=false){
+ if(currentProfile?.role!=='trainer'||shareRoutineBusy||routineSaving)return;
+ const r=trainerRoutines.find(x=>x.id===id);if(!r)return;
+ if(!confirm(`Desvincular la rutina de ${r.client_name}? Conservará la planificación y todo su historial. Los cambios futuros del grupo ya no se aplicarán a este cliente; los demás seguirán vinculados.`))return;
+ shareRoutineBusy=true;
+ try{
+  const {error}=await routineRequest(sb.rpc('detach_shared_routine',{p_routine:id}));if(error)throw error;
+  await loadTrainerRoutines();toast('Rutina independiente · historial conservado');if(edit)await openEditRoutine(id);
+ }catch(error){console.error(error);toast(vicError(error,'No se pudo desvincular la rutina'))}
+ finally{shareRoutineBusy=false}
+}
+async function retrySharedRoutineSync(id){
+ if(currentProfile?.role!=='trainer'||shareRoutineBusy||routineSaving)return;
+ const r=trainerRoutines.find(x=>x.id===id);if(!r)return;
+ if(!confirm(`Actualizar la planificación compartida de ${sharedRoutineNames(r)}? Los pesos e historiales siguen siendo individuales.`))return;
+ shareRoutineBusy=true;
+ try{const {error}=await routineRequest(sb.rpc('sync_shared_routine',{p_source:id}));if(error)throw error;await loadTrainerRoutines();toast('Planificación actualizada para todo el grupo')}
+ catch(error){console.error(error);toast(vicError(error,'No se pudo actualizar el grupo. Puedes reintentar.'))}
+ finally{shareRoutineBusy=false}
+}
+async function confirmSharedRoutineSave(r){
+ if(!r||r.status!=='active')return true;
+ if(r.shared_source_routine_id)throw new Error('Abre la rutina principal para editar el grupo, o desvincula este cliente para adaptarla.');
+ const {data,error}=await routineRequest(sb.from('routines').select('id,client_id').eq('trainer_id',currentProfile.id).eq('shared_source_routine_id',r.id).eq('status','active'));if(error)throw error;
+ if(!data?.length)return true;
+ const names=[r.client_name,...data.map(x=>clients.find(c=>c.id===x.client_id)?.name||'Cliente')];
+ return confirm(`Este cambio se aplicará a ${names.join(', ')}. Sus pesos e historiales se conservarán por separado. ¿Guardar para todo el grupo?`);
+}
+// END SHARED TRAINING
+
 function renderTrainerRoutines(){
  const el=document.getElementById('trainerRoutinesList');if(!el)return;
- if(!trainerRoutines.length){el.innerHTML='<div class="empty-state card">Todavía no hay rutinas asignadas. Puedes preparar una propuesta privada y revisarla antes de asignar.<br><button class="btn" type="button" onclick="openRoutineBuilder()">✨ Preparar rutina</button></div>';return}
- el.innerHTML=trainerRoutines.map(r=>`<div class="card real-routine-card">
+ const visibleRoutines=trainerContentClientId?trainerRoutines.filter(r=>r.client_id===trainerContentClientId):trainerRoutines;
+ if(!visibleRoutines.length){el.innerHTML='<div class="empty-state card">Todavía no hay rutinas asignadas. Puedes preparar una propuesta privada y revisarla antes de asignar.<br><button class="btn" type="button" onclick="openRoutineBuilder()">✨ Preparar rutina</button></div>';return}
+ el.innerHTML=visibleRoutines.map(r=>`<div class="card real-routine-card">
    <div class="client-plan-identity">${profileAvatarHtml({name:r.client_name,avatarUrl:r.client_avatar_url},'client-plan-avatar')}<div class="client-plan-copy"><div class="client-plan-label">Rutina de</div><div class="client-plan-name">${escHtml(r.client_name||'Cliente')}</div><div class="client-plan-detail">${escHtml(r.name||'Rutina')} · ${escHtml(routineBlockMeta(r))}</div></div></div>
    <div class="real-routine-head">
     <div class="row"><h3>${escHtml(r.name)}</h3><span class="pill ${r.status==='active'?'green':''}">${escHtml(routineBlockStatusLabel(r))}</span></div>
     <div class="meta" style="margin-top:5px">${r.goal?escHtml(r.goal)+' · ':''}${escHtml(routineBlockMeta(r))}</div>
+    ${sharedRoutineMembers(r).length>1?`<div class="meta" style="margin-top:10px;color:#dbbd62">⇄ Rutina vinculada: ${escHtml(sharedRoutineNames(r))} · progreso individual</div>`:''}
     <div class="real-routine-actions">
+      ${sharedRoutineActions(r)}
       ${r.status==='active'?`<button class="btn routine-action-next" type="button" onclick="createNextRoutineBlock('${r.id}')">↗ Continuar con progresión</button><button class="btn routine-action-next" type="button" onclick="createNextRoutineBlock('${r.id}',true)">✨ Nuevo bloque desde cero</button>`:''}
       ${r.status==='draft'&&r.previous_routine_id?`<button class="btn routine-action-next" type="button" onclick="replanRoutineDraft('${r.id}')">✨ Reconfigurar por completo</button><button class="btn routine-action-edit" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar borrador</button><button class="btn routine-action-next" type="button" onclick="activateRoutineBlock('${r.id}')">✓ Activar bloque</button>`:`<button class="btn dark" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar</button>`}
       <button class="btn routine-action-archive" type="button" onclick="deleteRoutine('${r.id}')">🗄 Archivar</button>
@@ -6328,8 +6424,8 @@ function renderTrainerRoutines(){
 async function loadTrainerRoutines(){
  if(currentProfile?.role!=="trainer")return;
  const el=document.getElementById('trainerRoutinesList');if(el)el.innerHTML='<div class="empty-state card">Cargando rutinas…</div>';
- let routinesQuery=sb.from('routines').select('id,client_id,name,goal,status,start_date,end_date,block_number,previous_routine_id,notes,created_at').eq('trainer_id',currentProfile.id).neq('status','archived');
- if(trainerContentClientId)routinesQuery=routinesQuery.eq('client_id',trainerContentClientId);
+ let routinesQuery=sb.from('routines').select('id,client_id,name,goal,status,start_date,end_date,block_number,previous_routine_id,notes,created_at,shared_source_routine_id').eq('trainer_id',currentProfile.id).neq('status','archived');
+
  const {data:routines,error:rErr}=await routinesQuery.order('created_at',{ascending:false});
  if(rErr){console.error(rErr);if(el)el.innerHTML='<div class="empty-state card">No se pudieron cargar las rutinas.</div>';return}
  const base=routines||[];
@@ -6853,6 +6949,7 @@ async function loadRoutineExerciseLibrary(){
 }
 function setupRoutineModal(mode){
  const isEdit=mode==='edit';
+ const clientControl=document.getElementById('routineClient');if(clientControl)clientControl.disabled=false;
  const title=document.getElementById('routineModalTitle');if(title)title.textContent=isEdit?'Editar rutina':'Crear rutina';
  const copy=document.getElementById('routineModalCopy');if(copy)copy.textContent=isEdit?'Modifica fuerza y cardio: días, ejercicios, series, minutos e intensidad.':'Prepara fuerza, cardio o ambos. Revisa la propuesta y pulsa Guardar rutina para asignarla al cliente.';
  const save=document.getElementById('saveRoutineBtn');if(save)save.textContent=isEdit?'Guardar cambios':'Guardar rutina';
@@ -6905,6 +7002,11 @@ async function openRoutineBuilder(){
 async function openEditRoutine(routineId){
  if(currentProfile?.role!=="trainer")return;
  const routine=trainerRoutines.find(r=>r.id===routineId);if(!routine){toast('No se encontró la rutina');return}
+ if(routine.shared_source_routine_id){
+  const root=trainerRoutines.find(r=>r.id===routine.shared_source_routine_id&&r.status==='active');
+  if(!root){toast('Desvincula esta rutina para adaptarla: la principal ya no está activa.');return}
+  return openEditRoutine(root.id);
+ }
  routineActiveRecoveryKey=null;editingRoutineId=routineId;setupRoutineModal('edit');setAuthMessage('routineMsg','');
  const saveBtn=document.getElementById('saveRoutineBtn');
  if(saveBtn&&routine.status==='draft'&&routine.previous_routine_id)saveBtn.textContent=`Guardar borrador Bloque ${Number(routine.block_number)||2}`;
@@ -6921,6 +7023,10 @@ async function openEditRoutine(routineId){
  modal.classList.add('open');
  routineActiveRecoveryKey=routineRecoveryKey();
  document.getElementById('routineRecoveryStatus').textContent='';restoreRoutineRecovery();
+ if(sharedRoutineMembers(routine).length>1){
+  document.getElementById('routineClient').disabled=true;
+  document.getElementById('routineModalCopy').textContent=`Rutina vinculada · Los cambios se aplicarán a ${sharedRoutineNames(routine)}. Pesos e historial individuales. Para adaptar solo un cliente, cierra y usa «Desvincular y adaptar».`;
+ }
 }
 function closeRoutineBuilder(){
  if(routineSaving)return;
@@ -7113,6 +7219,7 @@ async function activateRoutineBlock(routineId){
  const block=Number(routine.block_number)||2;
  if(!confirm(`Activar el Bloque ${block}? El bloque anterior se archivará y este será el único visible para el cliente.`))return;
  try{
+  for(const old of trainerRoutines.filter(r=>r.client_id===routine.client_id&&r.status==='active')){const {error:detachError}=await sb.rpc('detach_shared_routine',{p_routine:old.id});if(detachError)throw detachError}
   const {error}=await sb.rpc('activate_routine_block',{p_routine_id:routineId});
   if(error)throw error;
   try{
@@ -7248,6 +7355,7 @@ async function deleteRoutine(routineId){
  const routine=trainerRoutines.find(r=>r.id===routineId);if(!routine)return;
  if(!confirm(`¿Archivar la rutina “${routine.name}”? El historial de entrenamientos se conservará.`))return;
  try{
+  const {error:detachError}=await routineRequest(sb.rpc('detach_shared_routine',{p_routine:routineId}));if(detachError)throw detachError;
   const {error}=await sb.from('routines').update({status:'archived',updated_at:new Date().toISOString()}).eq('id',routineId).eq('trainer_id',currentProfile.id);if(error)throw error;
   await loadTrainerRoutines();toast('Rutina archivada · historial conservado');
  }catch(error){console.error(error);toast(vicError(error,'No se pudo archivar la rutina'))}
@@ -7524,7 +7632,7 @@ window.addEventListener('pagehide',saveRoutineRecovery);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveRoutineRecovery()});
 
 async function saveRoutine(){
- if(trainerProposalBusy||routineSaving||vicDataMutationActive())return;
+ if(trainerProposalBusy||routineSaving||routineGroupCheckBusy||shareRoutineBusy||vicDataMutationActive())return;
  const btn=document.getElementById('saveRoutineBtn');
  const client_id=document.getElementById('routineClient').value;
  const name=document.getElementById('routineName').value.trim();
@@ -7546,6 +7654,10 @@ async function saveRoutine(){
  const targetRoutineId=editingRoutineId;
  const existingRoutine=wasEditing?trainerRoutines.find(r=>r.id===targetRoutineId):null;
  const editingGeneratedDraft=Boolean(wasEditing&&existingRoutine?.status==='draft'&&existingRoutine?.previous_routine_id);
+ routineGroupCheckBusy=true;
+ try{if(existingRoutine&&sharedRoutineMembers(existingRoutine).length>1&&existingRoutine.client_id!==client_id)throw new Error('No cambies el cliente de una rutina vinculada.');if(!await confirmSharedRoutineSave(existingRoutine))return}
+ catch(error){setAuthMessage('routineMsg',vicError(error,'No se pudo comprobar el grupo.'));return}
+ finally{routineGroupCheckBusy=false}
  const recoveryKey=routineRecoveryKey();
  saveRoutineRecovery();routineSaving=true;
  const lockedControls=[...document.querySelectorAll('#routineBuilderModal input,#routineBuilderModal select,#routineBuilderModal textarea,#routineBuilderModal button')].filter(el=>!el.disabled);
@@ -7790,6 +7902,10 @@ async function saveRoutine(){
   }
 
   await verifyRoutineSavedState(routineId,expectedDays);
+  if(!editingGeneratedDraft&&(!existingRoutine||existingRoutine.status==='active')){
+   const {error:syncError}=await routineRequest(sb.rpc('sync_shared_routine',{p_source:routineId}));
+   if(syncError)throw new Error('La rutina principal se guardó, pero no se pudo actualizar el grupo. Reintenta Guardar cambios o usa Actualizar grupo. '+(syncError.message||''));
+  }
 
   const successText=editingGeneratedDraft?'Borrador guardado · bloque anterior protegido':(wasEditing?'Rutina actualizada · historial protegido':'Rutina guardada');
   try{localStorage.removeItem(recoveryKey);localStorage.removeItem(routineRecoveryKey());localStorage.removeItem(`vic-routine-recovery-v1:${currentProfile.id}:${client_id}:${routineId}`)}catch(_){}
