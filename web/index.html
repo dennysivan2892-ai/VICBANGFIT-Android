@@ -2586,7 +2586,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
         <button class="btn dark" onclick="openTrainerClientSection('entrenamientos')">🏋 Rutinas</button>
         <button class="btn dark" onclick="openTrainerClientSection('nutricion')">🥗 Nutrición</button>
         <button class="btn dark" onclick="openTrainerClientSection('suplementacion')">🧪 Suplementación</button>
-        <button class="btn dark" onclick="showPage('checkins')">📸 Check-ins</button>
+        <button class="btn dark" onclick="openTrainerCheckins(activeTrainerClientId)">📸 Check-ins</button>
         <button class="btn dark" onclick="showPage('progreso')">📊 Progreso</button>
       </div>
       <div class="service-selector"><div class="row"><div><h4>Servicios de este cliente</h4><div class="muted tiny">Los apartados desactivados dejarán de aparecer en su cuenta.</div></div><span id="clientServicesBadge" class="pill assignment-inactive">SIN ASIGNAR</span></div><div id="clientServicesActiveView" class="assignment-view" hidden><b id="clientServicesActiveText">—</b><button class="btn dark" type="button" onclick="editClientServices()">Modificar</button></div><div id="clientServicesEditor" class="assignment-editor"><div class="service-options">
@@ -3093,8 +3093,10 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 </section>
 
 <section id="checkins" class="section">
-  <div class="header"><div><h1>Check-ins reales</h1><div class="muted">Peso, cintura, sensaciones y fotos semanales guardados en Supabase.</div></div><button class="btn dark" type="button" onclick="loadTrainerCheckins()">↻ Actualizar</button></div>
+  <div class="header"><div><h1 id="trainerCheckinsTitle">Check-ins de mis clientes</h1><div class="muted">Historial de peso, cintura, sensaciones y fotos, del más reciente al más antiguo.</div></div><button class="btn dark" type="button" onclick="loadTrainerCheckins()">↻ Actualizar</button></div>
+  <label>Buscar cliente <select id="trainerCheckinsClient" onchange="openTrainerCheckins(this.value)"><option value="">Todos mis clientes</option></select></label>
   <div id="checkList" class="checkin-history-list"><div class="card empty-state">Cargando check-ins…</div></div>
+  <button id="trainerCheckinsMore" class="btn dark" hidden onclick="loadTrainerCheckins(true)">Cargar anteriores</button>
 </section>
 
 <section id="progreso" class="section">
@@ -5218,7 +5220,10 @@ function showPage(id,vicOptions={}){
   if(id==="clientes")renderClientTable();
   if(id==="admin_accounts" && currentProfile?.is_admin)loadAdminAccounts();
   if(id==="ejercicios" && currentProfile?.role==="trainer")loadExerciseManager();
-  if(id==="checkins" && currentProfile?.role==="trainer")loadTrainerCheckins();
+  if(id==="checkins" && currentProfile?.role==="trainer"){
+    if(!vicOptions?.trainerCheckinScope)trainerCheckinsClientId=null;
+    renderTrainerCheckinsScope();loadTrainerCheckins();
+  }
   if(id==="entrenamientos" && currentProfile?.role==="trainer")loadTrainerRoutines();
   if(id==="progreso" && currentProfile?.role==="trainer"){loadTrainerProgress();loadTrainerBodyProgress();loadTrainerWeeklyReports();loadTrainerGoals();loadTrainerMeasurements();loadTrainerPhotoComparison();}
   if(id==="nutricion" && currentProfile?.role==="trainer"){smartNutritionInit();loadTrainerNutrition();}
@@ -10708,14 +10713,29 @@ async function saveClientCheckin(){
  finally{btn.disabled=false;if(returnHomeAfterSave||!clientEditingCheckin)btn.textContent='Enviar check-in'}
 }
 
-async function loadTrainerCheckins(){
- if(currentProfile?.role!=='trainer')return;const list=document.getElementById('checkList');if(!list)return;list.innerHTML='<div class="card empty-state">Cargando check-ins reales…</div>';
+let trainerCheckinsClientId=null,trainerCheckinsRequest=0,trainerCheckinsOffset=0;
+function openTrainerCheckins(clientId){
+ trainerCheckinsClientId=clientId||null;
+ showPage('checkins',{trainerCheckinScope:true});
+}
+function renderTrainerCheckinsScope(){
+ const select=document.getElementById('trainerCheckinsClient');
+ if(select){select.innerHTML='<option value="">Todos mis clientes</option>'+clients.map(c=>`<option value="${nutritionEsc(c.id)}">${nutritionEsc(c.name||'Cliente')}</option>`).join('');select.value=trainerCheckinsClientId||''}
+ const title=document.getElementById('trainerCheckinsTitle');
+ if(title)title.textContent=trainerCheckinsClientId?'Check-ins de '+(clients.find(c=>c.id===trainerCheckinsClientId)?.name||'este cliente'):'Check-ins de mis clientes';
+}
+async function loadTrainerCheckins(append=false){
+ if(currentProfile?.role!=='trainer')return;const list=document.getElementById('checkList');if(!list)return;const request=++trainerCheckinsRequest;const clientId=trainerCheckinsClientId;const more=document.getElementById('trainerCheckinsMore');if(more)more.hidden=true;if(!append){trainerCheckinsOffset=0;list.innerHTML='<div class="card empty-state">Cargando check-ins…</div>'}
  try{
-  const {data:rows,error}=await sb.from('checkins').select('id,client_id,checkin_date,weight_kg,waist_cm,energy,hunger,sleep_hours,comments,front_photo_path,side_photo_path,back_photo_path,created_at').eq('trainer_id',currentProfile.id).order('checkin_date',{ascending:false}).order('created_at',{ascending:false}).limit(50);if(error)throw error;
-  if(!rows?.length){list.innerHTML='<div class="card empty-state">Todavía no has recibido ningún check-in real.</div>';return}
-  const ids=[...new Set(rows.map(r=>r.client_id))];const {data:profiles,error:pErr}=await sb.from('profiles').select('id,full_name,email').in('id',ids);if(pErr)throw pErr;const pm=new Map((profiles||[]).map(p=>[p.id,p]));
-  list.innerHTML=rows.map(r=>{const p=pm.get(r.client_id)||{};const photos=[['Frontal',r.front_photo_path],['Lateral',r.side_photo_path],['Espalda',r.back_photo_path]].filter(x=>x[1]);return `<div class="checkin-history-card"><div class="row"><div><h3 style="margin:0">${nutritionEsc(p.full_name||p.email||'Cliente')}</h3><div class="muted tiny">${nutritionEsc(checkinFmtDate(r.checkin_date))}</div></div><span class="pill green">✓ Recibido</span></div><div class="checkin-history-metrics"><div class="checkin-metric"><b>${r.weight_kg??'—'}</b><span>kg</span></div><div class="checkin-metric"><b>${r.waist_cm??'—'}</b><span>cintura cm</span></div><div class="checkin-metric"><b>${r.energy??'—'}/10</b><span>energía</span></div><div class="checkin-metric"><b>${r.hunger??'—'}/10</b><span>hambre</span></div><div class="checkin-metric"><b>${r.sleep_hours??'—'} h</b><span>sueño</span></div></div>${r.comments?`<div class="card" style="margin-top:12px;padding:12px"><b>Comentarios</b><div class="muted" style="margin-top:6px">${nutritionEsc(r.comments)}</div></div>`:''}${photos.length?`<div class="checkin-photo-actions">${photos.map(([label,path])=>`<button type="button" onclick="openCheckinPhoto('${path.replace(/'/g,"\\'")}','${label}')">📸 ${label}</button>`).join('')}</div>`:'<div class="muted tiny" style="margin-top:10px">Sin fotos adjuntas.</div>'}</div>`}).join('');
- }catch(error){console.error(error);list.innerHTML='<div class="card empty-state">No se pudieron cargar los check-ins.</div>';toast('Error cargando check-ins')}
+  let query=sb.from('checkins').select('id,client_id,checkin_date,weight_kg,waist_cm,energy,hunger,sleep_hours,comments,front_photo_path,side_photo_path,back_photo_path,created_at').eq('trainer_id',currentProfile.id).order('checkin_date',{ascending:false}).order('created_at',{ascending:false});
+  if(clientId)query=query.eq('client_id',clientId);
+  const {data:rows,error}=await query.range(trainerCheckinsOffset,trainerCheckinsOffset+49);if(request!==trainerCheckinsRequest)return;if(error)throw error;
+  if(!rows?.length){if(!append)list.innerHTML='<div class="card empty-state">Todavía no hay check-ins en este historial.</div>';return}
+  const ids=[...new Set(rows.map(r=>r.client_id))];const {data:profiles,error:pErr}=await sb.from('profiles').select('id,full_name,email').in('id',ids);if(request!==trainerCheckinsRequest)return;if(pErr)throw pErr;const pm=new Map((profiles||[]).map(p=>[p.id,p]));
+  const html=rows.map(r=>{const p=pm.get(r.client_id)||{};const photos=[['Frontal',r.front_photo_path],['Lateral',r.side_photo_path],['Espalda',r.back_photo_path]].filter(x=>x[1]);return `<div class="checkin-history-card"><div class="row"><div><h3 style="margin:0">${nutritionEsc(p.full_name||p.email||'Cliente')}</h3><div class="muted tiny">${nutritionEsc(checkinFmtDate(r.checkin_date))}</div></div><span class="pill green">✓ Recibido</span></div><div class="checkin-history-metrics"><div class="checkin-metric"><b>${r.weight_kg??'—'}</b><span>kg</span></div><div class="checkin-metric"><b>${r.waist_cm??'—'}</b><span>cintura cm</span></div><div class="checkin-metric"><b>${r.energy??'—'}/10</b><span>energía</span></div><div class="checkin-metric"><b>${r.hunger??'—'}/10</b><span>hambre</span></div><div class="checkin-metric"><b>${r.sleep_hours??'—'} h</b><span>sueño</span></div></div>${r.comments?`<div class="card" style="margin-top:12px;padding:12px"><b>Comentarios</b><div class="muted" style="margin-top:6px">${nutritionEsc(r.comments)}</div></div>`:''}${photos.length?`<div class="checkin-photo-actions">${photos.map(([label,path])=>`<button type="button" onclick="openCheckinPhoto('${path.replace(/'/g,"\\'")}','${label}')">📸 ${label}</button>`).join('')}</div>`:'<div class="muted tiny" style="margin-top:10px">Sin fotos adjuntas.</div>'}</div>`}).join('');
+  if(append)list.insertAdjacentHTML('beforeend',html);else list.innerHTML=html;
+  trainerCheckinsOffset+=rows.length;if(more)more.hidden=rows.length<50;
+ }catch(error){if(request!==trainerCheckinsRequest)return;console.error(error);if(more&&append)more.hidden=false;if(append){toast('No se pudieron cargar los anteriores');return}list.innerHTML='<div class="card empty-state">No se pudieron cargar los check-ins.</div>';toast('Error cargando check-ins')}
 }
 
 async function openCheckinPhoto(path,label){
@@ -11033,7 +11053,7 @@ function plateauRunAction(){
  if(s.status==='adherence'){showPage('nutricion');return}
  if(s.status==='plateau'||s.status==='watch'){showPage('progreso');return}
  if(s.status==='progress'){document.querySelector('.load-progression-card')?.scrollIntoView({behavior:'smooth',block:'start'});return}
- showPage('checkins');
+ openTrainerCheckins(s.clientId);
 }
 
 let clientInterventionState=null;
@@ -11327,7 +11347,7 @@ function interventionRunAction(type){
   return;
  }
  if(type==='checkin'){
-  showPage('checkins');
+  openTrainerCheckins(s.clientId);
   return;
  }
  if(type==='task'){
@@ -14007,7 +14027,7 @@ function alertRoute(type,clientId){
  if(type==='workout'){showPage('entrenamientos');return}
  if(type==='payment'){showPage('pagos');return}
  if(type==='goal'){showPage('progreso');return}
- if(type==='checkin'){showPage('checkins');return}
+ if(type==='checkin'){openTrainerCheckins(clientId);return}
  const idx=clients.findIndex(c=>c.id===clientId);
  if(idx>=0)openClient(idx);
 }
