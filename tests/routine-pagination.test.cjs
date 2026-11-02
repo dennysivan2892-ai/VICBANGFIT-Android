@@ -1,0 +1,26 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync('web/index.html','utf8');
+const helper=html.slice(html.indexOf('async function loadRoutineRows('),html.indexOf('async function loadTrainerRoutines('));
+const trainer=html.slice(html.indexOf('async function loadTrainerRoutines('),html.indexOf('// BEGIN CLIENT MY DAY'));
+const client=html.slice(html.indexOf('async function loadClientRoutines('),html.indexOf('let activeWorkoutSession='));
+const exercises=Array.from({length:455},(_,i)=>({id:`we-${String(i).padStart(4,'0')}`,workout_day_id:'day',exercise_id:'press',exercise_order:i+1,is_archived:false}));
+const sets=exercises.flatMap(ex=>Array.from({length:4},(_,i)=>({id:`${ex.id}-${i}`,workout_exercise_id:ex.id,set_number:i+1,target_reps_min:8,target_reps_max:15,is_archived:false})));
+const tables={routines:[{id:'routine',client_id:'fabian',status:'active'}],workout_days:[{id:'day',routine_id:'routine',day_number:1,is_archived:false}],workout_exercises:exercises,exercises:[{id:'press',name:'Press banca'}],workout_sets:sets};
+let failPage=false;
+const calls=[];
+const context=vm.createContext({console,currentProfile:{id:'coach',role:'trainer'},clients:[{id:'fabian',name:'Fabian'}],document:{getElementById:()=>null},renderTrainerRoutines(){},renderClientRoutines(){},sb:{from(table){const filters=[],orders=[];let range=null;const q={select(){return q},eq(k,v){filters.push(row=>row[k]===undefined||row[k]===v);return q},neq(k,v){filters.push(row=>row[k]!==v);return q},in(k,v){filters.push(row=>v.includes(row[k]));return q},order(k,opts={}){orders.push([k,opts.ascending!==false?1:-1]);return q},range(a,b){range=[a,b];return q},then(resolve){calls.push({table,range,orders});if(failPage&&table==='workout_sets'&&range?.[0]===200)return Promise.resolve({data:null,error:{message:'network'}}).then(resolve);let data=tables[table].filter(row=>filters.every(f=>f(row))).slice();data.sort((a,b)=>{for(const [k,dir] of orders){if(a[k]<b[k])return -dir;if(a[k]>b[k])return dir}return 0});return Promise.resolve({data:range?data.slice(range[0],range[1]+1):data.slice(0,1000),error:null}).then(resolve)}};return q}}});
+vm.runInContext(helper+trainer+client,context);
+(async()=>{
+ await vm.runInContext('loadTrainerRoutines()',context);
+ assert.equal(vm.runInContext('trainerRoutines[0].days[0].exercises.length',context),455);
+ assert.equal(vm.runInContext('trainerRoutines[0].days[0].exercises.every(ex=>ex.sets.length===4)',context),true);
+ assert(calls.some(c=>c.table==='workout_sets'&&c.range[0]>=1000));
+ assert(calls.filter(c=>c.range).every(c=>c.orders.at(-1)[0]==='id'));
+ vm.runInContext("currentProfile={id:'fabian',role:'client'}",context);
+ await vm.runInContext('loadClientRoutines()',context);
+ assert.equal(vm.runInContext('clientRoutines[0].days[0].exercises.every(ex=>ex.sets.length===4)',context),true);
+ failPage=true;
+ const result=await vm.runInContext("loadRoutineRows(()=>sb.from('workout_sets').select('id'))",context);
+ assert.equal(result.data,null);assert.equal(result.error.message,'network');
+ console.log('PASS: trainer/client load all 1,820 sets, stable page ordering, and fail without partial results');
+})().catch(e=>{console.error(e);process.exit(1)});
