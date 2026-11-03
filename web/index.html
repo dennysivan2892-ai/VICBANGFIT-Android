@@ -7921,6 +7921,14 @@ async function saveRoutine(){
   }
 
   await verifyRoutineSavedState(routineId,expectedDays);
+  // Publish the completed edit only after all days, exercises and sets are verified.
+  // A sets-only edit must also invalidate observers of the parent routine.
+  const {data:publishedRoutine,error:publishError}=await routineRequest(sb.from('routines')
+   .update({updated_at:new Date().toISOString()})
+   .eq('id',routineId).eq('trainer_id',currentProfile.id)
+   .select('id').single());
+  if(publishError)throw publishError;
+  if(!publishedRoutine)throw new Error('Las series se guardaron, pero no se pudo confirmar la actualización de la rutina. Reintenta Guardar cambios.');
   if(!editingGeneratedDraft&&(!existingRoutine||existingRoutine.status==='active')){
    const {error:syncError}=await routineRequest(sb.rpc('sync_shared_routine',{p_source:routineId}));
    if(syncError)throw new Error('La rutina principal se guardó, pero no se pudo actualizar el grupo. Reintenta Guardar cambios o usa Actualizar grupo. '+(syncError.message||''));
