@@ -1,0 +1,11 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync('web/index.html','utf8');
+const code=html.slice(html.indexOf('function nutritionRevisionSummary('),html.indexOf('async function loadNutritionRevisions('));
+const ctx=vm.createContext({});vm.runInContext(code,ctx);const run=s=>vm.runInContext(s,ctx);
+assert.equal(run('nutritionRevisionSummary(2300,2200)'),'2300 → 2200 kcal · -100 kcal · -4,35 %');
+assert.equal(run('nutritionRevisionSummary(2000,2200)'),'2000 → 2200 kcal · +200 kcal · +10 %');
+assert.equal(run('nutritionRevisionSummary(2200,2200)'),'2200 → 2200 kcal · 0 kcal · 0 %');
+assert.equal(run('nutritionRevisionSummary(null,2200)'),'Cambio de alimentos o cantidades');
+assert.equal(run(`nutritionRevisionFoods({meals:[{name:'Desayuno',foods:[{food_name:'Piña',amount:75,unit:'g'}]}]})`),'Desayuno: Piña 75 g');
+assert.ok(html.includes("textContent='Plan actual · '+nutritionNum(plan.target_calories)+' kcal'"));
+console.log('PASS: calorie difference, previous-target percentage, increases, unchanged and missing targets, food snapshots, current client title');
