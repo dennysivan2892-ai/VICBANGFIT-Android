@@ -20,7 +20,7 @@ const validateNutritionBuilderSafety=async()=>{validations++;await Promise.resol
 const vicDataMutationActive=()=>mutation,vicBeginDataMutation=()=>mutation=true,vicEndDataMutation=()=>mutation=false;
 const closeNutritionBuilder=()=>{closed++;nutritionEditingPlanId=null},toast=()=>{},vicError=(e,m)=>e.message||m;
 const loadTrainerNutrition=()=>new Promise(()=>{});
-const sb={functions:{invoke(){notifications++;return new Promise(()=>{})}},from(table){let q={table,action:'select',filters:[]};return {select(){return this},update(payload){q.action='update';q.payload=payload;return this},delete(){q.action='delete';return this},insert(payload){q.action='insert';q.payload=payload;return this},eq(k,v){q.filters.push([k,v]);return this},neq(){return this},in(){return this},order(){return this},limit(){return this},then(resolve){requests.push(q);resolve({data:q.table==='nutrition_meals'&&q.action==='select'?original:[],error:fail&&q.action==='insert'?{message:'No se pudo guardar'}:null})}}}};
+const sb={async rpc(name,payload){requests.push({rpc:name,payload});return {error:fail?{message:'No se pudo guardar'}:null}},functions:{invoke(){notifications++;return new Promise(()=>{})}},from(table){let q={table,action:'select',filters:[]};return {select(){return this},update(payload){q.action='update';q.payload=payload;return this},delete(){q.action='delete';return this},insert(payload){q.action='insert';q.payload=payload;return this},eq(k,v){q.filters.push([k,v]);return this},neq(){return this},in(){return this},order(){return this},limit(){return this},then(resolve){requests.push(q);resolve({data:q.table==='nutrition_meals'&&q.action==='select'?original:[],error:fail&&q.action==='insert'?{message:'No se pudo guardar'}:null})}}}};
 ${pool}\n${code}
 `,ctx);
 const run=s=>vm.runInContext(s,ctx);
@@ -29,17 +29,18 @@ const run=s=>vm.runInContext(s,ctx);
  await Promise.race([run('Promise.all([saveNutritionPlan(),saveNutritionPlan()])'),new Promise((_,rej)=>setTimeout(()=>rej(Error('Save waited for notification or refresh')),500))]);
  assert.equal(run('validations'),1,'one validation and one save for double clicks');
  assert.equal(run('closed'),1);assert.equal(run('nutritionSaving'),false);assert.equal(run('notifications'),1);
- assert.equal(run('requests.length'),5,'one read, two plan writes, two food writes; not all five meals');
- assert.equal(run("requests.filter(r=>r.table==='nutrition_meals'&&r.action!=='select').length"),0,'unchanged meal metadata is not rewritten');
- assert.equal(run("requests.find(r=>r.table==='nutrition_foods'&&r.action==='delete').filters[0][1]"),'m0');
- assert.equal(run("requests.find(r=>r.table==='nutrition_foods'&&r.action==='insert').payload[0].meal_id"),'m0');
+ assert.equal(run('requests.length'),1,'one atomic RPC for diet and history');
+ assert.equal(run('requests[0].rpc'),'save_nutrition_revision');
+ assert.equal(run('requests[0].payload.p_plan_id'),'diet');
+ assert.equal(run('requests[0].payload.p_meals[0].id'),'m0');
+ assert.equal(run('requests[0].payload.p_meals[0].foods.length'),1);
  // Metadata-only change does not delete/reinsert foods.
  await run("nutritionEditingPlanId='diet';edited[0].foods=JSON.parse(JSON.stringify(original[0].foods));edited[1].name='Comida modificada';requests=[];saveNutritionPlan()");
  assert.equal(run("requests.filter(r=>r.table==='nutrition_foods').length"),0);
- assert.equal(run("requests.filter(r=>r.table==='nutrition_meals'&&r.action==='update').length"),1);
+ assert.equal(run('requests[0].payload.p_meals[1].name'),'Comida modificada');
  // Failed persistence leaves the editor open and usable, with no success notification.
  const closed=run('closed'),notify=run('notifications');
  await run("nutritionEditingPlanId='diet';edited[0].foods.pop();fail=true;saveNutritionPlan()");
  assert.equal(run('closed'),closed);assert.equal(run('notifications'),notify);assert.equal(run('nutritionSaving'),false);assert.equal(run("get('saveNutritionBtn').disabled"),false);
- console.log('PASS: five requests instead of rewriting five meals; no waiting on notifications/list; single validation/double-click guard; same meal IDs; metadata-only updates; failed-save recovery');
+ console.log('PASS: atomic revision RPC; no waiting on notifications/list; single validation/double-click guard; same meal IDs; metadata-only updates; failed-save recovery');
 })().catch(e=>{console.error(e);process.exitCode=1});

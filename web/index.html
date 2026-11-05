@@ -6507,12 +6507,12 @@ function clientDaySet(id,text){const el=document.getElementById(id);if(el)el.tex
 function clientDayNutritionSummary(plan,meals,logs){
  if(!plan)return {title:'Sin dieta asignada',detail:'Tu entrenador todavía no ha activado un plan nutricional.'};
  const done=new Set((logs||[]).filter(x=>x.completed).map(x=>x.meal_id)),pending=(meals||[]).find(m=>!done.has(m.id));
- return {title:plan.name||'Tu dieta diaria',detail:meals.length?`${meals.filter(m=>done.has(m.id)).length}/${meals.length} comidas registradas hoy${pending?' · Siguiente sin registrar: '+pending.name:' · Todas registradas ✓'}`:'Tu plan todavía no tiene comidas.'};
+ return {title:plan.target_calories?'Plan actual · '+plan.target_calories+' kcal':'Tu dieta diaria',detail:meals.length?`${meals.filter(m=>done.has(m.id)).length}/${meals.length} comidas registradas hoy${pending?' · Siguiente sin registrar: '+pending.name:' · Todas registradas ✓'}`:'Tu plan todavía no tiene comidas.'};
 }
 async function loadClientDayPlans(token,clientId){
  const valid=()=>token===clientDayLoadToken&&currentProfile?.id===clientId;
  const planFor=async table=>{
-  const result=await sb.from(table).select('id,name').eq('client_id',clientId).eq('status','active').order('created_at',{ascending:false}).limit(1).maybeSingle();if(result.error)throw result.error;return result.data;
+  const result=await sb.from(table).select(table==='nutrition_plans'?'id,name,target_calories':'id,name').eq('client_id',clientId).eq('status','active').order('created_at',{ascending:false}).limit(1).maybeSingle();if(result.error)throw result.error;return result.data;
  };
  const tasks=[];
  if(clientServiceEnabled('nutrition'))tasks.push((async()=>{
@@ -10092,92 +10092,9 @@ async function saveNutritionPlan(){
   let savedPlanId=null;
 
   if(oldPlanId){
-   // EDITAR EL MISMO PLAN: conserva plan_id, created_at, meal_id y todo el historial.
-   const {data:existingMeals,error:eErr}=await sb.from('nutrition_meals').select('id,name,meal_order').eq('plan_id',oldPlanId).order('meal_order');
-   if(eErr)throw eErr;
-
-   const existingIds=new Set((existingMeals||[]).map(m=>String(m.id)));
-   if(meals.some(m=>m.id&&!existingIds.has(String(m.id))))throw new Error('Una comida ha cambiado desde que abriste la dieta. Vuelve a abrirla antes de guardar.');
-   const currentMealIds=new Set(meals.map(m=>String(m.id||'')).filter(Boolean));
-   const removedMeals=(existingMeals||[]).filter(m=>!currentMealIds.has(String(m.id)));
-
-   // No borrar una comida que ya tiene historial: protege los registros del cliente.
-   if(removedMeals.length){
-    const removedIds=removedMeals.map(m=>m.id);
-    const {data:usedLogs,error:logErr}=await sb.from('nutrition_meal_logs').select('meal_id').in('meal_id',removedIds).limit(1);
-    if(logErr)throw logErr;
-    if((usedLogs||[]).length){
-     throw new Error('Para conservar el historial, no puedes eliminar una comida que ya tiene registros. Puedes renombrarla, cambiar sus alimentos, horario o cantidades.');
-    }
-    const {error:dfErr}=await sb.from('nutrition_foods').delete().in('meal_id',removedIds);
-    if(dfErr)throw dfErr;
-    const {error:dmErr}=await sb.from('nutrition_meals').delete().in('id',removedIds).eq('plan_id',oldPlanId);
-    if(dmErr)throw dmErr;
-   }
-
-   const {error:pErr}=await sb.from('nutrition_plans').update({
-    name:planPayload.name,
-    status:'active',
-    target_calories:planPayload.target_calories,
-    target_protein_g:planPayload.target_protein_g,
-    target_carbs_g:planPayload.target_carbs_g,
-    target_fat_g:planPayload.target_fat_g,
-    notes:planPayload.notes,food_rules:planPayload.food_rules
-   }).eq('id',oldPlanId).eq('trainer_id',currentProfile.id).eq('client_id',clientId);
-   if(pErr)throw pErr;
-
-   const baseline=nutritionEditingBaseline?.planId===oldPlanId?nutritionEditingBaseline.meals:[];
-   const changedMeals=meals.map(meal=>({meal,changes:nutritionMealSaveChanges(meal,baseline.find(m=>String(m.id)===String(meal.id)))})).filter(x=>x.changes.meta||x.changes.foods);
-   let completedMeals=0;
-   await routineWritePool(changedMeals,async ({meal,changes})=>{
-    msg.textContent=`Guardando ajustes: ${completedMeals}/${changedMeals.length} comidas…`;
-    let mealId=meal.id;
-    if(mealId){
-     if(changes.meta){const {error:mErr}=await sb.from('nutrition_meals').update({
-      meal_order:meal.order,
-      name:meal.name,
-      target_time:meal.time,
-      notes:meal.notes,food_rules:meal.food_rules
-     }).eq('id',mealId).eq('plan_id',oldPlanId);
-     if(mErr)throw mErr;}
-
-     // Los alimentos pueden cambiar sin tocar el meal_id; así los logs siguen vinculados.
-     if(changes.foods){const {error:dfErr}=await sb.from('nutrition_foods').delete().eq('meal_id',mealId);
-     if(dfErr)throw dfErr;}
-    }else{
-     const {data:m,error:mErr}=await sb.from('nutrition_meals').insert({
-      plan_id:oldPlanId,
-      meal_order:meal.order,
-      name:meal.name,
-      target_time:meal.time,
-      notes:meal.notes,food_rules:meal.food_rules
-     }).select('id').single();
-     if(mErr)throw mErr;
-     mealId=m.id;
-    }
-
-    if(changes.foods&&meal.foods.length){
-     const rows=meal.foods.map((food,i)=>({
-      meal_id:mealId,
-      food_order:i+1,
-      food_name:food.food_name,
-      amount:food.amount,
-      unit:food.unit,
-      prepared_amount:food.prepared_amount,
-      prepared_unit:food.prepared_unit
-     }));
-     const {error:fErr}=await sb.from('nutrition_foods').insert(rows);
-     if(fErr)throw fErr;
-    }
-    completedMeals++;msg.textContent=`Guardando ajustes: ${completedMeals}/${changedMeals.length} comidas…`;
-   },3);
-
+   const {error:revisionError}=await sb.rpc('save_nutrition_revision',{p_plan_id:oldPlanId,p_plan:planPayload,p_meals:meals.map(m=>({...m,foods:m.foods.map((f,i)=>({...f,food_order:i+1}))}))});
+   if(revisionError)throw revisionError;
    savedPlanId=oldPlanId;
-
-   // Por seguridad, si quedó otro plan activo duplicado de versiones anteriores, se archiva.
-   const {error:aErr}=await sb.from('nutrition_plans').update({status:'archived'})
-    .eq('client_id',clientId).eq('trainer_id',currentProfile.id).eq('status','active').neq('id',oldPlanId);
-   if(aErr)throw aErr;
   }else{
    // PLAN NUEVO: solo aquí se crea un nuevo plan_id.
    const {data:newPlan,error:pErr}=await sb.from('nutrition_plans').insert(planPayload).select('id').single();
@@ -10229,6 +10146,21 @@ async function saveNutritionPlan(){
  }
 }
 
+function nutritionRevisionSummary(before,after){
+ const a=Number(before),b=Number(after);if(!(a>0)||!(b>0))return 'Cambio de alimentos o cantidades';
+ const d=b-a;const fmt=n=>Number(n).toLocaleString('es-ES',{maximumFractionDigits:2});
+ return `${fmt(a)} → ${fmt(b)} kcal · ${d>0?'+':''}${fmt(d)} kcal · ${d>0?'+':''}${fmt(d/a*100)} %`;
+}
+function nutritionRevisionFoods(snapshot){
+ return (snapshot.meals||[]).map(m=>`${m.name}: ${(m.foods||[]).map(f=>`${f.food_name} ${f.amount??''} ${f.unit||''}`).join(', ')}`).join('\n');
+}
+async function loadNutritionRevisions(planId){
+ const el=document.getElementById('nutritionRevisions-'+planId);if(!el)return;
+ el.textContent='Cargando historial…';
+ const {data,error}=await sb.from('nutrition_revisions').select('created_at,before_plan,after_plan').eq('plan_id',planId).order('created_at',{ascending:false});
+ if(error){el.textContent='No se pudo cargar el historial.';return}
+ el.innerHTML=(data||[]).map(r=>`<details class="card"><summary>${nutritionEsc(new Date(r.created_at).toLocaleString('es-ES'))} · ${nutritionEsc(nutritionRevisionSummary(r.before_plan.target_calories,r.after_plan.target_calories))}</summary><b>Antes</b><div style="white-space:pre-wrap">${nutritionEsc(nutritionRevisionFoods(r.before_plan))}</div><b>Ahora</b><div style="white-space:pre-wrap">${nutritionEsc(nutritionRevisionFoods(r.after_plan))}</div></details>`).join('')||'Los próximos ajustes se registrarán aquí. No hay historial anterior disponible.';
+}
 async function loadTrainerNutrition(){
  if(currentProfile?.role!=='trainer')return;const list=document.getElementById('trainerNutritionList');if(!list)return;list.innerHTML='<div class="card empty-state">Cargando planes nutricionales…</div>';
  try{
@@ -10263,7 +10195,7 @@ async function loadTrainerNutrition(){
   const totalMeals=meals.length,doneMeals=meals.filter(m=>todayDone.has(m.id)).length,adh=totalMeals?Math.round(doneMeals/totalMeals*100):0;const calVals=trainerNutritionPlans.map(p=>Number(p.target_calories)).filter(Number.isFinite);const avgCal=calVals.length?Math.round(calVals.reduce((a,b)=>a+b,0)/calVals.length):0;
   document.getElementById('nutritionActivePlans').textContent=trainerNutritionPlans.length;document.getElementById('nutritionMealsToday').textContent=`${doneMeals}/${totalMeals}`;document.getElementById('nutritionAdherenceToday').textContent=totalMeals?adh+'%':'—';document.getElementById('nutritionAvgCalories').textContent=avgCal?avgCal.toLocaleString('es-ES'):'—';
   if(!trainerNutritionPlans.length){list.innerHTML='<div class="card nutrition-empty">Todavía no hay nutrición asignada. Prepara una propuesta editable antes de enviarla.<br><button class="btn" type="button" onclick="openNutritionBuilderWithProposal()">✨ Preparar nutrición</button></div>';return}
-  list.innerHTML=trainerNutritionPlans.map(plan=>{const profile=pm.get(plan.client_id)||{};const ms=mealsByPlan.get(plan.id)||[];const safetyProfile=safetyProfiles.get(plan.client_id)||nutritionProfileBlank();const safetyReview=nutritionSafetyPlanReview(safetyProfile,ms,foodsByMeal);const doneSet=doneByPlanDate.get(`${plan.id}|${today}`)||new Set();const done=ms.filter(m=>doneSet.has(m.id)).length;const pct=ms.length?Math.round(done/ms.length*100):0;const history=nutritionPlanHistory(plan,ms,doneByPlanDate,historyDates);const duplicatesForClient=trainerNutritionPlans.filter(x=>String(x.client_id)===String(plan.client_id)).length>1;return `<div class="nutrition-plan-card"><div class="nutrition-plan-head"><div><span class="nutrition-status">● Activo</span><span class="nutrition-plan-lock ${safetyReview.conflicts.length?'blocked':''}">${safetyReview.conflicts.length?'⛔ Bloqueado':'🛡️ Validado'}</span><h2 style="margin-top:9px">${nutritionEsc(plan.name)}</h2><div class="muted">${nutritionEsc(profile.full_name||profile.email||'Cliente')}</div></div><div class="row">${duplicatesForClient?`<button class="btn" type="button" onclick="chooseNutritionPlan('${plan.id}')">✓ Dejar este</button>`:''}<button class="btn" type="button" onclick="openNutritionCurrentAdjustment('${plan.id}')">⚖️ Ajustar dieta actual</button><button class="btn dark" type="button" onclick="editNutritionPlan('${plan.id}')">✎ Editar dieta completa</button><button class="btn ghost" type="button" onclick="archiveNutritionPlan('${plan.id}')">🗑 Quitar</button></div></div><div class="nutrition-macros"><div class="nutrition-macro"><b>${nutritionNum(plan.target_calories)}</b><span>kcal</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_protein_g,' g')}</b><span>proteína</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_carbs_g,' g')}</b><span>carbo</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_fat_g,' g')}</b><span>grasa</span></div></div>${nutritionWeightNoticeHtml()}${nutritionSafetyReviewHtml(safetyReview,'trainer')}<div class="row" style="margin-top:14px"><b>Adherencia hoy</b><span class="green">${ms.length?pct+'%':'Sin comidas'}</span></div><div class="nutrition-adherence"><i style="width:${pct}%"></i></div>${nutritionHistoryHtml(history)}<div class="nutrition-meals">${ms.map(m=>`<div class="nutrition-meal"><div class="nutrition-meal-top"><b>${nutritionEsc(m.name)}</b><button class="btn dark" type="button" onclick="editNutritionPlan('${plan.id}','${m.id}')">✎ Editar esta comida</button><span class="muted tiny">${nutritionMealTime(m.target_time)?'🔔 '+nutritionMealTime(m.target_time):''} ${doneSet.has(m.id)?'· ✓ Hecha':''}</span></div>${m.notes?`<div class="nutrition-meal-target">${nutritionEsc(m.notes)}</div>`:''}<div class="nutrition-foods" style="margin-top:${m.notes?'10px':'0'}">${(foodsByMeal.get(m.id)||[]).map(f=>nutritionSafetyFoodRowHtml(f,safetyProfile,'trainer')).join('')||'<div class="muted tiny">Sin alimentos añadidos</div>'}</div></div>`).join('')}</div>${plan.notes?`<div class="muted tiny" style="margin-top:12px">Notas: ${nutritionEsc(plan.notes)}</div>`:''}</div>`}).join('');
+  list.innerHTML=trainerNutritionPlans.map(plan=>{const profile=pm.get(plan.client_id)||{};const ms=mealsByPlan.get(plan.id)||[];const safetyProfile=safetyProfiles.get(plan.client_id)||nutritionProfileBlank();const safetyReview=nutritionSafetyPlanReview(safetyProfile,ms,foodsByMeal);const doneSet=doneByPlanDate.get(`${plan.id}|${today}`)||new Set();const done=ms.filter(m=>doneSet.has(m.id)).length;const pct=ms.length?Math.round(done/ms.length*100):0;const history=nutritionPlanHistory(plan,ms,doneByPlanDate,historyDates);const duplicatesForClient=trainerNutritionPlans.filter(x=>String(x.client_id)===String(plan.client_id)).length>1;return `<div class="nutrition-plan-card"><div class="nutrition-plan-head"><div><span class="nutrition-status">● Activo</span><span class="nutrition-plan-lock ${safetyReview.conflicts.length?'blocked':''}">${safetyReview.conflicts.length?'⛔ Bloqueado':'🛡️ Validado'}</span><h2 style="margin-top:9px">${nutritionEsc(plan.name)}</h2><div class="muted">${nutritionEsc(profile.full_name||profile.email||'Cliente')}</div></div><div class="row">${duplicatesForClient?`<button class="btn" type="button" onclick="chooseNutritionPlan('${plan.id}')">✓ Dejar este</button>`:''}<button class="btn" type="button" onclick="openNutritionCurrentAdjustment('${plan.id}')">⚖️ Ajustar dieta actual</button><button class="btn dark" type="button" onclick="editNutritionPlan('${plan.id}')">✎ Editar dieta completa</button><button class="btn ghost" type="button" onclick="archiveNutritionPlan('${plan.id}')">🗑 Quitar</button></div></div><div class="nutrition-macros"><div class="nutrition-macro"><b>${nutritionNum(plan.target_calories)}</b><span>kcal</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_protein_g,' g')}</b><span>proteína</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_carbs_g,' g')}</b><span>carbo</span></div><div class="nutrition-macro"><b>${nutritionNum(plan.target_fat_g,' g')}</b><span>grasa</span></div></div>${nutritionWeightNoticeHtml()}${nutritionSafetyReviewHtml(safetyReview,'trainer')}<div class="row" style="margin-top:14px"><b>Adherencia hoy</b><span class="green">${ms.length?pct+'%':'Sin comidas'}</span></div><div class="nutrition-adherence"><i style="width:${pct}%"></i></div>${nutritionHistoryHtml(history)}<details ontoggle="if(this.open)loadNutritionRevisions('${plan.id}')"><summary>Historial de ajustes · kcal y porcentaje</summary><div id="nutritionRevisions-${plan.id}"></div></details><div class="nutrition-meals">${ms.map(m=>`<div class="nutrition-meal"><div class="nutrition-meal-top"><b>${nutritionEsc(m.name)}</b><button class="btn dark" type="button" onclick="editNutritionPlan('${plan.id}','${m.id}')">✎ Editar esta comida</button><span class="muted tiny">${nutritionMealTime(m.target_time)?'🔔 '+nutritionMealTime(m.target_time):''} ${doneSet.has(m.id)?'· ✓ Hecha':''}</span></div>${m.notes?`<div class="nutrition-meal-target">${nutritionEsc(m.notes)}</div>`:''}<div class="nutrition-foods" style="margin-top:${m.notes?'10px':'0'}">${(foodsByMeal.get(m.id)||[]).map(f=>nutritionSafetyFoodRowHtml(f,safetyProfile,'trainer')).join('')||'<div class="muted tiny">Sin alimentos añadidos</div>'}</div></div>`).join('')}</div>${plan.notes?`<div class="muted tiny" style="margin-top:12px">Notas: ${nutritionEsc(plan.notes)}</div>`:''}</div>`}).join('');
   [...list.querySelectorAll('.nutrition-plan-card')].forEach((card,index)=>{
    const plan=trainerNutritionPlans[index],profile=pm.get(plan?.client_id)||{},head=card.querySelector('.nutrition-plan-head');
    if(!head)return;
@@ -16636,16 +16568,16 @@ async function loadClientNutrition(){
  document.querySelectorAll('#client_nutrition > .grid4, #client_nutrition > .card, #clientWaterCard').forEach(el=>el.hidden=!clientServiceEnabled('nutrition'));
  if(!clientServiceEnabled('nutrition')){mealsEl.innerHTML='';document.getElementById('clientNutritionSubtitle').textContent='Consulta tu suplementación diaria.';return}
  try{
-  const {data:plan,error:pErr}=await sb.from('nutrition_plans').select('id,name,target_calories,target_protein_g,target_carbs_g,target_fat_g,notes,created_at,food_rules').eq('client_id',currentProfile.id).eq('status','active').order('created_at',{ascending:false}).limit(1).maybeSingle();if(pErr)throw pErr;
+  const {data:plan,error:pErr}=await sb.from('nutrition_plans').select('id,name,target_calories,target_protein_g,target_carbs_g,target_fat_g,notes,created_at,updated_at,food_rules').eq('client_id',currentProfile.id).eq('status','active').order('created_at',{ascending:false}).limit(1).maybeSingle();if(pErr)throw pErr;
   if(!plan){document.getElementById('clientNutritionSubtitle').textContent='Tu entrenador todavía no te ha asignado un plan.';['Calories','Protein','Carbs','Fat'].forEach(k=>document.getElementById('clientNutrition'+k).textContent='—');document.getElementById('clientNutritionAdherence').textContent='—';document.getElementById('clientNutritionAdherenceMeta').textContent='Sin plan activo';document.getElementById('clientNutritionAdherenceBar').style.width='0%';mealsEl.innerHTML='<div class="card nutrition-empty">Todavía no tienes un plan nutricional activo.</div>';return}
-  document.getElementById('clientNutritionSubtitle').textContent=plan.name||'Plan nutricional';document.getElementById('clientNutritionCalories').textContent=nutritionNum(plan.target_calories);document.getElementById('clientNutritionProtein').textContent=nutritionNum(plan.target_protein_g,' g');document.getElementById('clientNutritionCarbs').textContent=nutritionNum(plan.target_carbs_g,' g');document.getElementById('clientNutritionFat').textContent=nutritionNum(plan.target_fat_g,' g');
+  document.getElementById('clientNutritionSubtitle').textContent='Plan actual · '+nutritionNum(plan.target_calories)+' kcal';document.getElementById('clientNutritionCalories').textContent=nutritionNum(plan.target_calories);document.getElementById('clientNutritionProtein').textContent=nutritionNum(plan.target_protein_g,' g');document.getElementById('clientNutritionCarbs').textContent=nutritionNum(plan.target_carbs_g,' g');document.getElementById('clientNutritionFat').textContent=nutritionNum(plan.target_fat_g,' g');
   const {data:meals,error:mErr}=await sb.from('nutrition_meals').select('id,plan_id,meal_order,name,target_time,notes,food_rules').eq('plan_id',plan.id).order('meal_order');if(mErr)throw mErr;const mealIds=(meals||[]).map(m=>m.id);let foods=[],logs=[];
   if(mealIds.length){const [{data:f,error:fErr},{data:l,error:lErr}]=await Promise.all([sb.from('nutrition_foods').select('id,meal_id,food_order,food_name,amount,unit,prepared_amount,prepared_unit').in('meal_id',mealIds).order('food_order'),sb.from('nutrition_meal_logs').select('meal_id,completed,completed_at').eq('client_id',currentProfile.id).eq('plan_id',plan.id).eq('log_date',nutritionToday())]);if(fErr||lErr)throw(fErr||lErr);foods=f||[];logs=l||[]}
   nutritionSubstitutionFoods=new Map(foods.map(f=>[String(f.id),{...f,client_id:currentProfile.id,food_rules:nutritionRulesMerge(plan.food_rules,meals.find(m=>m.id===f.meal_id)?.food_rules)}]));
   const clientSafetyProfile=await nutritionLoadSafetyProfile(currentProfile.id);
   const foodsByMeal=new Map();for(const f of foods){if(!foodsByMeal.has(f.meal_id))foodsByMeal.set(f.meal_id,[]);foodsByMeal.get(f.meal_id).push(f)}const logMap=new Map(logs.map(l=>[l.meal_id,l]));const done=(meals||[]).filter(m=>logMap.get(m.id)?.completed).length;const total=(meals||[]).length;const pct=total?Math.round(done/total*100):0;document.getElementById('clientNutritionAdherence').textContent=total?pct+'%':'—';document.getElementById('clientNutritionAdherenceMeta').textContent=total?`${done} de ${total} comidas realizadas hoy`:'Sin comidas';document.getElementById('clientNutritionAdherenceBar').style.width=pct+'%';
   const clientSafetyReview=nutritionSafetyPlanReview(clientSafetyProfile,meals||[],foodsByMeal);
-  mealsEl.innerHTML=nutritionWeightNoticeHtml()+nutritionSafetyReviewHtml(clientSafetyReview,'client')+(meals||[]).map(m=>{const completed=!!logMap.get(m.id)?.completed;return `<div class="nutrition-plan-card"><div class="nutrition-meal-top"><div><h2 style="margin:0">${nutritionEsc(m.name)}</h2><div class="muted tiny">${nutritionMealTime(m.target_time)?'🔔 Recordatorio · '+nutritionMealTime(m.target_time):'Sin hora fija'}</div></div>${completed?'<span class="nutrition-status">✓ Realizada</span>':''}</div>${m.notes?`<div class="nutrition-meal-target">${nutritionEsc(m.notes)}</div>`:''}<div class="nutrition-foods" style="margin-top:12px">${(foodsByMeal.get(m.id)||[]).map(f=>nutritionSafetyFoodRowHtml(f,clientSafetyProfile,'client')).join('')||'<div class="muted tiny">Sin alimentos detallados.</div>'}</div><div class="card nutrition-meal-supplements" data-nutrition-supp-meal="${nutritionEsc(m.name)}" data-meal-time="${nutritionMealTime(m.target_time)}" hidden></div><button class="nutrition-complete-btn ${completed?'done':''}" type="button" onclick="toggleNutritionMeal('${plan.id}','${m.id}',${completed})">${completed?'✓ Comida realizada · desmarcar':'○ Marcar comida como realizada'}</button></div>`}).join('')||'<div class="card nutrition-empty">El plan todavía no tiene comidas.</div>';
+  mealsEl.innerHTML=(plan.updated_at?`<div class="card"><b>Dieta actualizada</b><div class="muted tiny">Último guardado: ${nutritionEsc(new Date(plan.updated_at).toLocaleString('es-ES'))}</div></div>`:'')+nutritionWeightNoticeHtml()+nutritionSafetyReviewHtml(clientSafetyReview,'client')+(meals||[]).map(m=>{const completed=!!logMap.get(m.id)?.completed;return `<div class="nutrition-plan-card"><div class="nutrition-meal-top"><div><h2 style="margin:0">${nutritionEsc(m.name)}</h2><div class="muted tiny">${nutritionMealTime(m.target_time)?'🔔 Recordatorio · '+nutritionMealTime(m.target_time):'Sin hora fija'}</div></div>${completed?'<span class="nutrition-status">✓ Realizada</span>':''}</div>${m.notes?`<div class="nutrition-meal-target">${nutritionEsc(m.notes)}</div>`:''}<div class="nutrition-foods" style="margin-top:12px">${(foodsByMeal.get(m.id)||[]).map(f=>nutritionSafetyFoodRowHtml(f,clientSafetyProfile,'client')).join('')||'<div class="muted tiny">Sin alimentos detallados.</div>'}</div><div class="card nutrition-meal-supplements" data-nutrition-supp-meal="${nutritionEsc(m.name)}" data-meal-time="${nutritionMealTime(m.target_time)}" hidden></div><button class="nutrition-complete-btn ${completed?'done':''}" type="button" onclick="toggleNutritionMeal('${plan.id}','${m.id}',${completed})">${completed?'✓ Comida realizada · desmarcar':'○ Marcar comida como realizada'}</button></div>`}).join('')||'<div class="card nutrition-empty">El plan todavía no tiene comidas.</div>';
   renderNutritionMealSupplements();
   if(plan.notes)mealsEl.insertAdjacentHTML('beforeend',`<div class="card"><b>Indicaciones de tu entrenador</b><div class="muted" style="margin-top:8px">${nutritionEsc(plan.notes)}</div></div>`);
  }catch(error){console.error(error);mealsEl.innerHTML='<div class="card nutrition-empty">No se pudo cargar tu plan nutricional.</div>'}
