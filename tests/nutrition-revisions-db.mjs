@@ -12,6 +12,21 @@ await db.query("select set_config('request.jwt.claim.sub',$1,false)",[trainer]);
 await db.query('select save_nutrition_revision($1,$2,$3)',[plan,payload,meals]);
 let rows=(await db.query('select * from nutrition_revisions')).rows;assert.equal(rows.length,1);assert.equal(rows[0].before_plan.target_calories,2300);assert.equal(rows[0].after_plan.target_calories,2200);assert.equal(rows[0].before_plan.meals[0].foods[0].amount,150);assert.equal(rows[0].after_plan.meals[0].foods[0].amount,75);assert.equal((await db.query('select meal_id from nutrition_meal_logs')).rows[0].meal_id,meal);
 await assert.rejects(db.query('select save_nutrition_revision($1,$2,$3)',[plan,{...payload,target_calories:2000},[{...meals[0],foods:[{food_order:1,amount:25}]}]]));assert.equal((await db.query('select target_calories from nutrition_plans')).rows[0].target_calories,2200);assert.equal(Number((await db.query('select amount from nutrition_foods')).rows[0].amount),75);assert.equal((await db.query('select * from nutrition_revisions')).rows.length,1);
+// Reproduce the exact exclusion failure: a fractional calorie target rolls
+// back food deletion too. The server fix accepts older installed clients.
+const removed=[{...meals[0],foods:[{food_order:1,food_name:'Pollo',amount:180,unit:'g'}]}];
+await assert.rejects(db.query('select save_nutrition_revision($1,$2,$3)',[plan,{...payload,target_calories:2157.7},removed]),/invalid input syntax for type integer/);
+assert.equal((await db.query('select food_name from nutrition_foods')).rows[0].food_name,'Piña');
+await db.exec('reset role');
+await db.exec(fs.readFileSync(new URL('../db/nutrition-revision-decimal-calories.sql',import.meta.url),'utf8'));
+await db.exec(fs.readFileSync(new URL('../db/nutrition-revision-decimal-calories.sql',import.meta.url),'utf8'));
+await db.exec('set role authenticated');
+await db.query('select save_nutrition_revision($1,$2,$3)',[plan,{...payload,target_calories:2157.7,target_carbs_g:173.2},removed]);
+assert.equal((await db.query('select target_calories,target_carbs_g from nutrition_plans')).rows[0].target_calories,2158);
+assert.equal(Number((await db.query('select target_carbs_g from nutrition_plans')).rows[0].target_carbs_g),173.2);
+assert.equal((await db.query('select food_name from nutrition_foods')).rows[0].food_name,'Pollo');
+assert.equal((await db.query('select after_plan from nutrition_revisions order by created_at desc limit 1')).rows[0].after_plan.target_calories,2158);
+assert.equal((await db.query('select meal_id from nutrition_meal_logs')).rows[0].meal_id,meal);
 await db.query("select set_config('request.jwt.claim.sub',$1,false)",[client]);assert.equal((await db.query('select * from nutrition_revisions')).rows.length,0);await assert.rejects(db.query('select save_nutrition_revision($1,$2,$3)',[plan,payload,meals]));
 await db.exec('reset role;set role anon;');await assert.rejects(db.query('select * from nutrition_revisions'));await assert.rejects(db.query('select save_nutrition_revision($1,$2,$3)',[plan,payload,meals]));
 console.log('PASS: PostgreSQL migration, authenticated atomic save, exact before/after food and calorie history, preserved meal logs, failure rollback, trainer/client/anon authorization');await db.close();
