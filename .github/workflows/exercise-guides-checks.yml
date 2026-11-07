@@ -34,6 +34,8 @@ jobs:
       - run: node tests/trainer-proposals.test.cjs
       - run: node tests/training-levels.test.cjs
       - run: node tests/shared-routines-ui.test.cjs
+      - run: node tests/nutrition-create-flow.test.cjs
+      - run: node tests/nutrition-revisions-db.mjs
       - run: node tests/nutrition-existing-plan.test.cjs
       - run: node tests/nutrition-save-performance.test.cjs
       - run: node tests/nutrition-current-adjustment.test.cjs
