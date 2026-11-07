@@ -42,7 +42,7 @@ const section=(a,b)=>html.slice(html.indexOf(a),html.indexOf(b,html.indexOf(a)))
  for(const count of [3,4,5])for(const seed of [0,3,6]){
   await page.evaluate(async({count,seed})=>{useDelay=false;nutritionEditingPlanId=null;nutritionAutoVarietyCounter=seed;Date.now=()=>0;document.getElementById('nutritionAutoMealCount').value=String(count);document.getElementById('nutritionCalories').value=2340;document.getElementById('nutritionProtein').value=180;document.getElementById('nutritionCarbs').value=270;document.getElementById('nutritionFat').value=60;await generateNutritionMealsFromTargets();},{count,seed});
   assert.equal(await page.locator('.nutrition-meal-editor').count(),count,'generation '+count+' seed '+seed);
-  assert.equal(await page.evaluate(()=>nutritionBuilderCollectMeals().every(m=>{const t=nutritionAdjustmentTotals([m]),n=nutritionBuilderCollectMeals().length;return Math.abs(t.p-180/n)<.6&&Math.abs(t.c-270/n)<.6&&Math.abs(t.f-60/n)<.6})),true,'balanced generated macros');
+  assert.equal(await page.evaluate(()=>nutritionBuilderCollectMeals().every(m=>{const t=nutritionAdjustmentTotals([m]),n=nutritionBuilderCollectMeals().length;return Math.abs(t.p-180/n)<.6&&Math.abs(t.f-60/n)<.6})),true,'balanced generated macros');
  }
  console.log('PASS: fresh four-meal draft with existing five-meal plan; generated rows, saved rows, old-plan archive only on save; stale generation cannot overwrite selected count');
  }finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

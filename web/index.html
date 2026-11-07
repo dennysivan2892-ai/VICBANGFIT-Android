@@ -4196,7 +4196,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 
     <button id="nutritionInitialProposalBtn" class="btn dark" type="button" onclick="prepareNutritionProposal()">✨ Cargar propuesta de la evaluación</button>
     <details id="nutritionCurrentAdjustment" hidden style="margin:14px 0;padding:14px;border:1px solid #b99b55;border-radius:14px" ontoggle="if(this.open)nutritionQuickLoadReference()">
-      <summary><b>Ajustes de esta dieta</b></summary><div class="field" style="margin-top:12px"><label>Número de comidas</label><select id="nutritionEditMealCount" onchange="nutritionEditorChangeMealCount(this.value)"><option value="1">1 comidas</option><option value="2">2 comidas</option><option value="3">3 comidas</option><option value="4">4 comidas</option><option value="5">5 comidas</option><option value="6">6 comidas</option><option value="7">7 comidas</option><option value="8">8 comidas</option></select><div class="muted tiny">Proteína, carbohidratos y grasas diarios ÷ número de comidas. Se ajustan las cantidades de cada menú para un reparto equivalente, sin juntar comidas. Revisa antes de guardar.</div></div><div class="nutrition-percent-controls"><p class="muted tiny">Reducir calorías sobre esta dieta</p><div class="nutrition-percent-presets"><button class="btn ghost" type="button" onclick="nutritionEditorReduce(5)">−5 %</button><button class="btn ghost" type="button" onclick="nutritionEditorReduce(10)">−10 %</button></div><div class="nutrition-percent-custom"><div class="field"><label for="nutritionEditPercent">Otro porcentaje</label><input id="nutritionEditPercent" type="number" inputmode="decimal" min="1" max="99" value="5"></div><button class="btn ghost" type="button" onclick="nutritionEditorReduce(Number(document.getElementById('nutritionEditPercent').value))">Reducir</button></div></div>
+      <summary><b>Ajustes de esta dieta</b></summary><div class="field" style="margin-top:12px"><label>Número de comidas</label><select id="nutritionEditMealCount" onchange="nutritionEditorChangeMealCount(this.value)"><option value="1">1 comidas</option><option value="2">2 comidas</option><option value="3">3 comidas</option><option value="4">4 comidas</option><option value="5">5 comidas</option><option value="6">6 comidas</option><option value="7">7 comidas</option><option value="8">8 comidas</option></select><div class="muted tiny">Misma proteína en cada toma. Algo más de carbohidratos en comida y cena; grasas repartidas por igual. Se mantienen los totales diarios, sin juntar menús. Revisa antes de guardar.</div></div><div class="nutrition-percent-controls"><p class="muted tiny">Reducir calorías sobre esta dieta</p><div class="nutrition-percent-presets"><button class="btn ghost" type="button" onclick="nutritionEditorReduce(5)">−5 %</button><button class="btn ghost" type="button" onclick="nutritionEditorReduce(10)">−10 %</button></div><div class="nutrition-percent-custom"><div class="field"><label for="nutritionEditPercent">Otro porcentaje</label><input id="nutritionEditPercent" type="number" inputmode="decimal" min="1" max="99" value="5"></div><button class="btn ghost" type="button" onclick="nutritionEditorReduce(Number(document.getElementById('nutritionEditPercent').value))">Reducir</button></div></div>
       <p id="nutritionQuickCurrent"></p><details style="margin:12px 0"><summary>Ver referencia de la dieta guardada</summary><div id="nutritionQuickBaseline" style="padding:10px;border:1px solid var(--line);border-radius:12px"></div></details><p id="nutritionQuickReference" class="muted tiny"></p>
       <div class="form-grid">
         <div class="field"><label>Mantenimiento de referencia (kcal, editable)</label><input id="nutritionQuickMaintenance" type="number" min="1" step="1" onchange="nutritionQuickTargetFromMode()"></div>
@@ -9351,19 +9351,48 @@ function nutritionEditorMealSignature(meals){return JSON.stringify(meals);}
 function nutritionEditorMealFingerprint(meal){
  return meal.foods.map(f=>nutritionSwapNormalize(f.food_name)).sort().join('|');
 }
+function nutritionMainMealFlags(meals){
+ const flags=meals.map(m=>/^(comida|almuerzo|cena)(?:\s|$)/.test(nutritionSwapNormalize(m.name))&&!/^comida \d+$/.test(nutritionSwapNormalize(m.name)));
+ if(!flags.some(Boolean)&&meals.length>=3){flags[meals.length===5?2:1]=true;flags[meals.length-1]=true;}
+ return flags;
+}
+function nutritionMealMacroTargets(meals,desired){
+ const main=nutritionMainMealFlags(meals),weights=main.map(v=>v?1.25:1),sum=weights.reduce((a,b)=>a+b,0),count=meals.length;
+ return meals.map((m,i)=>{const p=desired.p/count,c=desired.c*weights[i]/sum,f=desired.f/count;return {p,c,f,k:p*4+c*4+f*9};});
+}
 function nutritionEqualPortions(source,desired){
  if(!source.length)throw new Error('Añade las comidas antes de repartir los macros.');
  if(['p','c','f'].some(k=>!Number.isFinite(desired[k])||desired[k]<0))throw new Error('Revisa los gramos diarios de los macros.');
- const count=source.length,target={p:desired.p/count,c:desired.c/count,f:desired.f/count,k:(desired.p*4+desired.c*4+desired.f*9)/count};
+ const targets=nutritionMealMacroTargets(source,desired),main=nutritionMainMealFlags(source);
  const meals=source.map(m=>({...m,foods:m.foods.map(f=>({...f}))}));
- for(const meal of meals){
+ function fit(index){
+  const meal=meals[index],target=targets[index];target.k=target.p*4+target.c*4+target.f*9;
   nutritionEditorFitMeal(meal,target);
   let actual=nutritionAdjustmentTotals([meal]);
   if(['p','c','f'].some(k=>Math.abs(actual[k]-target[k])>Math.max(.5,target[k]*.01))){nutritionEditorFitMeal(meal,target,true);actual=nutritionAdjustmentTotals([meal]);}
   if(['p','c','f'].some(k=>Math.abs(actual[k]-target[k])>Math.max(.5,target[k]*.01)))throw new Error('No se puede equilibrar '+meal.name+' con sus alimentos actuales. Revisa sus fuentes de proteína, carbohidratos y grasas. La dieta no se ha modificado.');
-  if(!meal.notes||/^Objetivo aprox\.:/.test(meal.notes))meal.notes='Objetivo aprox.: '+(Math.round(actual.p*10)/10)+' g proteína · '+(Math.round(actual.c*10)/10)+' g carbohidratos · '+(Math.round(actual.f*10)/10)+' g grasa · '+Math.round(actual.k)+' kcal';
  }
- return {meals,totals:nutritionAdjustmentTotals(meals),perMeal:target};
+ meals.forEach((m,i)=>fit(i));
+ // When the same starch is used, count the vegetables/other foods too so a
+ // snack cannot end up with a larger starch portion than lunch or dinner.
+ for(let pass=0;pass<8;pass++){
+  let changed=false;
+  for(let i=0;i<meals.length;i++)if(main[i])for(let j=0;j<meals.length;j++)if(!main[j]){
+   const starch=meals[i].foods.find(f=>nutritionSwapFindFood(f.food_name)?.cat==='carb');
+   if(!starch)continue;
+   const name=nutritionSwapNormalize(starch.food_name),other=meals[j].foods.find(f=>nutritionSwapNormalize(f.food_name)===name);
+   if(!other)continue;
+   const meta=nutritionSwapFindFood(starch.food_name),gap=Math.min(3,desired.c/meals.length*.05);
+   const difference=nutritionSwapMacros(meta,other.amount).c+gap-nutritionSwapMacros(meta,starch.amount).c;
+   if(difference>.15){
+    const shift=Math.min(difference/2,targets[j].c*.4);
+    targets[i].c+=shift;targets[j].c-=shift;fit(i);fit(j);changed=true;
+   }
+  }
+  if(!changed)break;
+ }
+ meals.forEach(meal=>{const actual=nutritionAdjustmentTotals([meal]);if(!meal.notes||/^Objetivo aprox\.:/.test(meal.notes))meal.notes='Objetivo aprox.: '+(Math.round(actual.p*10)/10)+' g proteína · '+(Math.round(actual.c*10)/10)+' g carbohidratos · '+(Math.round(actual.f*10)/10)+' g grasa · '+Math.round(actual.k)+' kcal';});
+ return {meals,totals:nutritionAdjustmentTotals(meals),perMeal:targets};
 }
 function nutritionEditorFitMeal(meal,desired,adjustFixed=false){
  const keys=['p','c','f','k'],scale={p:Math.max(10,desired.p),c:Math.max(10,desired.c),f:Math.max(5,desired.f),k:Math.max(100,desired.k)};
@@ -9614,7 +9643,7 @@ function nutritionQuickPreview(){
  const source=nutritionBuilderCollectMeals();let result;try{result=nutritionQuickPortions(source,desired);}catch(error){nutritionQuickState.preview=null;document.getElementById('nutritionQuickPreview').textContent=error.message;toast(error.message);return;}const signature=nutritionQuickSignature();
  nutritionQuickState.preview={...result,desired,signature};const t=result.totals;
  const rows=source.map((meal,i)=>`<div style="margin-top:12px"><b>${nutritionEsc(meal.name)}</b>${meal.foods.map((food,j)=>`<div class="muted tiny" style="margin:5px 0;overflow-wrap:anywhere">${nutritionEsc(food.food_name)}: ${nutritionEsc(String(food.amount??'')+' '+(food.unit||''))} → <b>${nutritionEsc(String(result.meals[i].foods[j].amount??'')+' '+(food.unit||''))}</b>${food.prepared_amount!=null?' · Elaborado: '+nutritionEsc(String(food.prepared_amount))+' → '+nutritionEsc(String(result.meals[i].foods[j].prepared_amount))+' '+nutritionEsc(food.prepared_unit||food.unit||''):''}</div>`).join('')}</div>`).join('');
- document.getElementById('nutritionQuickPreview').innerHTML=`<b>Vista previa · misma dieta y mismos alimentos</b><p>Reparto uniforme: proteína, carbohidratos y grasas diarios divididos entre todas las comidas.</p><p>Nuevo objetivo: ${desired.k} kcal · ${desired.p} g P · ${desired.c} g C · ${desired.f} g G.</p><p>Estimación de las cantidades propuestas: ${Math.round(t.k)} kcal · ${Math.round(t.p)} g P · ${Math.round(t.c)} g C · ${Math.round(t.f)} g G.</p><p class="muted tiny">Las cantidades se aproximan al objetivo; revisa la diferencia antes de aplicar. ${t.unknown?'Estimación parcial: hay alimentos sin equivalencia en gramos; se mantienen sin escalar.':''}</p>${rows}<button class="btn" type="button" style="margin-top:12px" onclick="nutritionQuickApply()">Aplicar cantidades a esta dieta</button>`;
+ document.getElementById('nutritionQuickPreview').innerHTML=`<b>Vista previa · misma dieta y mismos alimentos</b><p>Misma proteína en cada toma y algo más de carbohidratos en comida y cena, manteniendo los totales diarios.</p><p>Nuevo objetivo: ${desired.k} kcal · ${desired.p} g P · ${desired.c} g C · ${desired.f} g G.</p><p>Estimación de las cantidades propuestas: ${Math.round(t.k)} kcal · ${Math.round(t.p)} g P · ${Math.round(t.c)} g C · ${Math.round(t.f)} g G.</p><p class="muted tiny">Las cantidades se aproximan al objetivo; revisa la diferencia antes de aplicar. ${t.unknown?'Estimación parcial: hay alimentos sin equivalencia en gramos; se mantienen sin escalar.':''}</p>${rows}<button class="btn" type="button" style="margin-top:12px" onclick="nutritionQuickApply()">Aplicar cantidades a esta dieta</button>`;
 }
 function nutritionQuickApply(){
  const state=nutritionQuickState,preview=state?.preview;
@@ -10159,13 +10188,14 @@ async function generateNutritionMealsFromTargets(){
  const draft=templates.map((template,i)=>({id:preservedMealIds[i]||'',food_rules:preservedMealRules[i]||nutritionRenewMealRules[i],name:template.name,time:template.time,notes:null,foods:nutritionAutoBuildMeal(template,protein/count,carbs/count,fat/count).map(nutritionParseFoodLine).filter(Boolean)}));
  draft.forEach(meal=>{const rules=nutritionRulesMerge(nutritionGlobalRules(),meal.food_rules);meal.foods=meal.foods.filter(f=>!nutritionRuleReason(f.food_name,rules));});
  const usedProteins=new Set(draft.flatMap(m=>m.foods.filter(f=>nutritionSwapFindFood(f.food_name)?.cat==='protein').map(f=>nutritionSwapNormalize(f.food_name))));
- const balanced={meals:draft.map(meal=>nutritionEqualGeneratedMeal(meal,{p:protein/count,c:carbs/count,f:fat/count,k:calories/count},safetyProfile,usedProteins))};
+ const mealTargets=nutritionMealMacroTargets(draft,{p:protein,c:carbs,f:fat});
+ const balanced=nutritionEqualPortions(draft.map((meal,i)=>nutritionEqualGeneratedMeal(meal,mealTargets[i],safetyProfile,usedProteins)),{p:protein,c:carbs,f:fat,k:calories});
  holder.innerHTML='';nutritionMealEditorSeq=0;
  balanced.meals.forEach(meal=>addNutritionMealEditor(meal));
  if(summary){
   const profileInfo=nutritionProfileActiveText(safetyProfile);
   const criteria=nutritionAutoCalorieDirection==='lower'?'Al reducir calorías se han priorizado opciones con mayor saciedad, fibra y densidad calórica favorable, sin usar el índice glucémico como único criterio.':'Se han valorado variedad, fibra, saciedad, digestibilidad, carga glucémica y densidad calórica.';
-  summary.innerHTML=`Se han creado <b>${count} comidas variadas y editables con reparto uniforme de macros</b> a partir de ${Math.round(calories)} kcal, ${Math.round(protein)} g de proteína, ${Math.round(carbs)} g de carbohidratos y ${Math.round(fat)} g de grasa. ${criteria} Se han incluido métodos de preparación y cantidades medidas de aceites. <b>Las cantidades en gramos se interpretan como peso en crudo antes de cocinar</b>, salvo indicación expresa. El generador rota carbohidratos, proteínas, grasas, frutas y verduras, respetando las restricciones del cliente.${profileInfo?`<div class="nutrition-auto-profile">✓ Perfil nutricional aplicado: ${nutritionEsc(profileInfo)}</div>`:''}`;
+  summary.innerHTML=`Se han creado <b>${count} comidas variadas y editables con proteína equivalente y carbohidratos algo mayores en comida y cena</b> a partir de ${Math.round(calories)} kcal, ${Math.round(protein)} g de proteína, ${Math.round(carbs)} g de carbohidratos y ${Math.round(fat)} g de grasa. ${criteria} Se han incluido métodos de preparación y cantidades medidas de aceites. <b>Las cantidades en gramos se interpretan como peso en crudo antes de cocinar</b>, salvo indicación expresa. El generador rota carbohidratos, proteínas, grasas, frutas y verduras, respetando las restricciones del cliente.${profileInfo?`<div class="nutrition-auto-profile">✓ Perfil nutricional aplicado: ${nutritionEsc(profileInfo)}</div>`:''}`;
   summary.classList.add('show');
  }
 
