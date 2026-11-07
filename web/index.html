@@ -1220,6 +1220,18 @@ body.client-mode .sidebar{display:none}body.client-mode .main{margin-left:0;widt
 @media(max-width:600px){.nutrition-food-thumb{width:44px;height:44px;min-width:44px;border-radius:11px}.nutrition-food-identity{gap:8px}}
 .nutrition-adherence{height:9px;background:#242424;border-radius:999px;overflow:hidden;margin-top:10px}.nutrition-adherence i{height:100%;display:block;background:#24d17d;border-radius:999px}
 .nutrition-builder-card{width:min(900px,96vw);max-height:92vh;overflow:auto}
+
+.nutrition-percent-controls{display:grid;gap:10px;margin:14px 0;min-width:0}
+.nutrition-percent-controls p{margin:0}
+.nutrition-percent-presets,.nutrition-percent-custom{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:end}
+.nutrition-percent-controls .btn{width:100%;min-width:0;min-height:46px;padding:12px 8px;white-space:nowrap}
+.nutrition-percent-custom .field{min-width:0;margin:0}
+.nutrition-percent-custom input{width:100%;min-width:0;box-sizing:border-box}
+#nutritionCurrentAdjustment{min-width:0}
+#nutritionCurrentAdjustment .field{min-width:0}
+#nutritionCurrentAdjustment select,#nutritionCurrentAdjustment input{max-width:100%;box-sizing:border-box}
+body:has(#nutritionBuilderModal[style*="grid"]) .trainer-message-fab{display:none}
+
 .nutrition-meal-editor{border:1px solid #303030;background:#0c0c0c;border-radius:18px;padding:14px;margin-top:12px}
 .nutrition-meal-editor textarea{min-height:120px;resize:vertical}
 .nutrition-status{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:#133326;color:#2fe08b;font-size:13px}
@@ -4184,7 +4196,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 
     <button id="nutritionInitialProposalBtn" class="btn dark" type="button" onclick="prepareNutritionProposal()">✨ Cargar propuesta de la evaluación</button>
     <details id="nutritionCurrentAdjustment" hidden style="margin:14px 0;padding:14px;border:1px solid #b99b55;border-radius:14px" ontoggle="if(this.open)nutritionQuickLoadReference()">
-      <summary><b>Ajustes de esta dieta</b></summary><div class="field" style="margin-top:12px"><label>Número de comidas</label><select id="nutritionEditMealCount" onchange="nutritionEditorChangeMealCount(this.value)"><option value="1">1 comidas</option><option value="2">2 comidas</option><option value="3">3 comidas</option><option value="4">4 comidas</option><option value="5">5 comidas</option><option value="6">6 comidas</option><option value="7">7 comidas</option><option value="8">8 comidas</option></select><div class="muted tiny">Al cambiarlo se reparten los alimentos actuales. Revisa las cantidades antes de guardar.</div></div><div class="row"><button class="btn ghost" type="button" onclick="nutritionEditorReduce(5)">−5 % sobre esta dieta</button><button class="btn ghost" type="button" onclick="nutritionEditorReduce(10)">−10 % sobre esta dieta</button><label>Otro % <input id="nutritionEditPercent" type="number" min="1" max="99" value="5" style="width:70px"></label><button class="btn ghost" type="button" onclick="nutritionEditorReduce(Number(document.getElementById('nutritionEditPercent').value))">Reducir</button></div>
+      <summary><b>Ajustes de esta dieta</b></summary><div class="field" style="margin-top:12px"><label>Número de comidas</label><select id="nutritionEditMealCount" onchange="nutritionEditorChangeMealCount(this.value)"><option value="1">1 comidas</option><option value="2">2 comidas</option><option value="3">3 comidas</option><option value="4">4 comidas</option><option value="5">5 comidas</option><option value="6">6 comidas</option><option value="7">7 comidas</option><option value="8">8 comidas</option></select><div class="muted tiny">Al cambiarlo se reparten los alimentos actuales. Revisa las cantidades antes de guardar.</div></div><div class="nutrition-percent-controls"><p class="muted tiny">Reducir calorías sobre esta dieta</p><div class="nutrition-percent-presets"><button class="btn ghost" type="button" onclick="nutritionEditorReduce(5)">−5 %</button><button class="btn ghost" type="button" onclick="nutritionEditorReduce(10)">−10 %</button></div><div class="nutrition-percent-custom"><div class="field"><label for="nutritionEditPercent">Otro porcentaje</label><input id="nutritionEditPercent" type="number" inputmode="decimal" min="1" max="99" value="5"></div><button class="btn ghost" type="button" onclick="nutritionEditorReduce(Number(document.getElementById('nutritionEditPercent').value))">Reducir</button></div></div>
       <p id="nutritionQuickCurrent"></p><details style="margin:12px 0"><summary>Ver referencia de la dieta guardada</summary><div id="nutritionQuickBaseline" style="padding:10px;border:1px solid var(--line);border-radius:12px"></div></details><p id="nutritionQuickReference" class="muted tiny"></p>
       <div class="form-grid">
         <div class="field"><label>Mantenimiento de referencia (kcal, editable)</label><input id="nutritionQuickMaintenance" type="number" min="1" step="1" onchange="nutritionQuickTargetFromMode()"></div>
