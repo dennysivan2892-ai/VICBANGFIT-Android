@@ -33,7 +33,7 @@ assert.equal(vm.runInContext("exerciseVisual({name:'Plancha lateral'})",context)
  let currentProfile={id:'client-a',role:'client'},clientPlanningAccessAllowed=true,clientRoutines=[];
  let services={training:true,nutrition:true,supplements:true},calls=[],queries=[],fail=false;
  const fixture={nutrition_plans:{id:'diet',name:'Dieta de definición'},nutrition_meals:[{id:'breakfast',name:'Desayuno'},{id:'lunch',name:'Comida'}],nutrition_meal_logs:[{meal_id:'breakfast',completed:true}],supplement_plans:{id:'supp',name:'Suplementación'},supplement_items:[{supplement_name:'Creatina',dose_text:'5 g',timing:'Con desayuno',frequency:'daily'}]};
- const sb={from(table){queries.push(table);const q={select(){return this},eq(){return this},order(){return this},limit(){return this},maybeSingle(){return this},then(resolve){resolve({data:fixture[table],error:fail?{message:'offline'}:null})}};return q}};
+ const sb={from(table){queries.push(table);const q={select(){return this},is(){return this},eq(){return this},order(){return this},limit(){return this},maybeSingle(){return this},then(resolve){resolve({data:fixture[table],error:fail?{message:'offline'}:null})}};return q}};
  const clientServiceEnabled=s=>services[s]!==false;
  const applyClientServiceVisibility=()=>document.querySelectorAll('[data-client-service]').forEach(el=>el.style.display=clientServiceEnabled(el.dataset.clientService)?'':'none');
  const nutritionDateISO=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const nutritionToday=()=>nutritionDateISO(new Date());

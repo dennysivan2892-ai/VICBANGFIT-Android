@@ -7,9 +7,9 @@ const catalog=html.slice(html.indexOf('const nutritionSubstitutionCatalog='),htm
  const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.setContent('<style>'+html.match(/<style>([\s\S]*?)<\/style>/)[1]+'</style>'+block('<div id="nutritionBuilderModal"','<div id="monthlyNutritionReviewModal"'));
  await page.addScriptTag({content:`let nutritionEditingPlanId='diet',nutritionSaving=false,nutritionMealEditorSeq=0,currentProfile={id:'trainer',role:'trainer'},calls=[],messages=[];
- const toast=m=>messages.push(m),scheduleNutritionBuilderSafety=()=>{},nutritionLoadSafetyProfile=async()=>({});
- const sb={from(table){calls.push(table);return {select(){return this},eq(){return this},order(){return this},limit(){return this},async maybeSingle(){return {data:table==='checkins'?{weight_kg:80,checkin_date:'2026-10-20'}:table==='client_details'?{current_weight_kg:85}:{maintenance_kcal:2000,weight_kg:90,updated_at:'2026-10-20'},error:null}}}}};
- ${catalog}\n${['nutritionEsc','nutritionSafetyNorm','nutritionSwapNormalize','nutritionSwapFindFood','nutritionSwapMacros','nutritionAutoLimits','nutritionAutoRound5','nutritionWeightDisplayName','nutritionFoodEditorLine','nutritionParseFoodLine','nutritionMealTime'].map(fn).join('\n')}
+ const toast=m=>messages.push(m),scheduleNutritionBuilderSafety=()=>{},nutritionLoadSafetyProfile=async()=>({}),nutritionFoodAllowed=()=>true;
+ const sb={from(table){calls.push(table);return {select(){return this},is(){return this},eq(){return this},order(){return this},limit(){return this},async maybeSingle(){return {data:table==='checkins'?{weight_kg:80,checkin_date:'2026-10-20'}:table==='client_details'?{current_weight_kg:85}:{maintenance_kcal:2000,weight_kg:90,updated_at:'2026-10-20'},error:null}}}}};
+ ${catalog}\n${['nutritionEsc','nutritionSafetyNorm','nutritionSwapNormalize','nutritionSwapFindFood','nutritionSwapMacros','nutritionSwapBestAmount','nutritionSwapOptions','nutritionAutoLimits','nutritionAutoRound5','nutritionWeightDisplayName','nutritionFoodEditorLine','nutritionParseFoodLine','nutritionMealTime'].map(fn).join('\n')}
  ${block('// BEGIN NUTRITION ADJUSTMENTS','// END NUTRITION ADJUSTMENTS')}
  ${block('// BEGIN CURRENT DIET ADJUSTMENT','// END CURRENT DIET ADJUSTMENT')}
  ${fn('nutritionBuilderCollectMeals')}\n${fn('addNutritionMealEditor')}
@@ -44,8 +44,8 @@ const catalog=html.slice(html.indexOf('const nutritionSubstitutionCatalog='),htm
  assert.deepEqual(await page.locator('.nutrition-meal-editor').evaluateAll(els=>els.map(el=>el.dataset.mealId)),['meal1','meal2']);
  assert.deepEqual(await page.locator('.nutrition-meal-time').evaluateAll(els=>els.map(el=>el.value)),['14:00','21:00']);
  assert.equal(await page.evaluate(()=>nutritionRulesRead(document.querySelector('.nutrition-meal-editor')).exclude_groups[0]),'fruit');
- assert.equal(await page.locator('#nutritionCalories').inputValue(),'2000');
- assert.equal(await page.evaluate(()=>nutritionEnergyRulesForSave().energy_context.adjustment_pct),0);
+ assert.equal(Number(await page.locator('#nutritionCalories').inputValue()),await page.evaluate(()=>Math.round(nutritionAdjustmentTotals(nutritionBuilderCollectMeals()).k)));
+ assert.ok(Math.abs(await page.evaluate(()=>nutritionEnergyRulesForSave().energy_context.adjustment_pct))<1);
  // Dropdowns use the latest client check-in weight and convert g/kg automatically.
  assert.equal(await page.locator('#nutritionQuickWeight').inputValue(),'80');
  assert.equal(await page.locator('#nutritionQuickPercent').isVisible(),false);
@@ -78,5 +78,35 @@ const catalog=html.slice(html.indexOf('const nutritionSubstitutionCatalog='),htm
  for(const width of [390,768,1280]){await page.setViewportSize({width,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true)}
  await page.setViewportSize({width:390,height:844});await page.evaluate(()=>{document.getElementById('nutritionCurrentAdjustment').open=true;document.getElementById('nutritionCurrentAdjustment').scrollIntoView()});await page.screenshot({path:'/tmp/nutrition-current-adjustment-mobile.png'});
  await page.evaluate(()=>nutritionQuickReset());assert.equal(await page.locator('#nutritionCurrentAdjustment').isVisible(),false,'no quick adjustment on new plans');
+ // One saved-diet editor: redistribute existing foods, edit grams and replace a food.
+ await page.evaluate(()=>{
+  addNutritionMealEditor({id:'meal3',name:'Merienda',foods:['Manzana 150 g','Yogur griego 0% 150 g']});
+  addNutritionMealEditor({id:'meal4',name:'Cena',foods:['Pechuga de pollo 180 g','Arroz 80 g']});
+  nutritionQuickInit(plan);nutritionEditorMode(true);nutritionEditorReview(true);
+ });
+ const totalsBefore=await page.evaluate(()=>nutritionAdjustmentTotals(nutritionBuilderCollectMeals()));
+ const allNames=await page.evaluate(()=>[...new Set(nutritionBuilderCollectMeals().flatMap(m=>m.foods.map(f=>f.food_name)))].sort());
+ await page.locator('#nutritionEditMealCount').selectOption('5');
+ assert.equal(await page.locator('.nutrition-meal-editor').count(),5);
+ let redistributed=await page.evaluate(()=>nutritionAdjustmentTotals(nutritionBuilderCollectMeals()));
+ for(const key of ['p','c','f','k'])assert.ok(Math.abs(redistributed[key]-totalsBefore[key])<.01);
+ assert.deepEqual(await page.evaluate(()=>[...new Set(nutritionBuilderCollectMeals().flatMap(m=>m.foods.map(f=>f.food_name)))].sort()),allNames);
+ await page.locator('#nutritionEditMealCount').selectOption('4');
+ assert.equal(await page.locator('.nutrition-meal-editor').count(),4);
+ assert.deepEqual(await page.locator('.nutrition-meal-editor').evaluateAll(els=>els.map(el=>el.dataset.mealId)),['meal1','meal2','meal3','meal4']);
+ redistributed=await page.evaluate(()=>nutritionAdjustmentTotals(nutritionBuilderCollectMeals()));
+ assert.ok(Math.abs(redistributed.k-totalsBefore.k)<.01);
+ await page.locator('#nutritionQuickProtein').fill('200');await page.locator('#nutritionQuickCarbs').fill('150');await page.locator('#nutritionQuickFat').fill('60');
+ assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'1940');
+ assert.equal(await page.locator('#nutritionInitialGenerator').isVisible(),false);
+ assert.match(await page.locator('#nutritionEditorReview').textContent(),/Resumen antes de guardar.*4 comidas/);
+ await page.evaluate(()=>nutritionEditorReduce(10));
+ assert.ok(Math.abs(Number(await page.locator('#nutritionQuickCalories').inputValue())-Math.round(redistributed.k*.9))<2);
+ const nameBefore=await page.evaluate(()=>nutritionBuilderCollectMeals()[0].foods[0].food_name);
+ await page.evaluate(()=>nutritionEditorSuggest(Number(document.querySelector('.nutrition-meal-editor').dataset.seq),0));
+ await page.evaluate(()=>nutritionEditorReplace(0));
+ assert.notEqual(await page.evaluate(()=>nutritionBuilderCollectMeals()[0].foods[0].food_name),nameBefore);
+ assert.equal(Number(await page.locator('#nutritionCalories').inputValue()),await page.evaluate(()=>Math.round(nutritionAdjustmentTotals(nutritionBuilderCollectMeals()).k)));
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:'/tmp/nutrition-personal-editor.png',fullPage:true});
  assert.deepEqual(errors,[]);console.log('PASS: current saved plan, surplus/maintenance/deficit, fixed protein, same foods/meal IDs/times/rules, prepared weights, preview/stale guard, persisted energy reference, unknown foods and responsive controls');
  }finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

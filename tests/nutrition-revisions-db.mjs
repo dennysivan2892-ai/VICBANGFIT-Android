@@ -1,7 +1,7 @@
 import {PGlite} from '@electric-sql/pglite';import fs from 'node:fs';import assert from 'node:assert/strict';
 const db=new PGlite();await db.exec(`create role anon;create role authenticated;create schema auth;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
 create table profiles(id uuid primary key);create table nutrition_plans(id uuid primary key default gen_random_uuid(),trainer_id uuid,client_id uuid,name text,status text,target_calories int,target_protein_g numeric,target_carbs_g numeric,target_fat_g numeric,notes text,food_rules jsonb,updated_at timestamptz default now());
-create table nutrition_meals(id uuid primary key default gen_random_uuid(),plan_id uuid references nutrition_plans(id),name text,meal_order int,target_time time,notes text,food_rules jsonb);
+create table nutrition_meals(id uuid primary key default gen_random_uuid(),plan_id uuid references nutrition_plans(id),name text,meal_order int,target_time time,notes text,food_rules jsonb,unique(plan_id,meal_order));
 create table nutrition_foods(id uuid primary key default gen_random_uuid(),meal_id uuid references nutrition_meals(id),food_order int,food_name text not null,amount numeric,unit text,prepared_amount numeric,prepared_unit text);
 create table nutrition_meal_logs(id uuid primary key default gen_random_uuid(),meal_id uuid references nutrition_meals(id));`);
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261105165914_nutrition_revision_history.sql',import.meta.url),'utf8'));
@@ -27,6 +27,22 @@ assert.equal(Number((await db.query('select target_carbs_g from nutrition_plans'
 assert.equal((await db.query('select food_name from nutrition_foods')).rows[0].food_name,'Pollo');
 assert.equal((await db.query('select after_plan from nutrition_revisions order by created_at desc limit 1')).rows[0].after_plan.target_calories,2158);
 assert.equal((await db.query('select meal_id from nutrition_meal_logs')).rows[0].meal_id,meal);
-await db.query("select set_config('request.jwt.claim.sub',$1,false)",[client]);assert.equal((await db.query('select * from nutrition_revisions')).rows.length,0);await assert.rejects(db.query('select save_nutrition_revision($1,$2,$3)',[plan,payload,meals]));
+// Changing the current meal count retains logged meals and their food history.
+await db.exec('reset role');await db.exec(`alter table nutrition_meals enable row level security;create policy participants on nutrition_meals for all to authenticated using(exists(select 1 from nutrition_plans p where p.id=nutrition_meals.plan_id and (p.trainer_id=auth.uid() or p.client_id=auth.uid()))) with check(exists(select 1 from nutrition_plans p where p.id=nutrition_meals.plan_id and p.trainer_id=auth.uid()));`);await db.exec(fs.readFileSync(new URL('../db/nutrition-personal-editor.sql',import.meta.url),'utf8'));await db.exec('set role authenticated');
+const other='00000000-0000-4000-8000-000000000005';
+await db.query("insert into nutrition_meals(id,plan_id,name,meal_order,target_time) values($1,$2,'Merienda',2,'18:00')",[other,plan]);
+await db.query("insert into nutrition_foods(meal_id,food_order,food_name,amount,unit) values($1,1,'Manzana',100,'g')",[other]);
+await db.exec('reset role');await db.query('insert into nutrition_meal_logs(meal_id) values($1)',[other]);await db.exec('set role authenticated');
+await db.query('select save_nutrition_revision($1,$2,$3)',[plan,{...payload,target_calories:2100},removed]);
+assert.equal((await db.query('select count(*)::int n from nutrition_meals where archived_at is null')).rows[0].n,1);
+assert.equal((await db.query('select archived_at is not null retired,target_time from nutrition_meals where id=$1',[other])).rows[0].retired,true);
+assert.equal((await db.query('select target_time from nutrition_meals where id=$1',[other])).rows[0].target_time,null);
+assert.equal((await db.query('select count(*)::int n from nutrition_meal_logs where meal_id=$1',[other])).rows[0].n,1);
+assert.equal((await db.query('select food_name from nutrition_foods where meal_id=$1',[other])).rows[0].food_name,'Manzana');
+await db.query('select save_nutrition_revision($1,$2,$3)',[plan,payload,[removed[0],{order:2,name:'Nueva merienda',foods:[{food_order:1,food_name:'Arroz',amount:100,unit:'g'}]}]]);
+assert.equal((await db.query('select count(*)::int n from nutrition_meals where archived_at is null')).rows[0].n,2);
+await db.query('select save_nutrition_revision($1,$2,$3)',[plan,payload,removed]);
+assert.equal((await db.query('select count(*)::int n from nutrition_meals where archived_at is null')).rows[0].n,1);
+await db.query("select set_config('request.jwt.claim.sub',$1,false)",[client]);assert.equal((await db.query('select count(*)::int n from nutrition_meals')).rows[0].n,1,'older client queries cannot see retired meals');assert.equal((await db.query('select * from nutrition_revisions')).rows.length,0);await assert.rejects(db.query('select save_nutrition_revision($1,$2,$3)',[plan,payload,meals]));
 await db.exec('reset role;set role anon;');await assert.rejects(db.query('select * from nutrition_revisions'));await assert.rejects(db.query('select save_nutrition_revision($1,$2,$3)',[plan,payload,meals]));
 console.log('PASS: PostgreSQL migration, authenticated atomic save, exact before/after food and calorie history, preserved meal logs, failure rollback, trainer/client/anon authorization');await db.close();
