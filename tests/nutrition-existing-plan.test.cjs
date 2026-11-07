@@ -3,7 +3,7 @@ const html=fs.readFileSync('web/index.html','utf8');
 const code=html.slice(html.indexOf('async function loadNutritionPlanDetails('),html.indexOf('async function chooseNutritionPlan('));
 const context=vm.createContext({console});
 vm.runInContext(`
-const nutritionQuickInit=()=>{};
+const nutritionQuickInit=()=>{},nutritionEditorMode=()=>{},nutritionEditorReview=()=>{};
 let nutritionSaving=false;
 let currentProfile={role:'trainer',id:'trainer'},trainerProposalBusy=false,trainerContentClientId='client';
 let clients=[{id:'client'}],trainerNutritionPlans=[],nutritionEditingPlanId=null,nutritionMealEditorSeq=0;
@@ -12,7 +12,7 @@ const plan={id:'diet',trainer_id:'trainer',client_id:'client',name:'Dieta existe
 const meals=[{id:'breakfast',plan_id:'diet',name:'Desayuno',food_rules:{enabled:true,exclude_groups:['fruit']}}];
 const foods=[{id:'food',meal_id:'breakfast',food_name:'Manzana',amount:150,unit:'g'}];
 const elements=new Map();const document={getElementById(id){if(!elements.has(id))elements.set(id,{value:'',style:{},classList:{remove(){}},textContent:'',innerHTML:''});return elements.get(id)},querySelectorAll(){return editors}};
-const sb={from(table){const query={table,filters:[]};queries.push(query);return {select(){return this},eq(k,v){query.filters.push([k,v]);return this},in(){return this},order(){return this},limit(){return this},async maybeSingle(){return {data:query.filters.some(x=>x[0]==='id'&&x[1]==='missing')?null:plan,error:fail?{message:'Sin conexión'}:null}},then(resolve){resolve({data:table==='nutrition_plans'?[plan]:table==='nutrition_meals'?meals:foods,error:fail?{message:'Sin conexión'}:null})}}}};
+const sb={from(table){const query={table,filters:[]};queries.push(query);return {select(){return this},is(){return this},eq(k,v){query.filters.push([k,v]);return this},in(){return this},order(){return this},limit(){return this},async maybeSingle(){return {data:query.filters.some(x=>x[0]==='id'&&x[1]==='missing')?null:plan,error:fail?{message:'Sin conexión'}:null}},then(resolve){resolve({data:table==='nutrition_plans'?[plan]:table==='nutrition_meals'?meals:foods,error:fail?{message:'Sin conexión'}:null})}}}};
 const toast=m=>messages.push(m),vicError=(e,m)=>e.message||m;
 const resetNutritionBuilder=()=>{editors=[];nutritionEditingPlanId=null};
 const nutritionSetGlobalRules=r=>globalRules=r,fillNutritionClients=id=>document.getElementById('nutritionClient').value=id;

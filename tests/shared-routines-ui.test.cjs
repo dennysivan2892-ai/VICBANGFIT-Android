@@ -12,7 +12,7 @@ const html=fs.readFileSync('web/index.html','utf8');const block=(a,b)=>html.slic
  let trainerRoutines=[{id:'r1',client_id:'a',client_name:'Juan',name:'Torso & pierna',status:'active'},{id:'r2',client_id:'b',client_name:'Pedro',name:'Torso & pierna',status:'active',shared_source_routine_id:'r1'}];
  let calls=[],fail=false,loaded=0,edited=null,confirmed=[];const confirm=s=>{confirmed.push(s);return true};const toast=s=>{};
  const setAuthMessage=(id,s)=>document.getElementById(id).textContent=s;const vicError=(e,f)=>e.message||f;
- const routineRequest=p=>p;const sb={rpc:async(name,args)=>{calls.push({name,args});if(fail)throw new Error('Sin conexión');return {data:[],error:null}},from:()=>({select:()=>({eq(){return this},then(resolve){return Promise.resolve({data:[{id:'r2',client_id:'b'}],error:null}).then(resolve)}})})};
+ const routineRequest=p=>p;const sb={rpc:async(name,args)=>{calls.push({name,args});if(fail)throw new Error('Sin conexión');return {data:[],error:null}},from:()=>({select:()=>({is(){return this},eq(){return this},then(resolve){return Promise.resolve({data:[{id:'r2',client_id:'b'}],error:null}).then(resolve)}})})};
  const loadTrainerRoutines=async()=>{loaded++};const openEditRoutine=async id=>{edited=id};
  ${block('// BEGIN SHARED TRAINING','// END SHARED TRAINING')}
  `});
