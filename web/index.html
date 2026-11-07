@@ -3062,7 +3062,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     <div class="smart-nutrition-actions">
       <button class="btn dark" type="button" onclick="smartNutritionRecalculateTrainer()">↻ Recalcular ajustes</button><button class="btn dark" type="button" onclick="smartNutritionFitCarbs()">Ajustar carbos a las kcal</button>
       <button class="btn ghost" type="button" onclick="smartNutritionApplyPreset()">Restaurar recomendación</button>
-      <button class="btn" type="button" onclick="smartNutritionUseInRealPlan()">Usar en plan real →</button>
+      <div class="field"><label>Número de comidas de la dieta nueva</label><select id="smartNutMealCount"><option value="3">3 comidas</option><option value="4" selected>4 comidas</option><option value="5">5 comidas</option></select></div><button class="btn" type="button" onclick="smartNutritionUseInRealPlan()">Crear dieta nueva →</button>
     </div>
   </div>
 
@@ -4209,7 +4209,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
         <span class="nutrition-auto-badge">PROPUESTA ORIENTATIVA</span>
       </div>
       <div class="nutrition-auto-controls">
-        <div class="field"><label>Número de comidas</label><select id="nutritionAutoMealCount"><option value="3">3 comidas</option><option value="4" selected>4 comidas</option><option value="5">5 comidas</option></select></div>
+        <div class="field"><label>Número de comidas</label><select id="nutritionAutoMealCount" onchange="generateNutritionMealsFromTargets()"><option value="3">3 comidas</option><option value="4" selected>4 comidas</option><option value="5">5 comidas</option></select></div>
         <button class="btn dark" type="button" onclick="generateNutritionMealsFromTargets()">⚡ Generar comidas</button>
       </div>
       <div id="nutritionAutoMealSummary" class="nutrition-auto-summary"></div>
@@ -8543,16 +8543,9 @@ async function smartNutritionUseInRealPlan(){
  const goal=document.getElementById('smartNutGoal')?.value||'maintain';
  const goalLabel={loss:'Pérdida de grasa',recomp:'Recomposición',maintain:'Mantenimiento',gain:'Ganancia muscular'}[goal]||'Plan';
  try{
-  const {data:activePlans,error}=await sb.from('nutrition_plans')
-   .select('id,created_at')
-   .eq('trainer_id',currentProfile.id)
-   .eq('client_id',clientId)
-   .eq('status','active')
-   .order('created_at',{ascending:false});
-  if(error)throw error;
-  if((activePlans||[]).length>1){toast('Hay varios planes activos. Elige primero cuál quieres conservar.');await loadTrainerNutrition();return}
-  if((activePlans||[]).length===1){if(!await editNutritionPlan(activePlans[0].id))return}
-  else if(!openNutritionBuilder(clientId))return;
+  const mealCount=document.getElementById('smartNutMealCount')?.value||'4';
+  if(!openNutritionBuilder(clientId))return;
+  document.getElementById('nutritionAutoMealCount').value=mealCount;
   {
    document.getElementById('nutritionPlanName').value=`${goalLabel} · ${target} kcal`;
    document.getElementById('nutritionCalories').value=target;
@@ -8562,13 +8555,15 @@ async function smartNutritionUseInRealPlan(){
    const notes=document.getElementById('nutritionNotes');
    if(notes&&!notes.value)notes.value=`Propuesta inicial calculada por VICBANGFIT: ajuste energético ${smartNutritionNum('smartNutAdjustment',0)}%, proteína fijada en ${smartNutritionNum('smartNutProteinKg',2).toFixed(1)} g/kg, grasas fijadas en ${smartNutritionNum('smartNutFatKg',0.8).toFixed(1)} g/kg y carbohidratos ajustados al resto de calorías (${smartNutritionNum('smartNutCarbKg',2.5).toFixed(1)} g/kg). Revisar según evolución, rendimiento, hambre y adherencia.`;
   }
-  if(!(activePlans||[]).length){document.getElementById('nutritionMealEditors').innerHTML='';nutritionMealEditorSeq=0;await generateNutritionMealsFromTargets();}
+  document.getElementById('nutritionMealEditors').innerHTML='';nutritionMealEditorSeq=0;await generateNutritionMealsFromTargets();
  }catch(error){console.error(error);toast('No se pudo preparar el plan real')}
 }
 
 let nutritionEditingPlanId=null;
 let nutritionEditingBaseline=null;
 let nutritionSaving=false;
+let nutritionGenerationRequest=0;
+let nutritionGenerating=false;
 let nutritionMealEditorSeq=0;
 let trainerNutritionPlans=[];
 let monthlyNutritionReviewState=null;
@@ -8622,8 +8617,8 @@ async function monthlyNutritionCreateNextPlan(){
  const s=monthlyNutritionReviewState;if(!s?.plan)return;const value=id=>Number(document.getElementById(id).value)||0,vals={kcal:value('monthlyReviewCalories'),p:value('monthlyReviewProtein'),c:value('monthlyReviewCarbs'),f:value('monthlyReviewFat')},coachNotes=document.getElementById('monthlyReviewCoachNotes').value.trim();
  const mode=document.getElementById('monthlyReviewDietMode')?.value||'renew';let oldDetails=null;
  try{oldDetails=await loadNutritionPlanDetails(s.plan.id);nutritionAutoPreviousFoods=new Set(oldDetails.meals.flatMap(m=>(m.foods||[]).map(f=>nutritionSafetyNorm(f.food_name))))}catch(error){console.error(error);nutritionAutoPreviousFoods=new Set()}
- nutritionAutoRevisionMode=mode;nutritionAutoCalorieDirection=vals.kcal<Number(s.oldKcal||s.plan.target_calories||0)?'lower':vals.kcal>Number(s.oldKcal||s.plan.target_calories||0)?'higher':'same';nutritionAutoRevisionPickCounter=0;
  closeMonthlyNutritionReview();openNutritionBuilder(s.plan.client_id);
+ nutritionAutoRevisionMode=mode;nutritionAutoCalorieDirection=vals.kcal<Number(s.oldKcal||s.plan.target_calories||0)?'lower':vals.kcal>Number(s.oldKcal||s.plan.target_calories||0)?'higher':'same';nutritionAutoRevisionPickCounter=0;
  if(oldDetails){document.getElementById('nutritionAutoMealCount').value=String(oldDetails.meals.length);nutritionSetGlobalRules(oldDetails.plan.food_rules);nutritionRenewMealRules=oldDetails.meals.map(m=>m.food_rules||{});}
  document.getElementById('nutritionPlanName').value=`Plan nutricional · Mes ${s.month}`;document.getElementById('nutritionCalories').value=vals.kcal||'';document.getElementById('nutritionProtein').value=vals.p||'';document.getElementById('nutritionCarbs').value=vals.c||'';document.getElementById('nutritionFat').value=vals.f||'';document.getElementById('nutritionNotes').value=`Revisión mensual: ${s.reason}${coachNotes?` Decisión del entrenador: ${coachNotes}`:''}`;
  document.getElementById('nutritionMealEditors').innerHTML='';nutritionMealEditorSeq=0;nutritionAutoVarietyCounter+=2;
@@ -9596,8 +9591,9 @@ function initNutritionBuilderSafetyListeners(){
  });
 }
 
-function closeNutritionBuilder(){if(nutritionSaving)return;document.getElementById('nutritionBuilderModal').style.display='none';nutritionEditingPlanId=null;nutritionEditingBaseline=null}
+function closeNutritionBuilder(){if(nutritionSaving)return;nutritionGenerationRequest++;nutritionGenerating=false;document.getElementById('nutritionBuilderModal').style.display='none';nutritionEditingPlanId=null;nutritionEditingBaseline=null}
 function resetNutritionBuilder(){
+ nutritionGenerationRequest++;nutritionGenerating=false;nutritionAutoPreviousFoods=new Set();nutritionAutoRevisionMode='initial';nutritionAutoCalorieDirection='same';
  nutritionQuickReset();
  nutritionSetGlobalRules();nutritionRenewMealRules=[];document.getElementById("nutritionAdjustmentResult").textContent="";
  nutritionEditingPlanId=null;nutritionEditingBaseline=null;nutritionMealEditorSeq=0;
@@ -9992,11 +9988,16 @@ async function generateNutritionMealsFromTargets(){
  }
  const count=Math.max(3,Math.min(5,Number(document.getElementById('nutritionAutoMealCount')?.value)||4));
  const clientId=document.getElementById('nutritionClient')?.value||activeTrainerClientId||'';
+ const request=++nutritionGenerationRequest,editingId=nutritionEditingPlanId;
+ nutritionGenerating=true;
+ try{
  const safetyProfile=await nutritionLoadSafetyProfile(clientId);
+ if(request!==nutritionGenerationRequest||editingId!==nutritionEditingPlanId||document.getElementById('nutritionClient').value!==clientId||Number(document.getElementById('nutritionAutoMealCount').value)!==count)return;
+
  const usedAutoFoods={carb:new Set(),protein:new Set(),fat:new Set(),fixed:new Set()};
  const templates=nutritionAutoMealTemplates(count).map(t=>nutritionAutoAdaptTemplate(t,safetyProfile,usedAutoFoods)),splits=nutritionAutoSplits(count);
  if(document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor').length){
-  if(!confirm('Esto sustituirá las comidas que aparecen ahora en el constructor. ¿Continuar?'))return;
+  if(nutritionEditingPlanId&&!confirm('Esto sustituirá los alimentos del editor. Los cambios se aplicarán al cliente cuando guardes. ¿Continuar?'))return;
  }
  const holder=document.getElementById('nutritionMealEditors');
  const preservedMealIds=[...holder.querySelectorAll('.nutrition-meal-editor')].map(el=>el.dataset.mealId||'');
@@ -10019,6 +10020,8 @@ async function generateNutritionMealsFromTargets(){
  if(nutritionGlobalRules().enabled||preservedMealRules.some(r=>r.enabled)||nutritionRenewMealRules.some(r=>r?.enabled)){await nutritionPreviewAdjustments();nutritionApplyAdjustments();}
  toast(`${count} comidas generadas`);
  scheduleNutritionBuilderSafety();
+ }catch(error){console.error(error);if(request===nutritionGenerationRequest){const msg=document.getElementById('nutritionBuilderMsg');msg.textContent=vicError(error,'No se pudieron generar las comidas.');}}
+ finally{if(request===nutritionGenerationRequest)nutritionGenerating=false;}
 }
 
 async function loadNutritionPlanDetails(planId){
@@ -10102,6 +10105,7 @@ async function nutritionNotifyAfterSave(planId,clientId,action){
 }
 async function saveNutritionPlan(){
  const btn=document.getElementById('saveNutritionBtn');if(currentProfile?.role!=='trainer'||nutritionSaving||trainerProposalBusy||!btn||btn.disabled||vicDataMutationActive())return;const msg=document.getElementById('nutritionBuilderMsg');msg.textContent='';
+ if(nutritionGenerating){msg.textContent='Espera a que termine la generación de comidas antes de guardar.';return;}
  const clientId=document.getElementById('nutritionClient').value;const name=document.getElementById('nutritionPlanName').value.trim()||'Plan nutricional';
  try{nutritionRemoveExcludedFoods();}catch(error){msg.textContent=error.message;return;}
  const meals=[...document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor')].map((el,i)=>({id:el.dataset.mealId||null,order:i+1,name:el.querySelector('.nutrition-meal-name').value.trim(),time:el.querySelector('.nutrition-meal-time').value||null,notes:el.querySelector('.nutrition-meal-notes')?.value.trim()||null,food_rules:nutritionRulesRead(el),foods:el.querySelector('.nutrition-meal-foods').value.split('\n').map(nutritionParseFoodLine).filter(Boolean)})).filter(m=>m.name);

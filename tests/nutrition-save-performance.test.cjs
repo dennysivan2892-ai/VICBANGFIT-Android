@@ -6,6 +6,7 @@ const pool=section('async function routineWritePool(', "document.getElementById(
 const ctx=vm.createContext({console,setTimeout,clearTimeout});
 vm.runInContext(`
 let currentProfile={id:'trainer',role:'trainer'},trainerProposalBusy=false,nutritionSaving=false,nutritionBuilderSafetyTimer=null,nutritionEditingPlanId='diet',nutritionEditingBaseline;
+let nutritionGenerating=false;
 let nutritionBuilderSafetyLast={blocked:false},requests=[],validations=0,closed=0,notifications=0,fail=false,mutation=false;
 const original=Array.from({length:5},(_,i)=>({id:'m'+i,meal_order:i+1,name:'Comida '+i,target_time:'08:00:00',notes:null,food_rules:{enabled:false},foods:[{food_name:'Arroz',amount:80,unit:'g'},{food_name:'Manzana',amount:150,unit:'g'}]}));
 nutritionEditingBaseline={planId:'diet',meals:original};
