@@ -8624,7 +8624,7 @@ async function monthlyNutritionCreateNextPlan(){
  try{oldDetails=await loadNutritionPlanDetails(s.plan.id);nutritionAutoPreviousFoods=new Set(oldDetails.meals.flatMap(m=>(m.foods||[]).map(f=>nutritionSafetyNorm(f.food_name))))}catch(error){console.error(error);nutritionAutoPreviousFoods=new Set()}
  nutritionAutoRevisionMode=mode;nutritionAutoCalorieDirection=vals.kcal<Number(s.oldKcal||s.plan.target_calories||0)?'lower':vals.kcal>Number(s.oldKcal||s.plan.target_calories||0)?'higher':'same';nutritionAutoRevisionPickCounter=0;
  closeMonthlyNutritionReview();openNutritionBuilder(s.plan.client_id);
- if(oldDetails){nutritionSetGlobalRules(oldDetails.plan.food_rules);nutritionRenewMealRules=oldDetails.meals.map(m=>m.food_rules||{});}
+ if(oldDetails){document.getElementById('nutritionAutoMealCount').value=String(oldDetails.meals.length);nutritionSetGlobalRules(oldDetails.plan.food_rules);nutritionRenewMealRules=oldDetails.meals.map(m=>m.food_rules||{});}
  document.getElementById('nutritionPlanName').value=`Plan nutricional · Mes ${s.month}`;document.getElementById('nutritionCalories').value=vals.kcal||'';document.getElementById('nutritionProtein').value=vals.p||'';document.getElementById('nutritionCarbs').value=vals.c||'';document.getElementById('nutritionFat').value=vals.f||'';document.getElementById('nutritionNotes').value=`Revisión mensual: ${s.reason}${coachNotes?` Decisión del entrenador: ${coachNotes}`:''}`;
  document.getElementById('nutritionMealEditors').innerHTML='';nutritionMealEditorSeq=0;nutritionAutoVarietyCounter+=2;
  if(mode==='quantities'&&oldDetails)nutritionAutoLoadAdjustedPreviousMeals(oldDetails,vals,s);
@@ -9412,7 +9412,7 @@ function nutritionQuickInit(plan){
  // Some earlier plans already include their maintenance reference in their notes.
  if(!nutritionEnergyContext){const match=String(plan.notes||'').match(/mantenimiento(?:\s+estimado)?\s*(?:≈|:|=)?\s*(\d+(?:[.,]\d{3})*)\s*kcal/i);if(match)nutritionEnergyContext={maintenance_kcal:Number(match[1].replace(/[.,]/g,'')),reference_source:'Referencia indicada en esta dieta',reference_at:null};}
  const panel=document.getElementById('nutritionCurrentAdjustment');panel.hidden=false;panel.open=false;
- const b=nutritionQuickBase();document.getElementById('nutritionQuickCurrent').textContent=`Dieta guardada: ${b.k} kcal · ${b.p} g proteína · ${b.c} g carbohidratos · ${b.f} g grasas.`;
+ const b=nutritionQuickBase();document.getElementById('nutritionQuickCurrent').textContent=`Dieta guardada: ${document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor').length} comidas · ${b.k} kcal · ${b.p} g proteína · ${b.c} g carbohidratos · ${b.f} g grasas.`;
  for(const [id,value] of Object.entries({nutritionQuickMaintenance:nutritionEnergyContext?.maintenance_kcal||'',nutritionQuickCalories:b.k,nutritionQuickProtein:b.p,nutritionQuickCarbs:b.c,nutritionQuickFat:b.f,nutritionQuickPercent:10,nutritionQuickMode:'manual',nutritionQuickDistribution:'carbs'}))document.getElementById(id).value=value;
  document.getElementById('nutritionQuickWeight').value=Number(saved?.weight_kg)>0?saved.weight_kg:'';document.getElementById('nutritionQuickWeightSource').textContent=saved?.weight_kg?'Peso usado en el último ajuste; consultando el peso más reciente…':'Consultando el peso del cliente…';
  document.getElementById('nutritionQuickKeepProtein').checked=true;document.getElementById('nutritionQuickPreview').innerHTML='';nutritionQuickReferenceLabel();nutritionQuickSyncKg();nutritionQuickPresetFromBase();
@@ -9601,6 +9601,7 @@ function resetNutritionBuilder(){
  nutritionQuickReset();
  nutritionSetGlobalRules();nutritionRenewMealRules=[];document.getElementById("nutritionAdjustmentResult").textContent="";
  nutritionEditingPlanId=null;nutritionEditingBaseline=null;nutritionMealEditorSeq=0;
+ document.getElementById('nutritionAutoMealCount').value='4';
  document.getElementById('nutritionModalTitle').textContent='Crear plan nutricional';
  document.getElementById('nutritionPlanName').value='';document.getElementById('nutritionCalories').value='';document.getElementById('nutritionProtein').value='';document.getElementById('nutritionCarbs').value='';document.getElementById('nutritionFat').value='';document.getElementById('nutritionNotes').value='';document.getElementById('nutritionBuilderMsg').textContent='';
  document.getElementById('nutritionMealEditors').innerHTML='';
@@ -10049,6 +10050,7 @@ async function editNutritionPlan(planId,mealId=null){
  try{
   const {plan,meals}=await loadNutritionPlanDetails(planId);
   resetNutritionBuilder();nutritionEditingBaseline={planId,meals};nutritionSetGlobalRules(plan.food_rules);nutritionEditingPlanId=planId;fillNutritionClients(plan.client_id);document.getElementById('nutritionClient').disabled=true;
+  document.getElementById('nutritionAutoMealCount').value=String(meals.length);
   document.getElementById('nutritionModalTitle').textContent='Actualizar plan nutricional';
   const msg=document.getElementById('nutritionBuilderMsg');
   if(msg){msg.innerHTML='<div class="nutrition-history-protected">🔒 Historial protegido: los cambios se guardarán sobre este mismo plan sin reiniciar la adherencia ni las comidas realizadas.</div>';msg.classList.remove('auth-success')}

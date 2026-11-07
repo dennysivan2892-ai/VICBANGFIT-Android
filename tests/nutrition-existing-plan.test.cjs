@@ -29,6 +29,15 @@ const run=code=>vm.runInContext(code,context);
  assert.equal(run("document.getElementById('nutritionBuilderModal').style.display"),'grid');
  assert.equal(run('queries[0].filters.some(([k,v])=>k===\'trainer_id\'&&v===\'trainer\')'),true);
  assert.equal(await run('editCurrentClientNutrition()'),true);
+ // A stale five-meal generator selection must follow the four saved meals.
+ run("document.getElementById('nutritionAutoMealCount').value='5';meals.push(...['lunch','snack','dinner'].map(id=>({id,plan_id:'diet',name:id})))");
+ assert.equal(await run("editNutritionPlan('diet')"),true);
+ assert.equal(run("document.getElementById('nutritionAutoMealCount').value"),'4');
+ assert.equal(run('editors.length'),4);
+ assert.deepEqual(JSON.parse(run('JSON.stringify(editors.map(e=>e.dataset.mealId))')),['breakfast','lunch','snack','dinner']);
+ run("meals.push({id:'fifth',plan_id:'diet',name:'Extra'})");
+ await run("editNutritionPlan('diet')");assert.equal(run("document.getElementById('nutritionAutoMealCount').value"),'5');
+ run('meals.pop()');await run("editNutritionPlan('diet')");assert.equal(run("document.getElementById('nutritionAutoMealCount').value"),'4');
  // Missing plans, network failures and client-role access never create a new diet.
  assert.equal(await run("editNutritionPlan('missing')"),false);assert.match(run('messages.at(-1)'),/No se encontró/);
  await run("fail=true;editNutritionPlan('diet')");assert.equal(run('messages.at(-1)'),'Sin conexión');
