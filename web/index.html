@@ -9229,7 +9229,30 @@ function nutritionRuleReason(name,rules={}){
 }
 function nutritionRulesControls(rules={},meal=false){
  const r=nutritionRulesClean(rules);
- return `<details class="nutrition-rules" style="margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:12px" ${r.enabled?'open':''} oninput="nutritionAdjustmentPreview=null;scheduleNutritionBuilderSafety()"><summary><b>Ajustes y variantes ${meal?'de esta comida':'opcionales'}</b></summary><label style="display:block;margin:12px 0"><input class="nutrition-rules-enabled" type="checkbox" ${r.enabled?'checked':''}> Activar estos ajustes</label><div class="muted tiny">Desactívalos para usar una dieta básica. Puedes editarlos o quitarlos. ${meal?'Las exclusiones de toda la dieta también se aplican aquí.':'Estos ajustes se aplican a todas las comidas.'}</div>${Object.entries(nutritionRuleGroups).map(([k,v])=>`<label style="display:block;margin-top:8px"><input type="checkbox" data-nutrition-group="${k}" ${r.exclude_groups.includes(k)?'checked':''}> Excluir ${v}</label>`).join('')}<div class="field" style="margin-top:10px"><label>Otros alimentos que quieres excluir (uno por línea)</label><textarea class="nutrition-rules-foods" placeholder="Ej. Plátano\nArroz blanco">${nutritionEsc(r.exclude_foods.join('\n'))}</textarea></div>${meal?`<div class="field"><label>Guarnición</label><select class="nutrition-rules-side"><option value="normal">Sin cambio de guarnición</option><option value="vegetables" ${r.side_mode==='vegetables'?'selected':''}>Verduras en lugar de almidones</option></select></div>`:''}<div class="muted tiny">Fruta y polialcoholes son ajustes distintos. El filtro de polialcoholes identifica nombres; revisa los ingredientes de los productos.</div><button class="btn ghost" type="button" onclick="nutritionRulesClear(this.closest('.nutrition-rules'))">Quitar estos ajustes</button></details>`;
+ return `<details class="nutrition-rules" style="margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:12px" ${r.enabled?'open':''} oninput="nutritionRulesInput(event,this)"><summary><b>Ajustes y variantes ${meal?'de esta comida':'opcionales'}</b></summary><label style="display:block;margin:12px 0"><input class="nutrition-rules-enabled" type="checkbox" ${r.enabled?'checked':''}> Activar estos ajustes</label><div class="muted tiny">Desactívalos para usar una dieta básica. Puedes editarlos o quitarlos. ${meal?'Las exclusiones de toda la dieta también se aplican aquí.':'Estos ajustes se aplican a todas las comidas.'}</div>${Object.entries(nutritionRuleGroups).map(([k,v])=>`<label style="display:block;margin-top:8px"><input type="checkbox" data-nutrition-group="${k}" ${r.exclude_groups.includes(k)?'checked':''}> Excluir ${v}</label>`).join('')}<div class="field" style="margin-top:10px"><label>Otros alimentos que quieres excluir (uno por línea)</label><textarea class="nutrition-rules-foods" placeholder="Ej. Plátano\nArroz blanco">${nutritionEsc(r.exclude_foods.join('\n'))}</textarea></div>${meal?`<div class="field"><label>Guarnición</label><select class="nutrition-rules-side"><option value="normal">Sin cambio de guarnición</option><option value="vegetables" ${r.side_mode==='vegetables'?'selected':''}>Verduras en lugar de almidones</option></select></div>`:''}<div class="muted tiny">Fruta y polialcoholes son ajustes distintos. El filtro de polialcoholes identifica nombres; revisa los ingredientes de los productos.</div><button class="btn ghost" type="button" onclick="nutritionRulesClear(this.closest('.nutrition-rules'))">Quitar estos ajustes</button></details>`;
+}
+function nutritionRulesInput(event,root){
+ const input=event.target;
+ if(!input.matches('.nutrition-rules-enabled')&&(input.checked||input.value?.trim()))root.querySelector('.nutrition-rules-enabled').checked=true;
+ nutritionAdjustmentPreview=null;scheduleNutritionBuilderSafety();
+}
+function nutritionRemoveExcludedFoods(){
+ const global=nutritionGlobalRules(),edits=[],removed=[];
+ for(const editor of document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor')){
+  const input=editor.querySelector('.nutrition-meal-foods'),rules=nutritionRulesMerge(global,nutritionRulesRead(editor));
+  const lines=input.value.split('\n'),kept=[];
+  for(const line of lines){const food=nutritionParseFoodLine(line);if(food&&nutritionRuleReason(food.food_name,rules))removed.push(food);else kept.push(line);}
+  if(!kept.some(line=>nutritionParseFoodLine(line)))throw new Error('La exclusión deja una comida vacía. Elimina esa comida o añade sus alimentos antes de guardar.');
+  edits.push({input,value:kept.join('\n')});
+ }
+ if(!removed.length)return;
+ const totals=nutritionAdjustmentTotals([{foods:removed}]);
+ if(totals.unknown)throw new Error('Hay alimentos excluidos sin equivalencia en gramos. Revisa sus cantidades para descontar sus calorías y macros antes de guardar.');
+ for(const {input,value} of edits)input.value=value;
+ for(const [id,key] of [['nutritionCalories','k'],['nutritionProtein','p'],['nutritionCarbs','c'],['nutritionFat','f']]){
+  const input=document.getElementById(id);if(input.value!=='')input.value=Math.round(Math.max(0,Number(input.value)-totals[key])*10)/10;
+ }
+ nutritionAdjustmentPreview=null;
 }
 function nutritionRulesRead(scope){
  const root=scope?.matches?.('.nutrition-rules')?scope:scope?.querySelector('.nutrition-rules');if(!root)return nutritionRulesClean();
@@ -9264,14 +9287,14 @@ async function nutritionPreviewAdjustments(){
  const preparedRatios=new Map(meals.flatMap(m=>m.foods).filter(f=>f.prepared_amount!=null&&Number(f.amount)>0).map(f=>[f,Number(f.prepared_amount)/Number(f.amount)]));
  const before=nutritionAdjustmentTotals(meals),target=Number(document.getElementById('nutritionCalories').value);
  // Preserve vegetables; scale quantified portions only, within the existing category limits.
- if(target>0&&before.k>0&&!before.unknown){
+ if(!changes.length&&target>0&&before.k>0&&!before.unknown){
   const variable=meals.flatMap(m=>m.foods).filter(f=>nutritionSwapFindFood(f.food_name)?.cat!=='veg');
   const fixed=before.k-variable.reduce((sum,f)=>sum+nutritionSwapMacros(nutritionSwapFindFood(f.food_name),Number(f.amount)).k,0);
   const ratio=Math.max(0,(target-fixed)/Math.max(1,before.k-fixed));
   for(const food of variable){const meta=nutritionSwapFindFood(food.food_name),lim=nutritionAutoLimits(meta.cat,meta.name),old=Number(food.amount),amount=nutritionAutoRound5(old*ratio,lim.min,lim.max);food.amount=amount;if(food.prepared_amount!=null)food.prepared_amount=Math.round(preparedRatios.get(food)*amount);}
  }
  const desired={p:Number(document.getElementById('nutritionProtein').value),c:Number(document.getElementById('nutritionCarbs').value),f:Number(document.getElementById('nutritionFat').value),k:target};
- if(!before.unknown&&desired.p>0&&desired.c>=0&&desired.f>0&&target>0){
+ if(!changes.length&&!before.unknown&&desired.p>0&&desired.c>=0&&desired.f>0&&target>0){
   const variable=meals.flatMap(m=>m.foods).filter(f=>nutritionSwapFindFood(f.food_name)?.cat!=='veg');
   let current=nutritionAdjustmentTotals(meals);
   const loss=t=>['p','c','f','k'].reduce((sum,key)=>sum+((t[key]-desired[key])/Math.max(key==='k'?100:10,desired[key]))**2,0);
@@ -9286,11 +9309,16 @@ async function nutritionPreviewAdjustments(){
   }
  }
  const totals=nutritionAdjustmentTotals(meals),out=document.getElementById('nutritionAdjustmentResult');
- nutritionAdjustmentPreview={snapshot,meals};
+ nutritionAdjustmentPreview={snapshot,meals,hasExclusions:changes.length>0};
  out.innerHTML=`<b>Propuesta editable · todavía no guardada</b><p>Estimación: ${Math.round(totals.k)} kcal · ${Math.round(totals.p)} g P · ${Math.round(totals.c)} g C · ${Math.round(totals.f)} g G. Objetivo: ${target||'sin definir'} kcal · ${desired.p} g P · ${desired.c} g C · ${desired.f} g G.</p><div class="muted tiny">Las exclusiones tienen prioridad. Las cantidades se aproximan dentro de los límites del generador; revisa la diferencia de calorías y macros antes de guardar. ${totals.unknown?'Hay alimentos sin equivalencia en gramos: el cálculo es parcial y sus cantidades no se escalan.':''}</div>${changes.length?`<ul>${changes.map(x=>`<li>${nutritionEsc(x)}</li>`).join('')}</ul>`:'<p>Sin alimentos excluidos. Puedes revisar las cantidades.</p>'}<button class="btn" type="button" onclick="nutritionApplyAdjustments()">Aplicar propuesta al editor</button>`;
 }
 function nutritionApplyAdjustments(){
  if(!nutritionAdjustmentPreview||nutritionAdjustmentPreview.snapshot!==nutritionAdjustmentSnapshot()){toast('La dieta ha cambiado. Recalcula la propuesta.');return;}
+ if(nutritionAdjustmentPreview.hasExclusions){
+  const before=nutritionAdjustmentTotals(nutritionBuilderCollectMeals()),after=nutritionAdjustmentTotals(nutritionAdjustmentPreview.meals);
+  if(before.unknown||after.unknown){toast('Revisa los alimentos sin equivalencia en gramos antes de aplicar las exclusiones.');return;}
+  for(const [id,key] of [['nutritionCalories','k'],['nutritionProtein','p'],['nutritionCarbs','c'],['nutritionFat','f']]){const input=document.getElementById(id);if(input.value!=='')input.value=Math.round(Math.max(0,Number(input.value)+after[key]-before[key])*10)/10;}
+ }
  const editors=[...document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor')];nutritionAdjustmentPreview.meals.forEach((m,i)=>{editors[i].querySelector('.nutrition-meal-foods').value=m.foods.map(nutritionFoodEditorLine).join('\n');});nutritionAdjustmentPreview=null;document.getElementById('nutritionAdjustmentResult').textContent='Propuesta aplicada. Revisa los alimentos y guarda el plan para actualizarlo al cliente.';scheduleNutritionBuilderSafety();
 }
 // END NUTRITION ADJUSTMENTS
@@ -9479,7 +9507,7 @@ function nutritionBuilderSafetyConflicts(profile,meals){
  const conflicts=[];
  (meals||[]).forEach((meal,mealIndex)=>{
   for(const food of meal.foods||[]){
-   const reason=nutritionFoodBlockedReason(food.food_name,profile)||nutritionRuleReason(food.food_name,nutritionRulesMerge(nutritionGlobalRules(),meal.food_rules));
+   const reason=nutritionFoodBlockedReason(food.food_name,profile);
    if(reason)conflicts.push({meal:meal.name||'Comida',mealIndex,food,reason});
   }
  });
@@ -10073,6 +10101,7 @@ async function nutritionNotifyAfterSave(planId,clientId,action){
 async function saveNutritionPlan(){
  const btn=document.getElementById('saveNutritionBtn');if(currentProfile?.role!=='trainer'||nutritionSaving||trainerProposalBusy||!btn||btn.disabled||vicDataMutationActive())return;const msg=document.getElementById('nutritionBuilderMsg');msg.textContent='';
  const clientId=document.getElementById('nutritionClient').value;const name=document.getElementById('nutritionPlanName').value.trim()||'Plan nutricional';
+ try{nutritionRemoveExcludedFoods();}catch(error){msg.textContent=error.message;return;}
  const meals=[...document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor')].map((el,i)=>({id:el.dataset.mealId||null,order:i+1,name:el.querySelector('.nutrition-meal-name').value.trim(),time:el.querySelector('.nutrition-meal-time').value||null,notes:el.querySelector('.nutrition-meal-notes')?.value.trim()||null,food_rules:nutritionRulesRead(el),foods:el.querySelector('.nutrition-meal-foods').value.split('\n').map(nutritionParseFoodLine).filter(Boolean)})).filter(m=>m.name);
  if(!clientId){msg.textContent='Selecciona un cliente.';return}if(!meals.length){msg.textContent='Añade al menos una comida.';return}
  if(meals.some(m=>!m.foods.length)){msg.textContent='Revisa las comidas vacías: añade sus alimentos antes de guardar.';return}
