@@ -4,7 +4,7 @@ function fn(name){const a=html.indexOf('function '+name+'(');return html.slice(a
 const a=html.indexOf('const nutritionSubstitutionCatalog='),catalog=html.slice(a,html.indexOf('\n];',a)+3);
 const context=vm.createContext({console,structuredClone});
 vm.runInContext(`${catalog}
-${['nutritionSafetyNorm','nutritionSwapNormalize','nutritionSwapFindFood','nutritionSwapMacros','nutritionAdjustmentTotals','nutritionEditorMealFingerprint','nutritionEditorFitMeal','nutritionEditorNewMeal','nutritionEditorRedistribute'].map(fn).join('\n')}
+${['nutritionSafetyNorm','nutritionSwapNormalize','nutritionSwapFindFood','nutritionSwapMacros','nutritionAdjustmentTotals','nutritionEditorMealFingerprint','nutritionEditorFitMeal','nutritionEqualPortions','nutritionQuickPortions','nutritionEditorNewMeal','nutritionEditorRedistribute'].map(fn).join('\n')}
 const nutritionRuleReason=()=>'',nutritionGlobalRules=()=>({});`,context);
 const run=s=>vm.runInContext(s,context),json=s=>JSON.parse(run('JSON.stringify('+s+')'));
 const food=(food_name,amount,prepared_amount=null)=>({food_name,amount,unit:'g',prepared_amount,prepared_unit:prepared_amount==null?null:'g'});
@@ -21,9 +21,15 @@ assert.equal(run('JSON.stringify(source)===original'),true,'source must remain u
 assert.deepEqual(json('four.map(m=>m.id)'),['breakfast','morning','lunch','dinner']);
 for(const key of ['p','c','f','k'])assert.ok(run(`Math.abs(before.${key}-after.${key})<=Math.max(${key==='k'?10:1},before.${key}*.01)`),key+' daily total');
 assert.ok(run('four.every(m=>m.foods.every(f=>source.find(s=>s.id===m.id).foods.some(o=>o.food_name===f.food_name)))'),'no concatenated foods');
-assert.ok(run('four.every(m=>nutritionAdjustmentTotals([m]).k>nutritionAdjustmentTotals([source.find(s=>s.id===m.id)]).k)'),'calories spread among all remaining meals');
+for(const key of ['p','c','f'])assert.ok(run(`four.every(m=>Math.abs(nutritionAdjustmentTotals([m]).${key}-before.${key}/4)<.5)`),'uniform macro '+key);
 assert.deepEqual(json('four[2].food_rules'),source[2].food_rules);
 for(const m of json('four'))for(const f of m.foods){const old=source.find(s=>s.id===m.id).foods.find(o=>o.food_name===f.food_name);if(old.prepared_amount)assert.ok(Math.abs(f.prepared_amount/f.amount-old.prepared_amount/old.amount)<.005);}
+// g/kg totals are divided by meal count, even from a heavily skewed starting diet.
+run('const fiveEqual=nutritionQuickPortions(source,{p:300,c:250,f:75,k:2875})');
+for(const key of ['p','c','f'])assert.ok(run(`fiveEqual.meals.every(m=>Math.abs(nutritionAdjustmentTotals([m]).${key}-({p:60,c:50,f:15})[${JSON.stringify(key)}])<.5)`),'five equal '+key);
+run('const fourEqual=nutritionQuickPortions(four,{p:300,c:250,f:75,k:2875})');
+for(const key of ['p','c','f'])assert.ok(run(`fourEqual.meals.every(m=>Math.abs(nutritionAdjustmentTotals([m]).${key}-({p:75,c:62.5,f:18.75})[${JSON.stringify(key)}])<.5)`),'four equal '+key);
+assert.equal(run('JSON.stringify(source)===original'),true,'equal preview is nonmutating');
 // A saved four-meal plan can gain a distinct fifth meal, without cloning a donor.
 run('const five=nutritionEditorRedistribute(four,5);const increased=nutritionAdjustmentTotals(five)');
 assert.equal(run('new Set(five.map(nutritionEditorMealFingerprint)).size'),5);
@@ -38,7 +44,8 @@ const document={getElementById(){return {set innerHTML(v){current=[]},value:''}}
 const addNutritionMealEditor=m=>current.push(structuredClone(m)),nutritionQuickInvalidate=()=>{},nutritionEditorReview=()=>{},scheduleNutritionBuilderSafety=()=>{},toast=m=>messages.push(m);
 ${fn('nutritionEditorChangeMealCount')}`,context);
 run("nutritionEditorChangeMealCount('4');nutritionEditorChangeMealCount('5')");
-assert.deepEqual(json('current'),source,'5→4→5 restores exact original menus and quantities');
+assert.deepEqual(json('current.map(m=>({id:m.id,name:m.name,foods:m.foods.map(f=>f.food_name)}))'),source.map(m=>({id:m.id,name:m.name,foods:m.foods.map(f=>f.food_name)})),'5→4→5 restores original separate menus');
+for(const key of ['p','c','f'])assert.ok(run(`current.every(m=>Math.abs(nutritionAdjustmentTotals([m]).${key}-before.${key}/5)<.5)`),'uniform round trip '+key);
 run("nutritionEditorChangeMealCount('4');current[0].foods[0].amount+=10;const edited=nutritionAdjustmentTotals(current);nutritionEditorChangeMealCount('5')");
 for(const key of ['p','c','f','k'])assert.ok(run(`Math.abs(nutritionAdjustmentTotals(current).${key}-edited.${key})<=Math.max(${key==='k'?10:1},edited.${key}*.01)`),'manual edits retained '+key);
 console.log('PASS: 5→4→5, fresh 4→5, no concatenation/cloned meals, macros, IDs/rules, raw/cooked ratios, manual edits and atomic errors');

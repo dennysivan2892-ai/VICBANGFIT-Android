@@ -67,8 +67,7 @@ const catalog=html.slice(html.indexOf('const nutritionSubstitutionCatalog='),htm
  await page.locator('#nutritionQuickMode').selectOption('surplus_10');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2200');
  await page.locator('#nutritionQuickMode').selectOption('deficit_10');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'1800');
  // Unknown food units remain unchanged; no foods disappear or get substituted.
- const unknown=await page.evaluate(()=>nutritionQuickPortions([{name:'Prueba',foods:[{food_name:'Alimento personalizado',amount:1,unit:'unidad'}]}],{p:150,c:200,f:60,k:2000}));
- assert.equal(unknown.meals[0].foods[0].amount,1);assert.equal(unknown.totals.unknown,1);
+ assert.equal(await page.evaluate(()=>{try{nutritionQuickPortions([{name:'Prueba',foods:[{food_name:'Alimento personalizado',amount:1,unit:'unidad'}]}],{p:150,c:200,f:60,k:2000});return false;}catch(e){return /gramos/.test(e.message)}}),true);
  const prepared=await page.evaluate(()=>nutritionBuilderCollectMeals()[0].foods[0]);assert.ok(Math.abs(prepared.prepared_amount/prepared.amount-3)<.05);
  await page.evaluate(()=>{nutritionQuickInit({...plan,target_protein_g:300});document.getElementById('nutritionQuickWeight').value=150;nutritionQuickSyncKg()});assert.match(await page.locator('#nutritionQuickProteinTotal').textContent(),/Guardado: 2 g\/kg · 300 g\/día/);
  await page.evaluate(()=>{document.getElementById('nutritionQuickWeight').value=100;nutritionQuickSyncKg()});assert.match(await page.locator('#nutritionQuickProteinTotal').textContent(),/Guardado: 3 g\/kg · 300 g\/día/);
@@ -80,8 +79,8 @@ const catalog=html.slice(html.indexOf('const nutritionSubstitutionCatalog='),htm
  await page.evaluate(()=>nutritionQuickReset());assert.equal(await page.locator('#nutritionCurrentAdjustment').isVisible(),false,'no quick adjustment on new plans');
  // One saved-diet editor: redistribute existing foods, edit grams and replace a food.
  await page.evaluate(()=>{
-  addNutritionMealEditor({id:'meal3',name:'Merienda',foods:['Manzana 150 g','Yogur griego 0% 150 g']});
-  addNutritionMealEditor({id:'meal4',name:'Cena',foods:['Pechuga de pollo 180 g','Arroz 80 g']});
+  addNutritionMealEditor({id:'meal3',name:'Merienda',foods:['Manzana 150 g','Yogur griego 0% 150 g','Almendras 15 g']});
+  addNutritionMealEditor({id:'meal4',name:'Cena',foods:['Pechuga de pollo 180 g','Arroz 80 g','Aceite de oliva 15 g']});
   nutritionQuickInit(plan);nutritionEditorMode(true);nutritionEditorReview(true);
  });
  const totalsBefore=await page.evaluate(()=>nutritionAdjustmentTotals(nutritionBuilderCollectMeals()));
@@ -95,7 +94,7 @@ const catalog=html.slice(html.indexOf('const nutritionSubstitutionCatalog='),htm
  assert.equal(await page.locator('.nutrition-meal-editor').count(),4);
  assert.deepEqual(await page.locator('.nutrition-meal-editor').evaluateAll(els=>els.map(el=>el.dataset.mealId)),['meal1','meal2','meal3','meal4']);
  redistributed=await page.evaluate(()=>nutritionAdjustmentTotals(nutritionBuilderCollectMeals()));
- assert.ok(Math.abs(redistributed.k-totalsBefore.k)<.01);
+ assert.ok(Math.abs(redistributed.k-totalsBefore.k)<10);
  await page.locator('#nutritionQuickProtein').fill('200');await page.locator('#nutritionQuickCarbs').fill('150');await page.locator('#nutritionQuickFat').fill('60');
  assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'1940');
  assert.equal(await page.locator('#nutritionInitialGenerator').isVisible(),false);
