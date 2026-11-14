@@ -6327,9 +6327,17 @@ function routineBlockDateLabel(v){
  return Number.isNaN(d.getTime())?'':d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
 }
 function routineBlockStatusLabel(r){
- if(r.status==='active')return 'Activa';
+ if(r.status==='active')return '🟢 En uso actualmente';
+ if(['completed','paused'].includes(r.status))return 'Anterior / Inactiva';
+ if(r.status==='archived')return 'Archivada';
  if(r.status==='draft')return `Borrador · Bloque ${Number(r.block_number)||1}`;
  return r.status||'Sin estado';
+}
+function routineDisplayName(r){
+ const names=(r.days||[]).map(d=>String(d.name||'').toLowerCase());
+ const upper=names.some(n=>/^torso\b/.test(n)),lower=names.some(n=>/^pierna\b/.test(n));
+ const name=String(r.name||'Rutina');
+ return upper&&lower?name.replace(/^Push\s*\/\s*Pull\s*\/\s*Legs/i,'Torso / Pierna'):name;
 }
 function routineBlockMeta(r){
  const n=Number(r.block_number)||1;
@@ -6414,18 +6422,18 @@ async function confirmSharedRoutineSave(r){
 
 function renderTrainerRoutines(){
  const el=document.getElementById('trainerRoutinesList');if(!el)return;
- const visibleRoutines=trainerContentClientId?trainerRoutines.filter(r=>r.client_id===trainerContentClientId):trainerRoutines;
+ const visibleRoutines=(trainerContentClientId?trainerRoutines.filter(r=>r.client_id===trainerContentClientId):trainerRoutines).slice().sort((a,b)=>({active:0,draft:1,paused:2,completed:2,archived:3}[a.status]??4)-({active:0,draft:1,paused:2,completed:2,archived:3}[b.status]??4));
  if(!visibleRoutines.length){el.innerHTML='<div class="empty-state card">Todavía no hay rutinas asignadas. Puedes preparar una propuesta privada y revisarla antes de asignar.<br><button class="btn" type="button" onclick="openRoutineBuilder()">✨ Preparar rutina</button></div>';return}
  el.innerHTML=visibleRoutines.map(r=>`<div class="card real-routine-card">
-   <div class="client-plan-identity">${profileAvatarHtml({name:r.client_name,avatarUrl:r.client_avatar_url},'client-plan-avatar')}<div class="client-plan-copy"><div class="client-plan-label">Rutina de</div><div class="client-plan-name">${escHtml(r.client_name||'Cliente')}</div><div class="client-plan-detail">${escHtml(r.name||'Rutina')} · ${escHtml(routineBlockMeta(r))}</div></div></div>
+   <div class="client-plan-identity">${profileAvatarHtml({name:r.client_name,avatarUrl:r.client_avatar_url},'client-plan-avatar')}<div class="client-plan-copy"><div class="client-plan-label">Rutina de</div><div class="client-plan-name">${escHtml(r.client_name||'Cliente')}</div><div class="client-plan-detail">${escHtml(routineDisplayName(r))} · ${escHtml(routineBlockMeta(r))}</div></div></div>
    <div class="real-routine-head">
-    <div class="row"><h3>${escHtml(r.name)}</h3><span class="pill ${r.status==='active'?'green':''}">${escHtml(routineBlockStatusLabel(r))}</span></div>
+    <div class="row"><h3>${escHtml(routineDisplayName(r))}</h3><span class="pill ${r.status==='active'?'green':''}">${escHtml(routineBlockStatusLabel(r))}</span></div>
     <div class="meta" style="margin-top:5px">${r.goal?escHtml(r.goal)+' · ':''}${escHtml(routineBlockMeta(r))}</div>
     ${sharedRoutineMembers(r).length>1?`<div class="meta" style="margin-top:10px;color:#dbbd62">⇄ Rutina vinculada: ${escHtml(sharedRoutineNames(r))} · progreso individual</div>`:''}
     <div class="real-routine-actions">
       ${sharedRoutineActions(r)}
       ${r.status==='active'?`<button class="btn routine-action-next" type="button" onclick="createNextRoutineBlock('${r.id}')">↗ Continuar con progresión</button><button class="btn routine-action-next" type="button" onclick="createNextRoutineBlock('${r.id}',true)">✨ Nuevo bloque desde cero</button>`:''}
-      ${r.status==='draft'&&r.previous_routine_id?`<button class="btn routine-action-next" type="button" onclick="replanRoutineDraft('${r.id}')">✨ Reconfigurar por completo</button><button class="btn routine-action-edit" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar borrador</button><button class="btn routine-action-next" type="button" onclick="activateRoutineBlock('${r.id}')">✓ Activar bloque</button>`:`<button class="btn dark" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar</button>`}
+      ${r.status==='draft'?`<button class="btn routine-action-next" type="button" onclick="replanRoutineDraft('${r.id}')">✨ Reconfigurar por completo</button><button class="btn routine-action-edit" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar borrador</button><button class="btn routine-action-next" type="button" onclick="activateRoutineBlock('${r.id}')">✓ Activar bloque</button>`:`<button class="btn dark" type="button" onclick="openEditRoutine('${r.id}')">✎ Editar</button>`}
       <button class="btn routine-action-archive" type="button" onclick="deleteRoutine('${r.id}')">🗄 Archivar</button>
     </div>
    </div>
@@ -6587,7 +6595,7 @@ function renderClientRoutines(){
  if(!list)return;
  list.innerHTML=clientRoutines.map(r=>`<div class="card real-routine-card">
    <div class="real-routine-head">
-    <div class="row"><h3>${escHtml(r.name||'Rutina')}</h3><span class="pill green">Activa</span></div>
+    <div class="row"><h3>${escHtml(routineDisplayName(r))}</h3><span class="pill green">Activa</span></div>
     <div class="meta" style="margin-top:5px">${r.goal?escHtml(r.goal):'Objetivo por definir'} · ${escHtml(routineBlockMeta(r))}</div>
    </div>
    ${(r.days||[]).length?[...(r.days||[])].sort((a,b)=>(a.day_number||0)-(b.day_number||0)).map(d=>`<div class="real-routine-day">
@@ -7045,9 +7053,9 @@ async function openEditRoutine(routineId){
  document.getElementById('routineClient').innerHTML=clients.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
  document.getElementById('routineClient').value=routine.client_id;
  document.getElementById('routineAutoDays').value=String(Math.max(1,Math.min(6,(routine.days||[]).length||3)));
- await routineSyncVolumeProfileForClient();
- document.getElementById('routineName').value=routine.name||'';document.getElementById('routineGoal').value=routine.goal||'';
- try{await loadRoutineExerciseLibrary()}catch(error){console.error(error);setAuthMessage('routineMsg','No se pudo cargar la biblioteca de ejercicios.');return}
+ const volumeLoad=routineSyncVolumeProfileForClient();
+ document.getElementById('routineName').value=routineDisplayName(routine);document.getElementById('routineGoal').value=routine.goal||'';
+ try{await Promise.all([volumeLoad,loadRoutineExerciseLibrary()])}catch(error){console.error(error);setAuthMessage('routineMsg','No se pudo cargar la biblioteca de ejercicios.');return}
  routineDayCounter=0;document.getElementById('routineDays').innerHTML='';
  const orderedDays=[...(routine.days||[])].sort((a,b)=>(a.day_number||0)-(b.day_number||0));
  if(orderedDays.length)orderedDays.forEach(d=>addRoutineDay(d));else addRoutineDay();
@@ -7090,7 +7098,11 @@ function generateRoutineStructureFromBuilder(){
   addRoutineDay({name:d.name,exercises});
  });
  smartRenderVolumeSummary(split,priorities,volumeProfile,level);
- if(!document.getElementById('routineName').value.trim())document.getElementById('routineName').value=`${smartSystemLabel(system)} · ${days} días`;
+ const title=document.getElementById('routineName');
+ if(!title.value.trim()||/^(Push\s*\/\s*Pull\s*\/\s*Legs|Torso\s*\/\s*Pierna|Full Body|División por músculos|Especialización muscular|Recomendado)\b/i.test(title.value.trim())){
+  const block=trainerRoutines.find(r=>r.id===editingRoutineId)?.block_number;
+  title.value=`${smartSystemLabel(system)} · ${days} días${block?' · Bloque '+block:''}`;
+ }
  setAuthMessage('routineMsg',`Propuesta ${smartSystemLabel(system)} creada. Revisa ejercicios, series, RIR y descansos antes de guardar.`);
  toast(`Estructura ${smartSystemLabel(system)} generada ✓`);
 }
@@ -7248,16 +7260,13 @@ async function activateRoutineBlock(routineId){
  if(!routine){toast('No se encontró el bloque');return}
  if(routine.status!=='draft'){toast('Este bloque ya no está en borrador');await loadTrainerRoutines();return}
  const block=Number(routine.block_number)||2;
- if(!confirm(`Activar el Bloque ${block}? El bloque anterior se archivará y este será el único visible para el cliente.`))return;
+ if(!confirm(`Activar el Bloque ${block}? La rutina anterior pasará a inactiva y este será el bloque en uso para el cliente.`))return;
  try{
-  for(const old of trainerRoutines.filter(r=>r.client_id===routine.client_id&&r.status==='active')){const {error:detachError}=await sb.rpc('detach_shared_routine',{p_routine:old.id});if(detachError)throw detachError}
   const {error}=await sb.rpc('activate_routine_block',{p_routine_id:routineId});
   if(error)throw error;
-  try{
-   await sb.functions.invoke('trainer-notify-routine',{body:{routine_id:routineId,client_id:routine.client_id,action:'assigned'}});
-  }catch(notifyErr){console.error('notify routine block',notifyErr)}
   await loadTrainerRoutines();
-  toast(`Bloque ${block} activado · anterior archivado ✓`);
+  toast(`Bloque ${block} en uso · anterior inactivo ✓`);
+  Promise.resolve().then(()=>sb.functions.invoke('trainer-notify-routine',{body:{routine_id:routineId,client_id:routine.client_id,action:'assigned'}})).catch(error=>console.error('notify routine block',error));
  }catch(error){
   console.error('activate routine block',error);
   toast(vicError(error,'No se pudo activar el bloque'));
@@ -7320,8 +7329,10 @@ async function createNextRoutineBlock(routineId,reconfigure=false){
    if(rErr)throw rErr;
    newRoutineId=newRoutine.id;
 
+   const copiedDays=[],copiedExercises=[],copiedSets=[];
    for(const day of [...(source.days||[])].sort((a,b)=>(a.day_number||0)-(b.day_number||0))){
-    const {data:newDay,error:dErr}=await sb.from('workout_days').insert({
+    const newDay={id:crypto.randomUUID()};
+    copiedDays.push({id:newDay.id,
      routine_id:newRoutineId,
      day_number:day.day_number,
      name:day.name,
@@ -7338,11 +7349,11 @@ async function createNextRoutineBlock(routineId,reconfigure=false){
      cardio_resistance:day.cardio_resistance||null,
      cardio_notes:day.cardio_notes||null,
      is_archived:false
-    }).select('id').single();
-    if(dErr)throw dErr;
+    });
 
     for(const ex of [...(day.exercises||[])].sort((a,b)=>(a.exercise_order||0)-(b.exercise_order||0))){
-     const {data:newEx,error:eErr}=await sb.from('workout_exercises').insert({
+     const newEx={id:crypto.randomUUID()};
+     copiedExercises.push({id:newEx.id,
       workout_day_id:newDay.id,
       exercise_id:ex.exercise_id,
       exercise_order:ex.exercise_order,
@@ -7350,8 +7361,7 @@ async function createNextRoutineBlock(routineId,reconfigure=false){
       tempo:ex.tempo||null,
       notes:ex.notes||null,
       is_archived:false
-     }).select('id').single();
-     if(eErr)throw eErr;
+     });
      const prog=progression.get(ex.id)||{};
      const rows=[...(ex.sets||[])].sort((a,b)=>(a.set_number||0)-(b.set_number||0)).map(st=>({
       workout_exercise_id:newEx.id,
@@ -7364,7 +7374,14 @@ async function createNextRoutineBlock(routineId,reconfigure=false){
       notes:st.notes||null,
       is_archived:false
      }));
-     if(rows.length){const {error:sErr}=await sb.from('workout_sets').insert(rows);if(sErr)throw sErr}
+     copiedSets.push(...rows);
+    }
+   }
+   // Persist the copied block in dependency order, in bounded batches.
+   for(const [table,rows] of [['workout_days',copiedDays],['workout_exercises',copiedExercises],['workout_sets',copiedSets]]){
+    for(let offset=0;offset<rows.length;offset+=200){
+     const {error}=await routineRequest(sb.from(table).insert(rows.slice(offset,offset+200)));
+     if(error)throw error;
     }
    }
   }catch(buildErr){
@@ -7684,7 +7701,7 @@ async function saveRoutine(){
  const wasEditing=Boolean(editingRoutineId);
  const targetRoutineId=editingRoutineId;
  const existingRoutine=wasEditing?trainerRoutines.find(r=>r.id===targetRoutineId):null;
- const editingGeneratedDraft=Boolean(wasEditing&&existingRoutine?.status==='draft'&&existingRoutine?.previous_routine_id);
+ const editingGeneratedDraft=Boolean(!wasEditing||existingRoutine?.status==='draft');
  routineGroupCheckBusy=true;
  try{if(existingRoutine&&sharedRoutineMembers(existingRoutine).length>1&&existingRoutine.client_id!==client_id)throw new Error('No cambies el cliente de una rutina vinculada.');if(!await confirmSharedRoutineSave(existingRoutine))return}
  catch(error){setAuthMessage('routineMsg',vicError(error,'No se pudo comprobar el grupo.'));return}
@@ -7737,7 +7754,7 @@ async function saveRoutine(){
    }
   }else{
    const {data:routine,error:rErr}=await routineRequest(sb.from('routines')
-    .insert({trainer_id:currentProfile.id,client_id,name,goal,status:'active'})
+    .insert({trainer_id:currentProfile.id,client_id,name,goal,status:'draft'})
     .select('id').single());
    if(rErr)throw rErr;
    routineId=routine.id;
@@ -7748,8 +7765,7 @@ async function saveRoutine(){
    createdInBulk=true;
   }
 
-  if(!createdInBulk)for(let di=0;di<dayEls.length;di++){
-   const d=dayEls[di];
+  if(!createdInBulk)await routineWritePool(dayEls,async(d,di)=>{
    const dayName=d.querySelector('.routine-day-name').value.trim()||`Día ${di+1}`;
    const weekdayRaw=d.querySelector('.routine-weekday')?.value||'';
    const weekday=weekdayRaw?parseInt(weekdayRaw):null;
@@ -7930,7 +7946,7 @@ async function saveRoutine(){
     r.dataset.originalExerciseId=exercise_id;
    });
    saveRoutineRecovery();
-  }
+  },2);
 
   await verifyRoutineSavedState(routineId,expectedDays);
   // Publish the completed edit only after all days, exercises and sets are verified.
@@ -7946,7 +7962,7 @@ async function saveRoutine(){
    if(syncError)throw new Error('La rutina principal se guardó, pero no se pudo actualizar el grupo. Reintenta Guardar cambios o usa Actualizar grupo. '+(syncError.message||''));
   }
 
-  const successText=editingGeneratedDraft?'Borrador guardado · bloque anterior protegido':(wasEditing?'Rutina actualizada · historial protegido':'Rutina guardada');
+  const successText=editingGeneratedDraft?'Borrador guardado · pendiente de activar':(wasEditing?'Rutina actualizada · historial protegido':'Rutina guardada');
   try{localStorage.removeItem(recoveryKey);localStorage.removeItem(routineRecoveryKey());localStorage.removeItem(`vic-routine-recovery-v1:${currentProfile.id}:${client_id}:${routineId}`)}catch(_){}
   document.getElementById('routineBuilderModal')?.classList.remove('open');
   routineActiveRecoveryKey=null;editingRoutineId=null;setupRoutineModal('create');
