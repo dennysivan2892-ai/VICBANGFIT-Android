@@ -1,0 +1,18 @@
+import {PGlite} from '@electric-sql/pglite';
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const db=new PGlite();
+const client='00000000-0000-0000-0000-000000000001',trainer='00000000-0000-0000-0000-000000000002',other='00000000-0000-0000-0000-000000000003';
+await db.exec(`create role anon;create role authenticated;create schema auth;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;grant usage on schema public,auth to authenticated;grant execute on function auth.uid() to authenticated;create table profiles(id uuid primary key);create table trainer_clients(client_id uuid,trainer_id uuid,status text);grant select on trainer_clients to authenticated;insert into profiles values('${client}'),('${trainer}'),('${other}');insert into trainer_clients values('${client}','${trainer}','active');`);
+await db.exec(fs.readFileSync('db/menstrual-wellbeing.sql','utf8'));
+const as=async id=>db.exec(`reset role;set test.uid='${id}';set role authenticated;`);
+const count=async table=>Number((await db.query('select count(*) as n from '+table)).rows[0].n);
+await as(client);await db.exec(`insert into cycle_preferences(client_id) values('${client}');insert into cycle_entries(client_id,entry_date,bloating,pain,hunger,energy,cravings) values('${client}',current_date,2,1,4,3,2)`);assert.equal(await count('cycle_entries'),1);
+await as(trainer);assert.equal(await count('cycle_entries'),0);
+await as(client);await db.exec(`update cycle_preferences set shared_trainer_id='${trainer}'`);
+await as(trainer);assert.equal(await count('cycle_entries'),1);await db.exec(`insert into cycle_reviews(entry_id,trainer_id,action) select id,'${trainer}','maintain' from cycle_entries`);
+await as(other);assert.equal(await count('cycle_entries'),0);assert.equal(await count('cycle_preferences'),0);assert.equal(await count('cycle_reviews'),0);
+await as(client);assert.equal(await count('cycle_reviews'),1);await db.exec('update cycle_preferences set shared_trainer_id=null');
+await as(trainer);assert.equal(await count('cycle_entries'),0);assert.equal(await count('cycle_reviews'),0);
+await as(client);await db.exec('delete from cycle_preferences');assert.equal(await count('cycle_entries'),0);assert.equal(await count('cycle_reviews'),0);
+console.log('PASS owner access, explicit sharing, unrelated account isolation, consent revocation and cascading deletion');await db.close();
