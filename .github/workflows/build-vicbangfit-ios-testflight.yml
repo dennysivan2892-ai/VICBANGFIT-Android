@@ -186,6 +186,15 @@ jobs:
           APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           APPSTORE_P8_BASE64: ${{ secrets.APPSTORE_P8_BASE64 }}
         run: |
+          # Compare identifiers without printing secret values.
+          if [ "$APPSTORE_KEY_ID" != "729LSNBLDH" ]; then
+            echo "::error::APPSTORE_KEY_ID no coincide con la clave activa VICBANGFIT-TestFlight."
+            exit 1
+          fi
+          if [ "$APPSTORE_ISSUER_ID" != "195abfe4-b653-46ac-84cc-a0def518fea8" ]; then
+            echo "::error::APPSTORE_ISSUER_ID no coincide con el equipo confirmado en App Store Connect."
+            exit 1
+          fi
           mkdir -p "$HOME/.appstoreconnect/private_keys"
           KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8"
           echo -n "$APPSTORE_P8_BASE64" | base64 --decode > "$KEY_PATH"
@@ -202,5 +211,6 @@ jobs:
             --upload-app \
             --type ios \
             --file "$IPA_PATH" \
+            --apple-id "6806066981" \
             --apiKey "$APPSTORE_KEY_ID" \
             --apiIssuer "$APPSTORE_ISSUER_ID"
