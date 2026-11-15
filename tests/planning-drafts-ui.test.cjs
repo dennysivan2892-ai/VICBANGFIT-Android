@@ -21,6 +21,24 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
  run(`currentProfile={id:'trainer',role:'trainer'};clients=[{id:'laura',name:'Laura',full_name:'Laura',services:{nutrition:true}}];trainerContentClientId='laura';
  nutritionLoadSafetyProfile=async()=>nutritionProfileBlank();loadRoutineExerciseLibrary=async()=>{};routineSyncVolumeProfileForClient=async()=>{};
  routineExerciseLibrary=[{id:'squat',name:'Sentadilla',muscle_group:'Cuádriceps',image_url:'https://vicbangfit.test/squat.jpg'},{id:'press',name:'Press inclinado con mancuernas',muscle_group:'Pecho',image_url:'https://vicbangfit.test/incline.jpg'}];`);
+ // A never-activated diet resumes in the full editor and saves to the same draft.
+ run(`openNutritionBuilder('laura');document.getElementById('nutritionPlanName').value='Guadalupe draft';
+ document.getElementById('nutritionCalories').value='1800';document.getElementById('nutritionProtein').value='120';
+ document.getElementById('nutritionCarbs').value='240';document.getElementById('nutritionFat').value='40';
+ document.querySelectorAll('.nutrition-meal-foods').forEach(el=>el.value='Arroz 80 g\\nPechuga de pollo 100 g\\nAceite de oliva 15 g');`);
+ await run('saveNutritionPlan()');const editableDraft=window.rows[0].id;
+ await run(`closeNutritionBuilder();openPlanningDraft('nutrition','${editableDraft}')`);
+ assert.equal(el('nutritionCurrentAdjustment').hidden,false);assert.equal(el('nutritionCurrentAdjustment').open,true);
+ assert.equal(el('nutritionEditorReview').hidden,false);assert.equal(run('nutritionEditingPlanId'),null);
+ assert.match(el('nutritionModalTitle').textContent,/Editar dieta.*borrador/);
+ assert.ok(one('.nutrition-editor-food-tools button'));assert.equal(el('nutritionQuickProtein').value,'120');
+ run(`document.getElementById('nutritionQuickWeight').value='60';nutritionQuickSyncKg();document.getElementById('nutritionQuickProteinKg').value='2.5';nutritionQuickKgChanged('Protein');nutritionQuickPreview();nutritionQuickApply();`);
+ assert.ok(Number(el('nutritionProtein').value)>120);const changed=one('.nutrition-meal-foods').value;
+ await run('saveNutritionPlan()');assert.equal(window.rows.length,1);assert.equal(window.rows[0].id,editableDraft);
+ await run(`closeNutritionBuilder();openPlanningDraft('nutrition','${editableDraft}')`);
+ assert.equal(one('.nutrition-meal-foods').value,changed);assert.ok(Number(el('nutritionQuickProtein').value)>120);
+ assert.equal(window.requests.some(q=>q.action!=='select'&&q.table!=='planning_drafts'),false);
+ run('closeNutritionBuilder()');window.rows=[];window.requests=[];
  // Unfinished raw food lines and empty meals persist, without live-plan writes.
  run(`openNutritionBuilder('laura');document.getElementById('nutritionPlanName').value='Laura · en preparación';document.querySelector('.nutrition-meal-foods').value='Arroz pendiente de cantidad';document.querySelector('#nutritionGlobalRules .nutrition-rules-enabled').checked=true;document.querySelector('#nutritionGlobalRules [data-nutrition-group="fruit"]').checked=true;`);
  await run('saveNutritionPlan()');assert.equal(window.rows.length,1);assert.equal(window.requests.some(q=>q.action!=='select'&&q.table!=='planning_drafts'),false);

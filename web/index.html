@@ -9275,7 +9275,7 @@ function nutritionRulesControls(rules={},meal=false){
 function nutritionRulesInput(event,root){
  const input=event.target;
  if(!input.matches('.nutrition-rules-enabled')&&(input.checked||input.value?.trim()))root.querySelector('.nutrition-rules-enabled').checked=true;
- nutritionAdjustmentPreview=null;scheduleNutritionBuilderSafety();if(nutritionEditingPlanId)nutritionEditorReview(false);
+ nutritionAdjustmentPreview=null;scheduleNutritionBuilderSafety();if(nutritionQuickState)nutritionEditorReview(false);
 }
 function nutritionRemoveExcludedFoods(){
  const global=nutritionGlobalRules(),edits=[],removed=[];
@@ -9496,7 +9496,7 @@ function nutritionEditorRedistribute(source,count){
  return balanced.meals.map((m,i)=>({...m,order:i+1}));
 }
 function nutritionEditorChangeMealCount(value){
- if(!nutritionEditingPlanId||nutritionSaving)return;
+ if(!nutritionQuickState||nutritionSaving)return;
  try{
   const current=nutritionBuilderCollectMeals(),signature=nutritionEditorMealSignature(current);
   const reusable=nutritionMealRedistributionState?.planId===nutritionEditingPlanId&&nutritionMealRedistributionState.signature===signature&&nutritionMealRedistributionState.rules===JSON.stringify(nutritionGlobalRules());
@@ -9511,7 +9511,7 @@ function nutritionEditorChangeMealCount(value){
 }
 
 function nutritionEditorReview(recalculate=false){
- const box=document.getElementById('nutritionEditorReview');if(!box||!nutritionEditingPlanId||!nutritionQuickState)return;
+ const box=document.getElementById('nutritionEditorReview');if(!box||!nutritionQuickState)return;
  const meals=nutritionBuilderCollectMeals(),totals=nutritionAdjustmentTotals(meals),plan=nutritionQuickState.plan;
  const projected=meals.map(m=>({...m,foods:m.foods.filter(f=>!nutritionRuleReason(f.food_name,nutritionRulesMerge(nutritionGlobalRules(),m.food_rules)))})),after=nutritionAdjustmentTotals(projected);
  if(recalculate&&!totals.unknown){
@@ -9790,7 +9790,7 @@ function initNutritionBuilderSafetyListeners(){
  if(!modal||modal.dataset.safetyReady==='1')return;
  modal.dataset.safetyReady='1';
  modal.addEventListener('input',e=>{
-  if(e.target?.matches('#nutritionClient,.nutrition-meal-name,.nutrition-meal-foods')){scheduleNutritionBuilderSafety();if(nutritionEditingPlanId)nutritionEditorReview(e.target.matches('.nutrition-meal-foods'));}
+  if(e.target?.matches('#nutritionClient,.nutrition-meal-name,.nutrition-meal-foods')){scheduleNutritionBuilderSafety();if(nutritionQuickState)nutritionEditorReview(e.target.matches('.nutrition-meal-foods'));}
  });
  modal.addEventListener('change',e=>{
   if(e.target?.matches('#nutritionClient'))scheduleNutritionBuilderSafety();
@@ -9893,14 +9893,14 @@ function addNutritionMealEditor(data={}){
  const box=document.createElement('div');box.className='nutrition-meal-editor';box.dataset.seq=seq;
  box.dataset.mealId=data.id||data.meal_id||'';
  const foods=(data.foods||[]).map(x=>typeof x==='string'?x:nutritionFoodEditorLine(x)).filter(Boolean).join('\n');
- box.innerHTML=`<div class="row"><b>Comida ${document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor').length+1}</b><button class="btn ghost" type="button" onclick="this.closest('.nutrition-meal-editor').remove();if(nutritionEditingPlanId)nutritionEditorReview(true)">Eliminar</button></div>
+ box.innerHTML=`<div class="row"><b>Comida ${document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor').length+1}</b><button class="btn ghost" type="button" onclick="this.closest('.nutrition-meal-editor').remove();if(nutritionQuickState)nutritionEditorReview(true)">Eliminar</button></div>
  <div class="form-grid" style="margin-top:10px"><div class="field"><label>Nombre</label><input class="nutrition-meal-name" value="${nutritionEsc(data.name||'')}" placeholder="Ej. Merienda"></div><div class="field"><label>Hora / recordatorio</label><input class="nutrition-meal-time" type="time" value="${nutritionEsc(nutritionMealTime(data.time||data.target_time||''))}"></div></div>
  <div class="muted tiny" style="margin-top:7px">🔔 Si asignas una hora, el cliente recibirá un recordatorio automático de esta comida. Déjala vacía para no enviar recordatorio.</div>
  <div class="field" style="margin-top:10px"><label>Objetivo / indicaciones de esta comida</label><input class="nutrition-meal-notes" value="${nutritionEsc(data.notes||'')}" placeholder="Ej. Objetivo aprox.: 40 P · 60 C · 15 G"></div>
  ${data.notes?`<div class="nutrition-meal-target">${nutritionEsc(data.notes)}</div>`:''}
  <div class="field" style="margin-top:10px"><label>Alimentos · peso en crudo / peso elaborado</label><textarea class="nutrition-meal-foods" placeholder="Avena 80 g\nPechuga de pollo 180 g crudo / 135 g elaborado\nArroz 80 g crudo / 220 g elaborado">${nutritionEsc(foods)}</textarea><div class="muted tiny" style="margin-top:6px">Formato recomendado: Arroz 80 g crudo / 220 g elaborado. Puedes dejar solo el peso en crudo cuando no necesites equivalencia.</div></div>`;
  box.insertAdjacentHTML('beforeend',nutritionRulesControls(data.food_rules,true));
- document.getElementById('nutritionMealEditors').appendChild(box);if(nutritionEditingPlanId)nutritionEditorReview(false); scheduleNutritionBuilderSafety();
+ document.getElementById('nutritionMealEditors').appendChild(box);if(nutritionQuickState)nutritionEditorReview(false); scheduleNutritionBuilderSafety();
 }
 
 
@@ -10325,7 +10325,7 @@ async function saveNutritionPlan(activate=false){
  const btn=document.getElementById('saveNutritionBtn');if(currentProfile?.role!=='trainer'||nutritionSaving||trainerProposalBusy||!btn||btn.disabled||vicDataMutationActive())return;const msg=document.getElementById('nutritionBuilderMsg');msg.textContent='';
  if(nutritionGenerating){msg.textContent='Espera a que termine la generación de comidas antes de guardar.';return;}
  const clientId=document.getElementById('nutritionClient').value;const name=document.getElementById('nutritionPlanName').value.trim()||'Plan nutricional';
- try{nutritionRemoveExcludedFoods();if(nutritionEditingPlanId)nutritionEditorReview(true);}catch(error){msg.textContent=error.message;return;}
+ try{nutritionRemoveExcludedFoods();if(nutritionQuickState)nutritionEditorReview(true);}catch(error){msg.textContent=error.message;return;}
  const meals=[...document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor')].map((el,i)=>({id:el.dataset.mealId||null,order:i+1,name:el.querySelector('.nutrition-meal-name').value.trim(),time:el.querySelector('.nutrition-meal-time').value||null,notes:el.querySelector('.nutrition-meal-notes')?.value.trim()||null,food_rules:nutritionRulesRead(el),foods:el.querySelector('.nutrition-meal-foods').value.split('\n').map(nutritionParseFoodLine).filter(Boolean)})).filter(m=>m.name);
  if(!clientId){msg.textContent='Selecciona un cliente.';return}if(!meals.length){msg.textContent='Añade al menos una comida.';return}
  if(meals.some(m=>!m.foods.length)){msg.textContent='Revisa las comidas vacías: añade sus alimentos antes de guardar.';return}
@@ -17141,7 +17141,7 @@ async function loadPlanningDrafts(kind){
   if(client)query=query.eq('client_id',client);
   const {data,error}=await query.order('updated_at',{ascending:false});if(error)throw error;
   if(currentProfile?.id!==owner||(trainerContentClientId||null)!==client)return;
-  holder.innerHTML=(data||[]).map(d=>{const person=clients.find(c=>String(c.id)===String(d.client_id));return `<div class="card" style="margin-bottom:12px;border-color:#806b32"><span class="pill">📝 Borrador · privado</span><h3>${escHtml(d.name)}</h3><div class="muted">${escHtml(person?.name||person?.full_name||person?.email||'Cliente')} · ${escHtml(new Date(d.updated_at).toLocaleString('es-ES'))}</div><p class="muted tiny">El cliente sigue viendo su plan activo. Este borrador no envía avisos ni recordatorios.</p><button class="btn" type="button" onclick="openPlanningDraft('${kind}','${d.id}')">✎ Continuar borrador</button></div>`;}).join('');
+  holder.innerHTML=(data||[]).map(d=>{const person=clients.find(c=>String(c.id)===String(d.client_id));return `<div class="card" style="margin-bottom:12px;border-color:#806b32"><span class="pill">📝 Borrador · privado</span><h3>${escHtml(d.name)}</h3><div class="muted">${escHtml(person?.name||person?.full_name||person?.email||'Cliente')} · ${escHtml(new Date(d.updated_at).toLocaleString('es-ES'))}</div><p class="muted tiny">El cliente sigue viendo su plan activo. Este borrador no envía avisos ni recordatorios.</p><button class="btn" type="button" onclick="openPlanningDraft('${kind}','${d.id}')">✎ ${kind==='nutrition'?'Editar esta dieta · borrador':'Continuar borrador'}</button></div>`;}).join('');
  }catch(error){holder.textContent='No se pudieron cargar los borradores. Vuelve a entrar para reintentar.';console.warn('planning drafts',error);}
 }
 async function openPlanningDraft(kind,id){
@@ -17176,7 +17176,18 @@ async function openPlanningDraft(kind,id){
   document.getElementById(planningDraftConfig[kind].client).disabled=Boolean(snapshot.sourceId);
   planningDraftState[kind]={id:row.id,version:row.version};
   document.getElementById(planningDraftConfig[kind].message).textContent='📝 Borrador privado recuperado. Guardar conserva tus cambios; Activar los muestra al cliente.';
-  if(kind==='nutrition')scheduleNutritionBuilderSafety();
+  if(kind==='nutrition'){
+   // Draft identity stays separate from the live plan: the full editor must also
+   // work for a diet that has never been activated.
+   const value=id=>document.getElementById(id).value;
+   const plan={id:snapshot.sourceId||null,client_id:row.client_id,name:value('nutritionPlanName'),
+    target_calories:value('nutritionCalories'),target_protein_g:value('nutritionProtein'),
+    target_carbs_g:value('nutritionCarbs'),target_fat_g:value('nutritionFat'),notes:value('nutritionNotes'),
+    food_rules:{...nutritionGlobalRules(),energy_context:snapshot.energyContext||undefined}};
+   nutritionQuickInit(plan);nutritionEditorMode(true);nutritionEditorReview(false);
+   document.getElementById('nutritionModalTitle').textContent='Editar dieta · borrador';
+   scheduleNutritionBuilderSafety();await nutritionQuickLoadReference();
+  }
  }catch(error){toast(vicError(error,'No se pudo abrir el borrador.'));}
 }
 async function planningRememberSource(kind,sourceId){
