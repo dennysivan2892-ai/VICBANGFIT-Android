@@ -24,6 +24,21 @@ const catalog=html.slice(html.indexOf('const nutritionSubstitutionCatalog='),htm
  `});
  assert.match(await page.locator('#nutritionQuickCurrent').innerText(),/2200 kcal.*150 g.*250 g/);
  assert.match(await page.locator('#nutritionQuickReference').textContent(),/superávit de 10.0/);
+ // Fat energy percentage uses total diet calories and keeps protein/calories fixed.
+ await page.evaluate(()=>{document.getElementById('nutritionQuickCalories').value=2000;document.getElementById('nutritionQuickFat').value=80;nutritionQuickSyncKg()});
+ assert.equal(await page.locator('#nutritionQuickFatPercent').inputValue(),'36');
+ assert.match(await page.locator('#nutritionQuickFatTotal').textContent(),/36 %/);
+ await page.locator('#nutritionQuickFatPercent').fill('30');
+ await page.locator('#nutritionQuickFatPercent').dispatchEvent('change');
+ assert.equal(await page.locator('#nutritionQuickFat').inputValue(),'66.7');
+ assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2000');
+ assert.equal(await page.locator('#nutritionQuickProtein').inputValue(),'150');
+ assert.ok(Math.abs(Number(await page.locator('#nutritionQuickFatKg').inputValue())-66.7/80)<1e-9);
+ await page.locator('#nutritionQuickFatPercent').fill('95');await page.locator('#nutritionQuickFatPercent').dispatchEvent('change');
+ assert.equal(await page.locator('#nutritionQuickFat').inputValue(),'66.7','infeasible percentage preserves grams');
+ assert.equal(await page.evaluate(()=>nutritionFatPercent(80,0)),null);
+ assert.equal(await page.evaluate(()=>nutritionFatPercent(null,2000)),null);
+ await page.evaluate(()=>{for(const [id,v] of Object.entries({nutritionQuickCalories:2200,nutritionQuickProtein:150,nutritionQuickCarbs:250,nutritionQuickFat:66.7}))document.getElementById(id).value=v;nutritionQuickState.userAdjusted=false;nutritionQuickSyncKg()});
  // Returning from +10% to maintenance uses the maintenance baseline, not minus 10%.
  await page.evaluate(()=>nutritionQuickLoadReference());
  await page.locator('#nutritionQuickMode').selectOption('maintenance');assert.equal(await page.locator('#nutritionQuickCalories').inputValue(),'2000');

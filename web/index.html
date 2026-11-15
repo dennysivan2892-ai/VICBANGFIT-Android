@@ -3055,7 +3055,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     <div class="smart-nutrition-editor">
       <div class="macro-edit"><label>Proteína · g/kg</label><select id="smartNutProteinKg" onchange="smartNutritionFitCarbs()"><option value="1.8">1,8 g/kg</option><option value="1.9">1,9 g/kg</option><option value="2.0">2,0 g/kg</option><option value="2.1">2,1 g/kg</option><option value="2.2" selected>2,2 g/kg</option><option value="2.3">2,3 g/kg</option><option value="2.4">2,4 g/kg</option><option value="2.5">2,5 g/kg</option><option value="2.6">2,6 g/kg</option><option value="2.7">2,7 g/kg</option><option value="2.8">2,8 g/kg</option></select><div class="calc" id="smartNutProteinCalc">—</div><div class="muted tiny" style="margin-top:5px">La proteína se mantiene independiente del déficit. Al subirla, bajan automáticamente los carbohidratos para conservar las kcal objetivo.</div></div>
       <div class="macro-edit"><label>Carbohidratos · g/kg · resto de kcal</label><input id="smartNutCarbKg" type="number" min="0" max="10" step="0.1" value="2.5" oninput="smartNutritionCalculate(false)"><div class="calc" id="smartNutCarbCalc">—</div><div class="muted tiny" style="margin-top:5px">Se recalculan automáticamente cuando cambias déficit, proteína o grasa. También puedes retocarlos manualmente.</div></div>
-      <div class="macro-edit"><label>Grasas · g/kg</label><select id="smartNutFatKg" onchange="smartNutritionFitCarbs()"><option value="0.6">0,6 g/kg</option><option value="0.7">0,7 g/kg</option><option value="0.8" selected>0,8 g/kg</option><option value="0.9">0,9 g/kg</option><option value="1.0">1,0 g/kg</option><option value="1.1">1,1 g/kg</option><option value="1.2">1,2 g/kg</option></select><div class="calc" id="smartNutFatCalc">—</div><div class="muted tiny" style="margin-top:5px">La grasa permanece en el rango que tú selecciones; el ajuste energético no la reduce automáticamente.</div></div>
+      <div class="macro-edit"><label>Grasas · g/kg</label><select id="smartNutFatKg" onchange="smartNutritionFitCarbs()"><option value="0.6">0,6 g/kg</option><option value="0.7">0,7 g/kg</option><option value="0.8" selected>0,8 g/kg</option><option value="0.9">0,9 g/kg</option><option value="1.0">1,0 g/kg</option><option value="1.1">1,1 g/kg</option><option value="1.2">1,2 g/kg</option></select><div class="calc" id="smartNutFatCalc">—</div><label>Grasas · % de las calorías totales</label><input id="smartNutFatPercent" type="number" min="0" max="100" step="0.1" onchange="nutritionFatPercentChanged('smart')"><div class="muted tiny" style="margin-top:5px">La grasa permanece en el rango que tú selecciones; el ajuste energético no la reduce automáticamente.</div></div>
     </div>
 
     <div class="smart-nutrition-balance">
@@ -4208,7 +4208,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
         <div class="field"><label>Nuevo objetivo (kcal)</label><input id="nutritionQuickCalories" type="number" min="1" step="1" oninput="document.getElementById('nutritionQuickMode').value='manual';nutritionQuickMacrosFromCalories()"></div>
         <div class="field"><label>Proteína · g/kg</label><select id="nutritionQuickProteinKg" onchange="nutritionQuickKgChanged('Protein')"></select><label>Gramos diarios</label><input id="nutritionQuickProtein" type="number" min="0" step="0.1" oninput="nutritionEditorMacroInput()"><div id="nutritionQuickProteinTotal" class="muted tiny" style="white-space:pre-line;line-height:1.6"></div></div>
         <div class="field"><label>Carbohidratos · g/kg</label><select id="nutritionQuickCarbsKg" onchange="nutritionQuickKgChanged('Carbs')"></select><label>Gramos diarios</label><input id="nutritionQuickCarbs" type="number" min="0" step="0.1" oninput="nutritionEditorMacroInput()"><div id="nutritionQuickCarbsTotal" class="muted tiny" style="white-space:pre-line;line-height:1.6"></div></div>
-        <div class="field"><label>Grasas · g/kg</label><select id="nutritionQuickFatKg" onchange="nutritionQuickKgChanged('Fat')"></select><label>Gramos diarios</label><input id="nutritionQuickFat" type="number" min="0" step="0.1" oninput="nutritionEditorMacroInput()"><div id="nutritionQuickFatTotal" class="muted tiny" style="white-space:pre-line;line-height:1.6"></div></div>
+        <div class="field"><label>Grasas · g/kg</label><select id="nutritionQuickFatKg" onchange="nutritionQuickKgChanged('Fat')"></select><label>Gramos diarios</label><input id="nutritionQuickFat" type="number" min="0" step="0.1" oninput="nutritionEditorMacroInput()"><label>Grasas · % de las calorías totales</label><input id="nutritionQuickFatPercent" type="number" min="0" max="100" step="0.1" onchange="nutritionFatPercentChanged('quick')"><div id="nutritionQuickFatTotal" class="muted tiny" style="white-space:pre-line;line-height:1.6"></div></div>
         <div class="field"><label>Repartir el ajuste de calorías</label><select id="nutritionQuickDistribution" onchange="nutritionQuickMacrosFromCalories()"><option value="carbs">Ajustar carbohidratos; mantener grasas</option><option value="split">Repartir entre carbohidratos y grasas</option><option value="fats">Ajustar grasas; mantener carbohidratos</option></select></div>
       </div>
       <label style="display:block;margin:12px 0"><input id="nutritionQuickKeepProtein" type="checkbox" checked onchange="nutritionQuickMacrosFromCalories()"> Mantener la proteína seleccionada al cambiar calorías</label>
@@ -8507,9 +8507,10 @@ function smartNutritionEstimate(){
  return {weight,bmr,maintenance,target,adjustment};
 }
 function smartNutritionClear(){
- for(const id of ['smartNutKcal','smartNutProtein','smartNutCarbs','smartNutFat','smartNutMacroCalories','smartNutBmr','smartNutMaintenance','smartNutAdjustmentLabel','smartNutSplit']){
+ for(const id of ['smartNutKcal','smartNutProtein','smartNutCarbs','smartNutFat','smartNutMacroCalories','smartNutBmr','smartNutMaintenance','smartNutAdjustmentLabel','smartNutSplit','smartNutFatCalc','smartNutFatHint']){
   const el=document.getElementById(id);if(el)el.textContent='—';
  }
+ const percent=document.getElementById('smartNutFatPercent');if(percent)percent.value='';
  const hint=document.getElementById('smartNutKcalHint');if(hint)hint.textContent='Faltan datos reales del cliente';
  const balance=document.getElementById('smartNutBalance');if(balance){balance.textContent='—';balance.className='pill'}
 }
@@ -8520,12 +8521,12 @@ function smartNutritionCalculate(reestimateTarget=false){
  if(reestimateTarget||!smartNutritionNum('smartNutTargetCalories',0))targetInput.value=Math.round(e.target/10)*10;
  const target=smartNutritionNum('smartNutTargetCalories',Math.round(e.target));
  const proteinKg=smartNutritionNum('smartNutProteinKg',2),carbKg=smartNutritionNum('smartNutCarbKg',2.5),fatKg=smartNutritionNum('smartNutFatKg',0.8);
- const protein=Math.round(e.weight*proteinKg),carbs=Math.round(e.weight*carbKg),fat=Math.round(e.weight*fatKg);
+ const protein=Math.round(e.weight*proteinKg),carbs=Math.round(e.weight*carbKg),fat=Math.round(e.weight*fatKg*10)/10;
  const macroCalories=protein*4+carbs*4+fat*9;
  const diff=macroCalories-target;
- const proteinPct=macroCalories?Math.round(protein*4/macroCalories*100):0;
- const carbPct=macroCalories?Math.round(carbs*4/macroCalories*100):0;
- const fatPct=Math.max(0,100-proteinPct-carbPct);
+ const proteinPct=target?Math.round(protein*4/target*100):0;
+ const carbPct=target?Math.round(carbs*4/target*100):0;
+ const fatPct=nutritionFatPercentText(fat,target);
  document.getElementById('smartNutKcal').textContent=Math.round(target).toLocaleString('es-ES');
  document.getElementById('smartNutKcalHint').textContent=`Mantenimiento ≈ ${Math.round(e.maintenance).toLocaleString('es-ES')} kcal`;
  document.getElementById('smartNutProtein').textContent=protein+' g';
@@ -8533,10 +8534,11 @@ function smartNutritionCalculate(reestimateTarget=false){
  document.getElementById('smartNutFat').textContent=fat+' g';
  document.getElementById('smartNutProteinHint').textContent=proteinKg.toFixed(1)+' g/kg';
  document.getElementById('smartNutCarbsHint').textContent=carbKg.toFixed(1)+' g/kg';
- document.getElementById('smartNutFatHint').textContent=fatKg.toFixed(1)+' g/kg';
+ document.getElementById('smartNutFatHint').textContent=fatKg.toFixed(3).replace(/0+$/,'').replace(/\.$/,'')+' g/kg · '+fatPct;
  document.getElementById('smartNutProteinCalc').textContent=`${protein} g · ${protein*4} kcal`;
  document.getElementById('smartNutCarbCalc').textContent=`${carbs} g · ${carbs*4} kcal`;
- document.getElementById('smartNutFatCalc').textContent=`${fat} g · ${fat*9} kcal`;
+ document.getElementById('smartNutFatCalc').textContent=`${fat} g · ${(fat*9).toLocaleString('es-ES',{maximumFractionDigits:1})} kcal · ${fatPct} de las calorías totales`;
+ document.getElementById('smartNutFatPercent').value=target>0?Math.round(fat*900/target*10)/10:'';
  document.getElementById('smartNutMacroCalories').textContent=Math.round(macroCalories).toLocaleString('es-ES')+' kcal';
  const balance=document.getElementById('smartNutBalance');
  balance.textContent=Math.abs(diff)<=25?'✓ Cuadra con el objetivo':`${diff>0?'+':''}${Math.round(diff)} kcal vs objetivo`;
@@ -8544,7 +8546,7 @@ function smartNutritionCalculate(reestimateTarget=false){
  document.getElementById('smartNutBmr').textContent=Math.round(e.bmr).toLocaleString('es-ES')+' kcal';
  document.getElementById('smartNutMaintenance').textContent=Math.round(e.maintenance).toLocaleString('es-ES')+' kcal';
  document.getElementById('smartNutAdjustmentLabel').textContent=(e.adjustment>0?'+':'')+e.adjustment+'%';
- document.getElementById('smartNutSplit').textContent=`P ${proteinPct}% · C ${carbPct}% · G ${fatPct}%`;
+ document.getElementById('smartNutSplit').textContent=`P ${proteinPct}% · C ${carbPct}% · G ${fatPct}`;
  const goal=document.getElementById('smartNutGoal')?.value||'maintain';
  const preset=smartNutritionPreset(goal);
  const recommendedKcal=Math.round(e.maintenance*(1+Number(preset.adjustment||0)/100)/10)*10;
@@ -9248,6 +9250,30 @@ let nutritionBuilderSafetyTimer=null;
 let nutritionBuilderSafetyLast={blocked:false,conflicts:[],profile:nutritionProfileBlank()};
 
 // BEGIN NUTRITION ADJUSTMENTS
+function nutritionFatPercent(grams,calories){
+ return grams!=null&&grams!==''&&Number.isFinite(Number(grams))&&Number(grams)>=0&&Number.isFinite(Number(calories))&&Number(calories)>0?Number(grams)*900/Number(calories):null;
+}
+function nutritionFatPercentText(grams,calories){
+ const pct=nutritionFatPercent(grams,calories);return pct==null?'—':pct.toLocaleString('es-ES',{maximumFractionDigits:1})+' %';
+}
+function nutritionFatPercentChanged(mode){
+ const smart=mode==='smart',prefix=smart?'smartNut':'nutritionQuick';
+ const pct=Number(document.getElementById(prefix+'FatPercent').value),k=Number(document.getElementById(smart?'smartNutTargetCalories':'nutritionQuickCalories').value),weight=Number(document.getElementById(prefix+'Weight').value),protein=smart?smartNutritionNum('smartNutProteinKg',0)*weight:Number(document.getElementById('nutritionQuickProtein').value);
+ const fat=Math.round(k*pct/900*10)/10,carbs=(k-protein*4-fat*9)/4;
+ if(document.getElementById(prefix+'FatPercent').value.trim()===''||!Number.isFinite(pct)||pct<0||pct>100||k<=0||!Number.isFinite(k)||!Number.isFinite(carbs)||carbs<0||(smart&&weight<=0)){
+  toast('Revisa el porcentaje, las calorías y la proteína: deben dejar espacio para los carbohidratos.');
+  if(smart)smartNutritionCalculate(false);else nutritionQuickSyncKg();return;
+ }
+ if(smart){
+  const select=document.getElementById('smartNutFatKg'),rate=fat/weight;
+  if(![...select.options].some(o=>Number(o.value)===rate))select.add(new Option(rate.toLocaleString('es-ES',{maximumFractionDigits:3})+' g/kg',String(rate)));
+  select.value=String(rate);smartNutritionFitCarbs();
+ }else if(nutritionQuickState){
+  document.getElementById('nutritionQuickFat').value=fat;document.getElementById('nutritionQuickCarbs').value=Math.round(carbs*10)/10;
+  nutritionQuickState.userAdjusted=true;nutritionQuickInvalidate();nutritionQuickSyncKg();
+ }
+}
+
 const nutritionRuleGroups={fruit:'Fruta',rice:'Arroz',pasta:'Pasta',starch:'Almidones: arroz, pasta, pan, cereales, tubérculos y legumbres',polyols:'Polialcoholes identificados por nombre'};
 let nutritionAdjustmentPreview=null;
 let nutritionRenewMealRules=[];
@@ -9522,6 +9548,7 @@ function nutritionEditorReview(recalculate=false){
  const count=document.getElementById('nutritionEditMealCount');if(count)count.value=String(meals.length);
  const rows=[['Calorías','target_calories','k','kcal'],['Proteína','target_protein_g','p','g'],['Carbohidratos','target_carbs_g','c','g'],['Grasas','target_fat_g','f','g']];
  box.innerHTML='<b>Resumen antes de guardar</b><p>'+meals.length+' comidas · '+(after.unknown?'Estimación parcial: revisa los alimentos sin equivalencia en gramos.':'Cálculo de los alimentos y cantidades del editor.')+'</p><table style="width:100%;text-align:left;font-size:13px"><thead><tr><th>Dato</th><th>Guardado</th><th>Nuevo</th><th>Cambio</th></tr></thead><tbody>'+rows.map(([label,field,key,unit])=>{const old=Number(plan[field]),next=Math.round(after[key]*10)/10,d=next-old,pct=old?d/old*100:null;return '<tr><td>'+label+'</td><td>'+nutritionQuickFormatNumber(old)+' '+unit+'</td><td>'+nutritionQuickFormatNumber(next)+' '+unit+'</td><td>'+(d>0?'+':'')+nutritionQuickFormatNumber(d)+' '+unit+(pct==null?'':' · '+nutritionQuickFormatNumber(pct)+' %')+'</td></tr>';}).join('')+'</tbody></table><p class="muted tiny">Las exclusiones marcadas se aplican al guardar. El cliente verá la versión guardada; el historial conservará la anterior.</p>';
+ box.innerHTML+='<p><b>Grasas de los alimentos: '+nutritionFatPercentText(after.f,after.k)+'</b> de las calorías '+(after.unknown?'estimadas (cálculo parcial)':'totales')+' · Objetivo: '+nutritionFatPercentText(document.getElementById('nutritionQuickFat').value,document.getElementById('nutritionQuickCalories').value)+'</p>';
  for(const editor of document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor')){
   let tools=editor.querySelector('.nutrition-editor-food-tools');if(!tools){tools=document.createElement('div');tools.className='nutrition-editor-food-tools';editor.appendChild(tools);}
   const foods=editor.querySelector('.nutrition-meal-foods').value.split('\n');
@@ -9583,7 +9610,8 @@ function nutritionQuickSyncKg(){
   const grams=Number(document.getElementById('nutritionQuick'+key).value)||0,select=document.getElementById('nutritionQuick'+key+'Kg');
   const stored=nutritionQuickStoredMacro(key),valid=Number.isFinite(weight)&&weight>0;
   const reference=stored==null?'Guardado: sin objetivo registrado.':`Guardado: ${valid?nutritionQuickFormatNumber(stored/weight)+' g/kg · ':''}${nutritionQuickFormatNumber(stored)} g/día.`;
-  document.getElementById('nutritionQuick'+key+'Total').textContent=reference+'\n'+`Ajuste: ${valid?nutritionQuickFormatNumber(grams/weight)+' g/kg · ':''}${nutritionQuickFormatNumber(grams)} g/día.`;
+  document.getElementById('nutritionQuick'+key+'Total').textContent=reference+(key==='Fat'?' · '+nutritionFatPercentText(stored,nutritionQuickState?.plan?.target_calories)+' de las calorías guardadas.':'')+'\n'+`Ajuste: ${valid?nutritionQuickFormatNumber(grams/weight)+' g/kg · ':''}${nutritionQuickFormatNumber(grams)} g/día.`+(key==='Fat'?' · '+nutritionFatPercentText(grams,document.getElementById('nutritionQuickCalories').value)+' de las calorías totales.':'');
+  if(key==='Fat'){const input=document.getElementById('nutritionQuickFatPercent');if(input){const pct=nutritionFatPercent(grams,document.getElementById('nutritionQuickCalories').value);input.value=pct==null?'':Math.round(pct*10)/10;}}
   if(!Number.isFinite(weight)||weight<=0){select.innerHTML='<option value="">Indica el peso del cliente</option>';select.disabled=true;continue}
   select.disabled=false;const current=grams/weight,values=[];for(let i=Math.round(min*10);i<=Math.round(max*10);i++)values.push(i/10);
   if(!values.some(v=>Math.abs(v-current)<1e-8))values.push(current);values.sort((a,b)=>a-b);
@@ -9678,7 +9706,7 @@ function nutritionQuickPreview(){
  const source=nutritionBuilderCollectMeals();let result;try{result=nutritionQuickPortions(source,desired);}catch(error){nutritionQuickState.preview=null;document.getElementById('nutritionQuickPreview').textContent=error.message;toast(error.message);return;}const signature=nutritionQuickSignature();
  nutritionQuickState.preview={...result,desired,signature};const t=result.totals;
  const rows=source.map((meal,i)=>`<div style="margin-top:12px"><b>${nutritionEsc(meal.name)}</b>${meal.foods.map((food,j)=>`<div class="muted tiny" style="margin:5px 0;overflow-wrap:anywhere">${nutritionEsc(food.food_name)}: ${nutritionEsc(String(food.amount??'')+' '+(food.unit||''))} → <b>${nutritionEsc(String(result.meals[i].foods[j].amount??'')+' '+(food.unit||''))}</b>${food.prepared_amount!=null?' · Elaborado: '+nutritionEsc(String(food.prepared_amount))+' → '+nutritionEsc(String(result.meals[i].foods[j].prepared_amount))+' '+nutritionEsc(food.prepared_unit||food.unit||''):''}</div>`).join('')}</div>`).join('');
- document.getElementById('nutritionQuickPreview').innerHTML=`<b>Vista previa · misma dieta y mismos alimentos</b><p>Misma proteína en cada toma y algo más de carbohidratos en comida y cena, manteniendo los totales diarios.</p><p>Nuevo objetivo: ${desired.k} kcal · ${desired.p} g P · ${desired.c} g C · ${desired.f} g G.</p><p>Estimación de las cantidades propuestas: ${Math.round(t.k)} kcal · ${Math.round(t.p)} g P · ${Math.round(t.c)} g C · ${Math.round(t.f)} g G.</p><p class="muted tiny">Las cantidades se aproximan al objetivo; revisa la diferencia antes de aplicar. ${t.unknown?'Estimación parcial: hay alimentos sin equivalencia en gramos; se mantienen sin escalar.':''}</p>${rows}<button class="btn" type="button" style="margin-top:12px" onclick="nutritionQuickApply()">Aplicar cantidades a esta dieta</button>`;
+ document.getElementById('nutritionQuickPreview').innerHTML=`<b>Vista previa · misma dieta y mismos alimentos</b><p>Misma proteína en cada toma y algo más de carbohidratos en comida y cena, manteniendo los totales diarios.</p><p>Nuevo objetivo: ${desired.k} kcal · ${desired.p} g P · ${desired.c} g C · ${desired.f} g G · Grasas: ${nutritionFatPercentText(desired.f,desired.k)} de las calorías totales.</p><p>Estimación de las cantidades propuestas: ${Math.round(t.k)} kcal · ${Math.round(t.p)} g P · ${Math.round(t.c)} g C · ${Math.round(t.f)} g G · Grasas: ${nutritionFatPercentText(t.f,t.k)}${t.unknown?' (parcial)':''}.</p><p class="muted tiny">Las cantidades se aproximan al objetivo; revisa la diferencia antes de aplicar. ${t.unknown?'Estimación parcial: hay alimentos sin equivalencia en gramos; se mantienen sin escalar.':''}</p>${rows}<button class="btn" type="button" style="margin-top:12px" onclick="nutritionQuickApply()">Aplicar cantidades a esta dieta</button>`;
 }
 function nutritionQuickApply(){
  const state=nutritionQuickState,preview=state?.preview;
