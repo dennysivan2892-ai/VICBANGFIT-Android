@@ -7013,7 +7013,7 @@ async function routineSyncVolumeProfileForClient(){
  try{
   const {data,error}=await sb.from('client_onboarding_assessments').select('sex,training_experience').eq('trainer_id',currentProfile.id).eq('client_id',clientId).maybeSingle();
   if(error)throw error;
-  select.value='male';
+  select.value=data?.sex==='female'?'female_lower':'male';
   document.getElementById('routineAutoLevel').value=smartLevel(data?.training_experience);
  }catch(error){
   console.warn('routine volume profile',error);
@@ -12549,12 +12549,27 @@ function smartSplit(days,system='recommended',priorities=[],volumeProfile='male'
  if(system==='specialization'&&valid.length){
   rows.forEach((row,i)=>{if(row[0].startsWith('Prioridad'))row[1]=valid.map(p=>p.muscle)});
  }
- for(const p of valid){
-  let present=rows.filter(r=>r[1].includes(p.muscle)).length;
-  for(let i=0;i<rows.length&&present<p.frequency;i++){
-   if(!rows[i][1].includes(p.muscle)){rows[i][1].unshift(p.muscle);present++}
+ // A selected frequency is an exact weekly occurrence count, not a minimum.
+ const lower=new Set(['Cuádriceps','Femoral','Glúteos','Gemelos','Aductores']);
+ const targets=[...valid];
+ if(volumeProfile==='female_lower'&&count>=3){
+  for(const muscle of ['Cuádriceps','Femoral','Glúteos']){
+   if(!targets.some(p=>p.muscle===muscle))targets.push({muscle,frequency:2});
   }
  }
+ for(const p of targets){
+  const ranked=rows.map((r,i)=>({r,i})).sort((a,b)=>{
+   const score=({r})=>(r[1].includes(p.muscle)?100:0)+(lower.has(p.muscle)&&r[1].some(m=>lower.has(m))?20:0)-r[1].length;
+   return score(b)-score(a)||a.i-b.i;
+  });
+  const selected=new Set(ranked.slice(0,p.frequency).map(x=>x.i));
+  rows.forEach((r,i)=>{r[1]=r[1].filter(m=>m!==p.muscle);if(selected.has(i))r[1].push(p.muscle)});
+ }
+ // Four abdominal sets per week, placed on the lightest upper-body day.
+ rows.forEach(r=>{r[1]=r[1].filter(m=>m!=='Abdominales')});
+ const upper=rows.filter(r=>!r[1].some(m=>lower.has(m)));
+ const coreDay=(upper.length?upper:rows).reduce((best,r)=>r[1].length<best[1].length?r:best);
+ coreDay[1].push('Abdominales');
  return rows.map((x,i)=>({day:i+1,name:x[0],muscles:[...new Set(x[1])]}));
 }
 function smartPrescription(goalType,level){
@@ -12618,7 +12633,12 @@ function smartVolumeProfileLabel(profile){
  return profile==='female_lower'?'Prioridad pierna y glúteos':'Equilibrado';
 }
 function smartWeeklySeries(muscle,priorities=[],volumeProfile='male',level='advanced'){
- const preset={beginner:{big:6,small:4},intermediate:{big:10,small:6},advanced:{big:15,small:8}}[level]||{big:6,small:4};
+ if(muscle==='Abdominales')return 4;
+ const lowerProfile=volumeProfile==='female_lower'||volumeProfile==='female_balanced';
+ const presets=lowerProfile
+  ?{beginner:{big:6,small:3},intermediate:{big:8,small:4},advanced:{big:8,small:4}}
+  :{beginner:{big:6,small:4},intermediate:{big:10,small:6},advanced:{big:15,small:8}};
+ const preset=presets[level]||presets.beginner;
  const base=SMART_BIG_MUSCLES.has(muscle)?preset.big:preset.small;
  const priority=(priorities||[]).find(p=>p?.muscle===muscle);
  return base+(priority?smartClamp(Number(priority.bonus)||1,1,2):0);
@@ -12635,8 +12655,7 @@ function smartSetDistribution(total,slots){
  return Array.from({length:count},(_,i)=>Math.floor(total/count)+(i<total%count?1:0));
 }
 function smartExerciseSlots(muscle,series){
- if(SMART_BIG_MUSCLES.has(muscle))return Math.max(0,Math.ceil(series/3));
- return Math.max(0,Math.ceil(series/3));
+ return Math.max(0,Math.ceil(series/4));
 }
 function smartPlannedExerciseCount(day,days,priorities=[],volumeProfile='male',level='advanced'){
  return day.muscles.reduce((total,muscle)=>total+smartExerciseSlots(muscle,smartSessionSeries(muscle,day,days,priorities,volumeProfile,level)),0);
@@ -12808,7 +12827,7 @@ async function loadSmartTrainingPlan(clientId){
   const sessionMinutes=smartSessionMinutes(o.session_minutes);
   const prescription=smartPrescription(goalType,level);
   const privateRow=privateRes.data||null;
-  const volumeProfile='male';
+  const volumeProfile=o.sex==='female'?'female_lower':'male';
   smartTrainingPlan={
    clientId,
    goalText,

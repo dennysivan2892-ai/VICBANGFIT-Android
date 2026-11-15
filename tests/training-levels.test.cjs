@@ -9,14 +9,16 @@ for(const [level,big,small] of [['beginner',6,4],['intermediate',10,6],['advance
  for(const profile of ['male','female_lower','female_balanced']){
   for(const muscle of ['Pecho','Espalda','Cuádriceps','Femoral','Glúteos','Bíceps','Tríceps','Hombros','Gemelos','Abdominales']){
    const args=JSON.stringify([muscle,[],profile,level]).slice(1,-1);
-   const expected=['Pecho','Espalda','Cuádriceps','Femoral','Glúteos'].includes(muscle)?big:small;
+   const profileBig=profile==='male'?big:level==='beginner'?6:8;
+   const profileSmall=profile==='male'?small:level==='beginner'?3:4;
+   const expected=muscle==='Abdominales'?4:['Pecho','Espalda','Cuádriceps','Femoral','Glúteos'].includes(muscle)?profileBig:profileSmall;
    assert.equal(vm.runInContext(`smartWeeklySeries(${args})`,ctx),expected);
    const days=[1,2,3].map(day=>({day,muscles:[muscle]}));
    ctx.days=days;ctx.muscle=muscle;ctx.profile=profile;ctx.level=level;
    assert.equal(vm.runInContext('days.reduce((sum,day)=>sum+smartSessionSeries(muscle,day,days,[],profile,level),0)',ctx),expected);
   }
   ctx.profile=profile;ctx.level=level;
-  assert.equal(vm.runInContext("smartWeeklySeries('Glúteos',[{muscle:'Glúteos',bonus:2}],profile,level)",ctx),big+2);
+  assert.equal(vm.runInContext("smartWeeklySeries('Glúteos',[{muscle:'Glúteos',bonus:2}],profile,level)",ctx),(profile==='male'?big:level==='beginner'?6:8)+2);
  }
 }
 assert.equal((html.match(/id="routineAutoLevel"/g)||[]).length,1);
@@ -54,3 +56,19 @@ assert.equal(run("smartBuildDayExercises(day,[day],'beginner',smartPrescription(
 run("routineExerciseLibrary=routineExerciseLibrary.filter(e=>e.id!=='curl')");
 assert.equal(run("smartBuildDayExercises(day,[day],'beginner',smartPrescription('muscle','beginner'),90).length"),0);
 console.log('PASS: guided beginner exercises, no unsafe fallback, intermediate/advanced progression, RIR and complete set allocation.');
+
+vm.runInContext(html.slice(html.indexOf('function smartBaseSplit('),html.indexOf('function smartPrescription(')),ctx);
+for(const count of [3,4,5,6]){
+ ctx.count=count;
+ const split=run("smartSplit(count,'recommended',[{muscle:'Glúteos',frequency:2,bonus:1}],'female_lower')");
+ for(const muscle of ['Glúteos','Cuádriceps','Femoral'])assert.equal(split.filter(d=>d.muscles.includes(muscle)).length,2);
+ const core=split.filter(d=>d.muscles.includes('Abdominales'));
+ assert.equal(core.length,1);
+ assert.ok(!core[0].muscles.some(m=>['Glúteos','Cuádriceps','Femoral'].includes(m)));
+ ctx.split=split;
+ assert.ok(run("split.every(d=>smartPlannedExerciseCount(d,split,[],'female_lower','advanced')<=10)"));
+}
+console.log('PASS: exact frequency two, four core sets away from leg days, bounded lower-profile exercise counts.');
+
+assert.ok(html.includes("select.value=data?.sex==='female'?'female_lower':'male'"));
+assert.ok(html.includes("const volumeProfile=o.sex==='female'?'female_lower':'male'"));
