@@ -53,6 +53,37 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
  run('vicDataMutationDepth=0');await run(`openPlanningDraft('supplements','${suppId}')`);one('.supp-name').value='Creatina';one('.supp-dose').value='5 g';await run('publishPlanningDraft("supplements")');
  assert.equal(window.live.supplement_plans[0].status,'active');assert.equal(window.live.supplement_items[0].supplement_name,'Creatina');assert.equal(window.rows.some(r=>r.id===suppId),false);
  run('vicDataMutationDepth=0');
+ // Generate, save and reopen a complete five-day F2 routine through the actual editor.
+ const fixture={
+  'Pecho':['Press inclinado con mancuernas','Aperturas en polea','Press en máquina','Press inclinado con barra'],
+  'Espalda':['Jalón al pecho','Pullover en polea','Jalón neutro','Remo en máquina'],
+  'Cuádriceps':['Prensa de piernas','Extensión de cuádriceps','Prensa inclinada'],
+  'Femoral':['Curl femoral sentado','Curl femoral tumbado','Peso muerto rumano'],
+  'Glúteos':['Hip thrust en máquina','Abducción de cadera'],
+  'Gemelos':['Elevación de gemelos de pie','Elevación de gemelos sentado'],
+  'Aductores':['Aducción de cadera en máquina'],
+  'Hombros':['Elevaciones laterales','Pájaros en peck deck'],
+  'Bíceps':['Curl alterno con mancuernas','Curl martillo'],
+  'Tríceps':['Extensión de tríceps en polea','Extensión tríceps por encima cabeza'],
+  'Abdominales':['Crunch en polea','Crunch abdominal']
+ };
+ const library=Object.entries(fixture).flatMap(([muscle_group,names],group)=>names.map((name,i)=>({id:`exercise-${group}-${i}`,name,muscle_group,image_url:`https://vicbangfit.test/${group}-${i}.jpg`})));
+ window.testLibrary=library;run('routineExerciseLibrary=testLibrary');await run('openRoutineBuilder(true)');
+ el('routineClient').value='laura';el('routineAutoDays').value='5';el('routineAutoLevel').value='advanced';el('routineAutoVolumeProfile').value='female_balanced';el('routineAutoFrequency').value='2';el('routineAutoExerciseStyle').value='incline_pulldown';
+ run('generateRoutineStructureFromBuilder()');
+ const totals={},frequency={};
+ for(const day of window.document.querySelectorAll('#routineDays .routine-day-editor')){
+  const rows=[...day.querySelectorAll('.routine-exercise-row')];assert.ok(rows.length>=5&&rows.length<=7);
+  const muscles=new Set();
+  for(const row of rows){const exercise=library.find(e=>e.id===row.querySelector('.re-exercise').value);muscles.add(exercise.muscle_group);totals[exercise.muscle_group]=(totals[exercise.muscle_group]||0)+Number(row.querySelector('.re-sets').value);assert.equal(row.querySelector('.re-thumb img').getAttribute('src'),exercise.image_url);}
+  muscles.forEach(m=>frequency[m]=(frequency[m]||0)+1);
+ }
+ Object.entries(frequency).forEach(([muscle,count])=>assert.equal(count,2,muscle));assert.equal(totals.Abdominales,4);assert.equal(totals.Pecho,10);assert.equal(totals.Espalda,10);
+ await run('saveRoutine()');const generatedId=window.rows.filter(r=>r.kind==='training').at(-1).id;
+ await run(`closeRoutineBuilder();openPlanningDraft('training','${generatedId}')`);
+ assert.equal(el('routineAutoFrequency').value,'2');assert.equal(el('routineAutoExerciseStyle').value,'incline_pulldown');assert.equal(el('routineAutoVolumeProfile').value,'female_balanced');
+ for(const row of window.document.querySelectorAll('#routineDays .routine-exercise-row')){const exercise=library.find(e=>e.id===row.querySelector('.re-exercise').value);assert.equal(row.querySelector('.re-thumb img').getAttribute('src'),exercise.image_url);}
+ assert.equal((html.match(/id="routineAutoFrequency"/g)||[]).length,1);assert.equal((html.match(/id="smartEditFrequency"/g)||[]).length,1);
  const before=window.requests.length;await run("currentProfile.role='client';savePlanningDraft('training')");await run("loadPlanningDrafts('nutrition')");assert.equal(window.requests.length,before);
  await window.happyDOM.abort();window.close();console.log('PASS DOM: incomplete private drafts in all editors, raw values/rules/cardio restored, optimistic conflict, offline recovery, activation validation and role guard');
 })().catch(e=>{console.error(e);process.exitCode=1});
