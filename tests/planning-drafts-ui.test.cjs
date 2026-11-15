@@ -10,7 +10,7 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
  from(table){const q={table,action:'select',filters:[]};return {
  select(){return this},insert(payload){q.action='insert';q.payload=payload;return this},update(payload){q.action='update';q.payload=payload;return this},delete(){q.action='delete';return this},eq(k,v){q.filters.push([k,v]);return this},order(){return this},limit(){return this},in(){return this},is(){return this},
  maybeSingle(){return this.execute(true)},single(){return this.execute(true)},then(resolve,reject){return this.execute(false).then(resolve,reject)},
- async execute(single){window.requests.push(q);if(window.fail&&q.action!=='select')return {error:{message:'Sin conexión'}};const storage=table==='planning_drafts'?window.rows:(window.live[table]||=[]);let matches=storage.filter(r=>q.filters.every(([k,v])=>r[k]===v));
+ async execute(single){if(window.writeGate&&q.action!=='select')await window.writeGate;window.requests.push(q);if(window.fail&&q.action!=='select')return {error:{message:'Sin conexión'}};const storage=table==='planning_drafts'?window.rows:(window.live[table]||=[]);let matches=storage.filter(r=>q.filters.every(([k,v])=>r[k]===v));
  if(q.action==='insert'){matches=[{id:crypto.randomUUID(),...q.payload}];storage.push(...matches)}
  if(q.action==='update')matches.forEach(r=>Object.assign(r,q.payload));
  if(q.action==='delete')window.rows=window.rows.filter(r=>!matches.includes(r));
@@ -26,7 +26,22 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
  document.getElementById('nutritionCalories').value='1800';document.getElementById('nutritionProtein').value='120';
  document.getElementById('nutritionCarbs').value='240';document.getElementById('nutritionFat').value='40';
  document.querySelectorAll('.nutrition-meal-foods').forEach(el=>el.value='Arroz 80 g\\nPechuga de pollo 100 g\\nAceite de oliva 15 g');`);
- await run('saveNutritionPlan()');const editableDraft=window.rows[0].id;
+ // Slow connections show progress, preserve disabled fields, and reject duplicate saves.
+ const originalDisabled=el('nutritionClient').disabled;
+ el('nutritionClient').disabled=true;
+ let releaseWrite;window.writeGate=new Promise(resolve=>{releaseWrite=resolve});
+ const pendingSave=run('saveNutritionPlan()');
+ assert.equal(el('nutritionBuilderModal').inert,true);
+ assert.equal(el('saveNutritionBtn').textContent,'Guardando…');
+ assert.match(el('nutritionBuilderMsg').textContent,/Guardando borrador/);
+ await run('saveNutritionPlan()');
+ releaseWrite();await pendingSave;window.writeGate=null;
+ assert.equal(el('nutritionBuilderModal').inert,false);
+ assert.equal(el('nutritionBuilderModal').hasAttribute('aria-busy'),false);
+ assert.equal(el('nutritionClient').disabled,true);
+ el('nutritionClient').disabled=originalDisabled;
+ assert.equal(window.rows.length,1);
+ const editableDraft=window.rows[0].id;
  await run(`closeNutritionBuilder();openPlanningDraft('nutrition','${editableDraft}')`);
  assert.equal(el('nutritionCurrentAdjustment').hidden,false);assert.equal(el('nutritionCurrentAdjustment').open,true);
  assert.equal(el('nutritionEditorReview').hidden,false);assert.equal(run('nutritionEditingPlanId'),null);
