@@ -4151,7 +4151,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     <div id="routineDays" class="routine-days"></div>
     <div class="row" style="margin-top:12px;align-items:flex-start">
       <button class="btn dark" type="button" onclick="addRoutineDay()">＋ Añadir día</button>
-      <div style="text-align:right"><div id="routineRecoveryStatus" class="muted tiny" aria-live="polite"></div><button class="btn dark" type="button" onclick="saveRoutineRecovery()">Guardar copia en este dispositivo</button><div id="routineMsg" class="auth-error"></div><button id="saveRoutineBtn" class="btn" type="button" onclick="saveRoutine()">Guardar rutina</button></div>
+      <div style="text-align:right"><div id="routineRecoveryStatus" class="muted tiny" aria-live="polite"></div><button class="btn dark" type="button" onclick="saveRoutineRecovery()">Guardar copia en este dispositivo</button><div id="routineMsg" class="auth-error"></div><button id="saveRoutineBtn" class="btn" type="button" onclick="saveRoutine()">Guardar rutina</button><button class="btn dark planning-activate" type="button" onclick="publishPlanningDraft('training')">✓ Activar rutina</button></div>
     </div>
   </div>
 </div>
@@ -4178,7 +4178,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 
     <div class="supp-safety-note">⚠️ Revisa contraindicaciones, medicación y condiciones de salud antes de asignar un suplemento. VICBANGFIT no diagnostica ni sustituye consejo sanitario.</div>
     <div id="suppBuilderMsg" class="auth-error" style="margin-top:10px"></div>
-    <div class="modal-actions"><button class="btn ghost" type="button" onclick="closeSupplementBuilder()">Cancelar</button><button id="suppSaveBtn" class="btn" type="button" onclick="saveSupplementPlan()">Guardar plan</button></div>
+    <div class="modal-actions"><button class="btn ghost" type="button" onclick="closeSupplementBuilder()">Cancelar</button><button id="suppSaveBtn" class="btn" type="button" onclick="saveSupplementPlan()">Guardar plan</button><button class="btn dark planning-activate" type="button" onclick="publishPlanningDraft('supplements')">✓ Activar suplementación</button></div>
   </div>
 </div>
 
@@ -4240,7 +4240,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
       <div class="nutrition-builder-safety-note">Esta comprobación es una ayuda adicional. En alergias diagnosticadas, verifica siempre ingredientes, contaminación cruzada y etiquetado real de cada producto.</div>
     </div>
     <div id="nutritionEditorReview" class="card" style="margin-top:12px" aria-live="polite"></div><div id="nutritionBuilderMsg" class="auth-error"></div>
-    <div class="modal-actions"><button class="btn ghost" type="button" onclick="closeNutritionBuilder()">Cancelar</button><button id="saveNutritionBtn" class="btn" type="button" onclick="handleNutritionSaveButton()">Guardar plan</button></div>
+    <div class="modal-actions"><button class="btn ghost" type="button" onclick="closeNutritionBuilder()">Cancelar</button><button id="saveNutritionBtn" class="btn" type="button" onclick="handleNutritionSaveButton()">Guardar plan</button><button class="btn dark planning-activate" type="button" onclick="publishPlanningDraft('nutrition')">✓ Activar dieta</button></div>
   </div>
 </div>
 
@@ -6421,6 +6421,7 @@ async function confirmSharedRoutineSave(r){
 // END SHARED TRAINING
 
 function renderTrainerRoutines(){
+ void loadPlanningDrafts('training');
  const el=document.getElementById('trainerRoutinesList');if(!el)return;
  const visibleRoutines=(trainerContentClientId?trainerRoutines.filter(r=>r.client_id===trainerContentClientId):trainerRoutines).slice().sort((a,b)=>({active:0,draft:1,paused:2,completed:2,archived:3}[a.status]??4)-({active:0,draft:1,paused:2,completed:2,archived:3}[b.status]??4));
  if(!visibleRoutines.length){el.innerHTML='<div class="empty-state card">Todavía no hay rutinas asignadas. Puedes preparar una propuesta privada y revisarla antes de asignar.<br><button class="btn" type="button" onclick="openRoutineBuilder()">✨ Preparar rutina</button></div>';return}
@@ -7021,7 +7022,9 @@ async function routineSyncVolumeProfileForClient(){
  }
  routineUpdateVolumeProfileCopy();
 }
-async function openRoutineBuilder(){
+async function openRoutineBuilder(skipRecovery=false){
+ if(planningDraftBusy)return;
+ planningResetDraft('training');
  if(currentProfile?.role!=="trainer"){toast('Solo el entrenador puede crear rutinas');return}
  if(!clients.length){toast('Primero añade un cliente');showPage('clientes');return}
  routineActiveRecoveryKey=null;editingRoutineId=null;setupRoutineModal('create');
@@ -7035,10 +7038,12 @@ async function openRoutineBuilder(){
  const volumeSummary=document.getElementById('routineVolumeSummary');if(volumeSummary){volumeSummary.classList.remove('active');volumeSummary.innerHTML=''}
  addRoutineDay();modal.classList.add('open');
  routineActiveRecoveryKey=routineRecoveryKey();
- document.getElementById('routineRecoveryStatus').textContent='';const recovered=restoreRoutineRecovery();
+ document.getElementById('routineRecoveryStatus').textContent='';const recovered=skipRecovery?false:restoreRoutineRecovery();
  if(!recovered&&!editingRoutineId)setAuthMessage('routineMsg','Selecciona el nivel del cliente y genera una estructura o carga la propuesta de su evaluación.');
 }
-async function openEditRoutine(routineId){
+async function openEditRoutine(routineId,skipRecovery=false){
+ if(planningDraftBusy)return;
+ planningResetDraft('training');
  if(currentProfile?.role!=="trainer")return;
  const routine=trainerRoutines.find(r=>r.id===routineId);if(!routine){toast('No se encontró la rutina');return}
  if(routine.shared_source_routine_id){
@@ -7061,13 +7066,14 @@ async function openEditRoutine(routineId){
  if(orderedDays.length)orderedDays.forEach(d=>addRoutineDay(d));else addRoutineDay();
  modal.classList.add('open');
  routineActiveRecoveryKey=routineRecoveryKey();
- document.getElementById('routineRecoveryStatus').textContent='';restoreRoutineRecovery();
+ document.getElementById('routineRecoveryStatus').textContent='';if(!skipRecovery)restoreRoutineRecovery();
  if(sharedRoutineMembers(routine).length>1){
   document.getElementById('routineClient').disabled=true;
   document.getElementById('routineModalCopy').textContent=`Rutina vinculada · Los cambios se aplicarán a ${sharedRoutineNames(routine)}. Pesos e historial individuales. Para adaptar solo un cliente, cierra y usa «Desvincular y adaptar».`;
  }
 }
 function closeRoutineBuilder(){
+ if(planningDraftBusy)return;
  if(routineSaving)return;
  saveRoutineRecovery();
  routineActiveRecoveryKey=null;
@@ -7256,6 +7262,7 @@ async function routineProgressionMap(source){
 }
 async function activateRoutineBlock(routineId){
  if(currentProfile?.role!=='trainer')return;
+ try{const {data,error}=await sb.from('planning_drafts').select('id').eq('trainer_id',currentProfile.id).eq('kind','training').eq('source_id',routineId).order('updated_at',{ascending:false}).limit(1).maybeSingle();if(error)throw error;if(data){await openPlanningDraft('training',data.id);return;}}catch(error){toast(vicError(error,'No se pudieron comprobar los cambios pendientes.'));return;}
  const routine=trainerRoutines.find(r=>r.id===routineId);
  if(!routine){toast('No se encontró el bloque');return}
  if(routine.status!=='draft'){toast('Este bloque ya no está en borrador');await loadTrainerRoutines();return}
@@ -7679,7 +7686,8 @@ document.getElementById('routineBuilderModal').addEventListener('click',()=>{set
 window.addEventListener('pagehide',saveRoutineRecovery);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveRoutineRecovery()});
 
-async function saveRoutine(){
+async function saveRoutine(activate=false){
+ if(!activate)return savePlanningDraft('training');
  if(trainerProposalBusy||routineSaving||routineGroupCheckBusy||shareRoutineBusy||vicDataMutationActive())return;
  const btn=document.getElementById('saveRoutineBtn');
  const client_id=document.getElementById('routineClient').value;
@@ -7760,6 +7768,7 @@ async function saveRoutine(){
    routineId=routine.id;
    // Keep the identity after a partial failure so a retry cannot create a duplicate routine.
    editingRoutineId=routineId;
+   await planningRememberSource('training',routineId);
    saveRoutineRecovery();
    await createRoutineContentsBulk(routineId,dayEls);
    createdInBulk=true;
@@ -7962,18 +7971,20 @@ async function saveRoutine(){
    if(syncError)throw new Error('La rutina principal se guardó, pero no se pudo actualizar el grupo. Reintenta Guardar cambios o usa Actualizar grupo. '+(syncError.message||''));
   }
 
-  const successText=editingGeneratedDraft?'Borrador guardado · pendiente de activar':(wasEditing?'Rutina actualizada · historial protegido':'Rutina guardada');
+  if(editingGeneratedDraft){const {error}=await sb.rpc('activate_routine_block',{p_routine_id:routineId});if(error)throw error;}
+  await completePlanningDraft('training');
+  const successText=activate?'Rutina activada':editingGeneratedDraft?'Borrador guardado · pendiente de activar':(wasEditing?'Rutina actualizada · historial protegido':'Rutina guardada');
   try{localStorage.removeItem(recoveryKey);localStorage.removeItem(routineRecoveryKey());localStorage.removeItem(`vic-routine-recovery-v1:${currentProfile.id}:${client_id}:${routineId}`)}catch(_){}
   document.getElementById('routineBuilderModal')?.classList.remove('open');
   routineActiveRecoveryKey=null;editingRoutineId=null;setupRoutineModal('create');
-  toast(successText+(editingGeneratedDraft?' · Cliente sin avisar':''));
+  toast(successText);
 
   // El guardado ya está confirmado. La recarga y el aviso se ejecutan después
   // para que una red lenta o una función de notificaciones no bloquee el botón.
   Promise.resolve().then(async()=>{
    try{await loadTrainerRoutines()}catch(loadErr){console.error('refresh routines',loadErr)}
   });
-  if(!editingGeneratedDraft){
+  if(activate||!editingGeneratedDraft){
    Promise.resolve().then(async()=>{
     try{
      const {data:notifyData,error:notifyError}=await sb.functions.invoke('trainer-notify-routine',{
@@ -9670,7 +9681,7 @@ function nutritionQuickApply(){
  const maintenance=Number(document.getElementById('nutritionQuickMaintenance').value);
  if(maintenance>0)nutritionEnergyContext={maintenance_kcal:maintenance,reference_source:nutritionEnergyContext?.maintenance_kcal===maintenance?nutritionEnergyContext.reference_source:'Referencia fijada por el entrenador',reference_at:nutritionEnergyContext?.reference_at||null};
  if(nutritionEnergyContext)Object.assign(nutritionEnergyContext,{weight_kg:Number(document.getElementById('nutritionQuickWeight').value)});
- nutritionEditorReview(true);state.preview=null;document.getElementById('nutritionQuickPreview').textContent='Cantidades aplicadas al editor. Pulsa Guardar cambios en esta dieta para confirmarlas al cliente.';scheduleNutritionBuilderSafety();
+ nutritionEditorReview(true);state.preview=null;document.getElementById('nutritionQuickPreview').textContent='Cantidades aplicadas al editor. Pulsa Guardar borrador para conservarlas. Activa la dieta cuando esté lista.';scheduleNutritionBuilderSafety();
 }
 function nutritionEnergyRulesForSave(){
  const rules=nutritionGlobalRules(),maintenance=Number(nutritionEnergyContext?.maintenance_kcal),calories=Number(document.getElementById('nutritionCalories').value);
@@ -9779,8 +9790,10 @@ function initNutritionBuilderSafetyListeners(){
  });
 }
 
-function closeNutritionBuilder(){if(nutritionSaving)return;nutritionGenerationRequest++;nutritionGenerating=false;document.getElementById('nutritionBuilderModal').style.display='none';nutritionEditingPlanId=null;nutritionEditingBaseline=null}
+function closeNutritionBuilder(){if(nutritionSaving||planningDraftBusy)return;nutritionGenerationRequest++;nutritionGenerating=false;document.getElementById('nutritionBuilderModal').style.display='none';nutritionEditingPlanId=null;nutritionEditingBaseline=null}
 function resetNutritionBuilder(){
+ if(planningDraftBusy)return;
+ planningResetDraft('nutrition');
  nutritionGenerationRequest++;nutritionGenerating=false;nutritionAutoPreviousFoods=new Set();nutritionAutoRevisionMode='initial';nutritionAutoCalorieDirection='same';
  nutritionQuickReset();nutritionEditorMode(false);
  nutritionSetGlobalRules();nutritionRenewMealRules=[];document.getElementById("nutritionAdjustmentResult").textContent="";
@@ -10196,7 +10209,7 @@ async function generateNutritionMealsFromTargets(){
  const usedAutoFoods={carb:new Set(),protein:new Set(),fat:new Set(),fixed:new Set()};
  const templates=nutritionAutoMealTemplates(count).map(t=>nutritionAutoAdaptTemplate(t,safetyProfile,usedAutoFoods)),splits=nutritionAutoSplits(count);
  if(document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor').length){
-  if(nutritionEditingPlanId&&!confirm('Esto sustituirá los alimentos del editor. Los cambios se aplicarán al cliente cuando guardes. ¿Continuar?'))return;
+  if(nutritionEditingPlanId&&!confirm('Esto sustituirá los alimentos del editor. Los cambios se aplicarán al cliente cuando actives la dieta. ¿Continuar?'))return;
  }
  const holder=document.getElementById('nutritionMealEditors');
  const preservedMealIds=[...holder.querySelectorAll('.nutrition-meal-editor')].map(el=>el.dataset.mealId||'');
@@ -10257,7 +10270,7 @@ async function editNutritionPlan(planId,mealId=null){
   document.getElementById('nutritionPlanName').value=plan.name||'';document.getElementById('nutritionCalories').value=plan.target_calories??'';document.getElementById('nutritionProtein').value=plan.target_protein_g??'';document.getElementById('nutritionCarbs').value=plan.target_carbs_g??'';document.getElementById('nutritionFat').value=plan.target_fat_g??'';document.getElementById('nutritionNotes').value=plan.notes||'';
   document.getElementById('nutritionMealEditors').innerHTML='';nutritionMealEditorSeq=0;(meals.length?meals:[{name:'Comida',foods:[]}]).forEach(m=>addNutritionMealEditor({id:m.id,name:m.name,time:m.target_time,notes:m.notes||'',foods:m.foods,food_rules:m.food_rules}));
   document.getElementById('nutritionBuilderModal').style.display='grid';
-  document.getElementById('saveNutritionBtn').textContent='Guardar cambios en esta dieta';
+  document.getElementById('saveNutritionBtn').textContent='Guardar borrador';
   nutritionQuickInit(plan);nutritionEditorMode(true);nutritionEditorReview(false);
   if(mealId){
    const meal=[...document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor')].find(el=>el.dataset.mealId===String(mealId));
@@ -10300,7 +10313,8 @@ async function nutritionNotifyAfterSave(planId,clientId,action){
   if(error||data?.error){console.warn('nutrition notification',error||data.error);toast('Dieta guardada · no se pudo enviar el aviso al cliente')}
  }catch(error){console.warn('nutrition notification',error);toast('Dieta guardada · no se pudo enviar el aviso al cliente')}
 }
-async function saveNutritionPlan(){
+async function saveNutritionPlan(activate=false){
+ if(!activate)return savePlanningDraft('nutrition');
  const btn=document.getElementById('saveNutritionBtn');if(currentProfile?.role!=='trainer'||nutritionSaving||trainerProposalBusy||!btn||btn.disabled||vicDataMutationActive())return;const msg=document.getElementById('nutritionBuilderMsg');msg.textContent='';
  if(nutritionGenerating){msg.textContent='Espera a que termine la generación de comidas antes de guardar.';return;}
  const clientId=document.getElementById('nutritionClient').value;const name=document.getElementById('nutritionPlanName').value.trim()||'Plan nutricional';
@@ -10320,7 +10334,7 @@ async function saveNutritionPlan(){
  }
  btn.disabled=true;btn.textContent='Guardando…';
   const oldPlanId=nutritionEditingPlanId;
-  const planPayload={food_rules:nutritionEnergyRulesForSave(),trainer_id:currentProfile.id,client_id:clientId,name,status:'active',target_calories:Number(document.getElementById('nutritionCalories').value)||null,target_protein_g:Number(document.getElementById('nutritionProtein').value)||null,target_carbs_g:Number(document.getElementById('nutritionCarbs').value)||null,target_fat_g:Number(document.getElementById('nutritionFat').value)||null,notes:document.getElementById('nutritionNotes').value.trim()||null};
+  const planPayload={food_rules:nutritionEnergyRulesForSave(),trainer_id:currentProfile.id,client_id:clientId,name,status:'draft',target_calories:Number(document.getElementById('nutritionCalories').value)||null,target_protein_g:Number(document.getElementById('nutritionProtein').value)||null,target_carbs_g:Number(document.getElementById('nutritionCarbs').value)||null,target_fat_g:Number(document.getElementById('nutritionFat').value)||null,notes:document.getElementById('nutritionNotes').value.trim()||null};
   let savedPlanId=null;
 
   if(oldPlanId){
@@ -10331,7 +10345,8 @@ async function saveNutritionPlan(){
    // PLAN NUEVO: solo aquí se crea un nuevo plan_id.
    const {data:newPlan,error:pErr}=await sb.from('nutrition_plans').insert(planPayload).select('id').single();
    if(pErr)throw pErr;
-   savedPlanId=newPlan.id;
+   savedPlanId=newPlan.id;nutritionEditingPlanId=savedPlanId;
+   await planningRememberSource('nutrition',savedPlanId);
 
    for(const meal of meals){
     const {data:m,error:mErr}=await sb.from('nutrition_meals').insert({
@@ -10358,11 +10373,10 @@ async function saveNutritionPlan(){
     }
    }
 
-   const {error:aErr}=await sb.from('nutrition_plans').update({status:'archived'})
-    .eq('client_id',clientId).eq('trainer_id',currentProfile.id).eq('status','active').neq('id',savedPlanId);
-   if(aErr)throw aErr;
+   const {error:aErr}=await sb.rpc('activate_private_plan',{p_kind:'nutrition',p_plan_id:savedPlanId});if(aErr)throw aErr;
   }
 
+  await completePlanningDraft('nutrition');
   msg.textContent=oldPlanId?'Cambios guardados en la misma dieta · historial conservado.':'Plan nutricional guardado.';msg.classList.add('auth-success');
   toast(oldPlanId?'Cambios guardados · historial conservado':'Plan nutricional guardado');
   // Release the editor immediately; notification delivery is a separate task.
@@ -10373,7 +10387,7 @@ async function saveNutritionPlan(){
  finally{
   nutritionSaving=false;lockedControls.forEach(el=>el.disabled=false);
   document.getElementById('nutritionClient').disabled=Boolean(nutritionEditingPlanId);
-  if(nutritionBuilderSafetyLast.blocked){btn.disabled=false;btn.textContent='⛔ Corrige conflictos'}else{btn.disabled=false;btn.textContent=nutritionEditingPlanId?'Guardar cambios en esta dieta':'Guardar plan'}
+  if(nutritionBuilderSafetyLast.blocked){btn.disabled=false;btn.textContent='⛔ Corrige conflictos'}else{btn.disabled=false;btn.textContent=nutritionEditingPlanId?'Guardar borrador':'Guardar plan'}
   vicEndDataMutation();
  }
 }
@@ -10394,6 +10408,7 @@ async function loadNutritionRevisions(planId){
  el.innerHTML=(data||[]).map(r=>`<details class="card"><summary>${nutritionEsc(new Date(r.created_at).toLocaleString('es-ES'))} · ${nutritionEsc(nutritionRevisionSummary(r.before_plan.target_calories,r.after_plan.target_calories))}</summary><b>Antes</b><div style="white-space:pre-wrap">${nutritionEsc(nutritionRevisionFoods(r.before_plan))}</div><b>Ahora</b><div style="white-space:pre-wrap">${nutritionEsc(nutritionRevisionFoods(r.after_plan))}</div></details>`).join('')||'Los próximos ajustes se registrarán aquí. No hay historial anterior disponible.';
 }
 async function loadTrainerNutrition(){
+ void loadPlanningDrafts('nutrition');
  if(currentProfile?.role!=='trainer')return;const list=document.getElementById('trainerNutritionList');if(!list)return;list.innerHTML='<div class="card empty-state">Cargando planes nutricionales…</div>';
  try{
   let plansQuery=sb.from('nutrition_plans').select('id,trainer_id,client_id,name,status,target_calories,target_protein_g,target_carbs_g,target_fat_g,notes,created_at,food_rules').eq('trainer_id',currentProfile.id).eq('status','active');
@@ -16558,9 +16573,12 @@ function supplementTemplateForGoal(goal){
  return [creatine,protein];
 }
 
-function openSupplementBuilder(planId=null){
+async function openSupplementBuilder(planId=null){
+ if(planningDraftBusy)return;
+ planningResetDraft('supplements');
  supplementEditingPlanId=planId||null;supplementEditorSeq=0;
  const modal=document.getElementById('supplementBuilderModal');
+ document.getElementById('suppClient').disabled=false;
  document.getElementById('suppBuilderMsg').textContent='';
  document.getElementById('suppEditorList').innerHTML='';
  const sel=document.getElementById('suppClient');
@@ -16571,10 +16589,10 @@ function openSupplementBuilder(planId=null){
  document.getElementById('suppPlanNotes').value='';
  document.getElementById('suppBuilderTitle').textContent='🧪 Crear plan de suplementación';
  modal.classList.add('open');
- if(planId)loadSupplementPlanEditor(planId);
+ if(planId)await loadSupplementPlanEditor(planId);
  else addSupplementEditor();
 }
-function closeSupplementBuilder(){document.getElementById('supplementBuilderModal')?.classList.remove('open');supplementEditingPlanId=null}
+function closeSupplementBuilder(){if(planningDraftBusy)return;document.getElementById('supplementBuilderModal')?.classList.remove('open');supplementEditingPlanId=null}
 
 async function loadSupplementPlanEditor(planId){
  try{
@@ -16652,7 +16670,8 @@ function collectSupplementEditors(){
  })).filter(x=>x.supplement_name);
 }
 
-async function saveSupplementPlan(){
+async function saveSupplementPlan(activate=false){
+ if(!activate)return savePlanningDraft('supplements');
  if(currentProfile?.role!=='trainer'||vicDataMutationActive())return;
  const btn=document.getElementById('suppSaveBtn'),msg=document.getElementById('suppBuilderMsg');
  const clientId=document.getElementById('suppClient').value;
@@ -16661,10 +16680,10 @@ async function saveSupplementPlan(){
  if(!items.length){msg.textContent='Añade al menos un suplemento.';return}
  btn.disabled=true;btn.textContent='Guardando…';msg.textContent='';vicBeginDataMutation();
  try{
-  const payload={trainer_id:currentProfile.id,client_id:clientId,name:document.getElementById('suppPlanName').value.trim()||'Plan de suplementación',goal:document.getElementById('suppGoal').value,status:'active',notes:document.getElementById('suppPlanNotes').value.trim()||null};
+  const payload={trainer_id:currentProfile.id,client_id:clientId,name:document.getElementById('suppPlanName').value.trim()||'Plan de suplementación',goal:document.getElementById('suppGoal').value,status:'draft',notes:document.getElementById('suppPlanNotes').value.trim()||null};
   let planId=supplementEditingPlanId;
   if(planId){
-   const {error}=await sb.from('supplement_plans').update({name:payload.name,goal:payload.goal,status:'active',notes:payload.notes}).eq('id',planId).eq('trainer_id',currentProfile.id);if(error)throw error;
+   const {error}=await sb.from('supplement_plans').update({name:payload.name,goal:payload.goal,notes:payload.notes}).eq('id',planId).eq('trainer_id',currentProfile.id);if(error)throw error;
    const {data:oldItems,error:oErr}=await sb.from('supplement_items').select('id').eq('plan_id',planId);if(oErr)throw oErr;
    const keep=new Set(items.map(i=>i.id).filter(Boolean));
    const removed=(oldItems||[]).filter(i=>!keep.has(i.id)).map(i=>i.id);
@@ -16674,17 +16693,19 @@ async function saveSupplementPlan(){
     else{const {error:dErr}=await sb.from('supplement_items').delete().in('id',removed);if(dErr)throw dErr}
    }
   }else{
-   const {data,error}=await sb.from('supplement_plans').insert(payload).select('id').single();if(error)throw error;planId=data.id;
-   const {error:aErr}=await sb.from('supplement_plans').update({status:'archived'}).eq('trainer_id',currentProfile.id).eq('client_id',clientId).eq('status','active').neq('id',planId);if(aErr)throw aErr;
+   const {data,error}=await sb.from('supplement_plans').insert(payload).select('id').single();if(error)throw error;planId=data.id;supplementEditingPlanId=planId;
+   await planningRememberSource('supplements',planId);
   }
   for(const item of items){
    const row={plan_id:planId,item_order:item.item_order,supplement_name:item.supplement_name,dose_text:item.dose_text,timing:item.timing,target_time:item.target_time,frequency:item.frequency,purpose:item.purpose,evidence_level:item.evidence_level,safety_notes:item.safety_notes,trainer_notes:item.trainer_notes,active:true};
    if(item.id){const {error}=await sb.from('supplement_items').update(row).eq('id',item.id).eq('plan_id',planId);if(error)throw error}
-   else{const {error}=await sb.from('supplement_items').insert(row);if(error)throw error}
+   else{const {data,error}=await sb.from('supplement_items').insert(row).select('id').single();if(error)throw error;const el=[...document.querySelectorAll('#suppEditorList .supp-editor-item')].find(el=>Number(el.dataset.seq)&&!el.dataset.itemId&&el.querySelector('.supp-name').value.trim()===item.supplement_name);if(el)el.dataset.itemId=data.id;}
   }
-  msg.textContent='Plan de suplementación guardado correctamente.';msg.classList.add('auth-success');
+  const {error:activationError}=await sb.rpc('activate_private_plan',{p_kind:'supplements',p_plan_id:planId});if(activationError)throw activationError;
+  await completePlanningDraft('supplements');
+  msg.textContent='Plan de suplementación activado correctamente.';msg.classList.add('auth-success');
   toast('Plan de suplementación guardado ✓');await loadTrainerSupplements();setTimeout(()=>closeSupplementBuilder(),500);
- }catch(error){console.error(error);msg.textContent=vicError(error,'No se pudo guardar el plan.')}
+ }catch(error){console.error(error);if(supplementEditingPlanId)try{await planningRememberSource('supplements',supplementEditingPlanId)}catch(e){console.warn(e)}msg.textContent=vicError(error,'No se pudo guardar el plan.')}
  finally{btn.disabled=false;btn.textContent='Guardar plan';vicEndDataMutation()}
 }
 
@@ -16695,6 +16716,7 @@ async function archiveSupplementPlan(planId){
 }
 
 async function loadTrainerSupplements(){
+ void loadPlanningDrafts('supplements');
  if(currentProfile?.role!=='trainer')return;
  renderSupplementLibrary();
  const list=document.getElementById('trainerSupplementList');if(!list)return;
@@ -16974,6 +16996,138 @@ async function loadMyTrainerProfiles(){
  return `<div class="card" style="margin-bottom:12px"><div class="row" style="justify-content:flex-start;gap:14px"><div class="client-own-avatar">${photo?`<img src="${escHtml(photo)}" alt="Foto de ${escHtml(name)}">`:escHtml(initials(name))}</div><div><div class="muted tiny">TU ENTRENADOR</div><h2>${escHtml(name)}</h2>${t?.specialties?`<p>${escHtml(t.specialties)}</p>`:''}</div></div>${t?.bio?`<p style="white-space:pre-wrap;overflow-wrap:anywhere">${escHtml(t.bio)}</p>`:''}${t?.contact_phone?`<p>Contacto: ${escHtml(t.contact_phone)}</p>`:''}</div>`;}));box.innerHTML=cards.join('');
  }catch(e){box.textContent=vicError(e,'No se pudo cargar el perfil de tu entrenador.')}
 }
+// BEGIN PRIVATE PLANNING DRAFTS
+const planningDraftConfig={
+ training:{modal:'routineBuilderModal',list:'trainerRoutinesList',client:'routineClient',name:'routineName',save:'saveRoutineBtn',message:'routineMsg',label:'entrenamiento'},
+ nutrition:{modal:'nutritionBuilderModal',list:'trainerNutritionList',client:'nutritionClient',name:'nutritionPlanName',save:'saveNutritionBtn',message:'nutritionBuilderMsg',label:'nutrición'},
+ supplements:{modal:'supplementBuilderModal',list:'trainerSupplementList',client:'suppClient',name:'suppPlanName',save:'suppSaveBtn',message:'suppBuilderMsg',label:'suplementación'}
+};
+const planningDraftState={training:null,nutrition:null,supplements:null};
+let planningDraftBusy=false;
+function planningResetDraft(kind){planningDraftState[kind]=null;}
+function planningFields(root,onlyIds=false){
+ return [...root.querySelectorAll('input,select,textarea')].filter(el=>el.type!=='file'&&(!onlyIds||el.id)).map((el,index)=>({id:el.id||null,index,value:el.value,checked:el.checked}));
+}
+function planningApplyFields(root,fields,onlyIds=false){
+ const controls=[...root.querySelectorAll('input,select,textarea')].filter(el=>el.type!=='file'&&(!onlyIds||el.id));
+ for(const f of fields||[]){const el=f.id?controls.find(x=>x.id===f.id):controls[f.index];if(!el)continue;el.value=f.value;if(typeof f.checked==='boolean')el.checked=f.checked;}
+}
+function collectPlanningSnapshot(kind){
+ const config=planningDraftConfig[kind],modal=document.getElementById(config.modal);
+ const snapshot={schema:1,fields:planningFields(modal,true)};
+ if(kind==='training'){
+  snapshot.sourceId=editingRoutineId;
+  snapshot.days=[...document.querySelectorAll('#routineDays .routine-day-editor')].map(day=>({id:day.dataset.dayId||null,
+   // Day fields are captured separately so adding exercises cannot shift their indexes.
+   dayFields:routineRecoveryFields(day).filter(f=>!f.className.startsWith('re-')),
+   exercises:[...day.querySelectorAll('.routine-exercise-row')].map(row=>({dataset:{...row.dataset},fields:planningFields(row)}))}));
+ }else if(kind==='nutrition'){
+  snapshot.sourceId=nutritionEditingPlanId;snapshot.energyContext=nutritionEnergyContext;snapshot.globalRules=nutritionGlobalRules();
+  snapshot.meals=[...document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor')].map(el=>({id:el.dataset.mealId||null,fields:planningFields(el)}));
+ }else{
+  snapshot.sourceId=supplementEditingPlanId;
+  snapshot.items=[...document.querySelectorAll('#suppEditorList .supp-editor-item')].map(el=>({id:el.dataset.itemId||null,fields:planningFields(el)}));
+ }
+ return snapshot;
+}
+async function savePlanningDraft(kind,quiet=false){
+ if(currentProfile?.role!=='trainer'||planningDraftBusy||vicDataMutationActive()||trainerProposalBusy||nutritionGenerating)return null;
+ const config=planningDraftConfig[kind],msg=document.getElementById(config.message),clientId=document.getElementById(config.client).value;
+ if(!clientId){msg.textContent='Selecciona un cliente para guardar el borrador.';return null;}
+ const snapshot=collectPlanningSnapshot(kind),state=planningDraftState[kind],owner=currentProfile.id;
+ const payload={trainer_id:owner,client_id:clientId,kind,name:document.getElementById(config.name).value.trim()||'Plan de '+config.label,source_id:snapshot.sourceId||null,snapshot,version:(state?.version||0)+1,updated_at:new Date().toISOString()};
+ planningDraftBusy=true;
+ const controls=[...document.querySelectorAll('#'+config.modal+' input,#'+config.modal+' select,#'+config.modal+' textarea,#'+config.modal+' button')].filter(el=>!el.disabled);controls.forEach(el=>el.disabled=true);
+ try{
+  let query=state?sb.from('planning_drafts').update(payload).eq('id',state.id).eq('version',state.version):sb.from('planning_drafts').insert(payload);
+  const {data,error}=await query.select('id,version').maybeSingle();if(error)throw error;
+  if(!data)throw new Error('Este borrador cambió en otro dispositivo. Vuelve a abrirlo antes de guardar.');
+  if(currentProfile?.id!==owner)return null;
+  planningDraftState[kind]=data;
+  msg.textContent='✓ Borrador guardado en tu cuenta · solo tú puedes verlo. Puedes continuar más tarde.';
+  if(!quiet)toast('Borrador guardado · cliente sin avisar');
+  void loadPlanningDrafts(kind);return data;
+ }catch(error){msg.textContent=vicError(error,'No se pudo guardar el borrador. Mantén abierto el editor y reintenta.');return null;}
+ finally{planningDraftBusy=false;controls.forEach(el=>el.disabled=false);}
+}
+async function loadPlanningDrafts(kind){
+ if(currentProfile?.role!=='trainer')return;
+ const config=planningDraftConfig[kind],list=document.getElementById(config.list);if(!list)return;
+ let holder=document.getElementById('planningDrafts-'+kind);
+ if(!holder){holder=document.createElement('div');holder.id='planningDrafts-'+kind;holder.className='planning-drafts';list.before(holder);}
+ const owner=currentProfile.id,client=trainerContentClientId||null;
+ try{
+  let query=sb.from('planning_drafts').select('id,client_id,name,version,updated_at').eq('trainer_id',owner).eq('kind',kind);
+  if(client)query=query.eq('client_id',client);
+  const {data,error}=await query.order('updated_at',{ascending:false});if(error)throw error;
+  if(currentProfile?.id!==owner||(trainerContentClientId||null)!==client)return;
+  holder.innerHTML=(data||[]).map(d=>{const person=clients.find(c=>String(c.id)===String(d.client_id));return `<div class="card" style="margin-bottom:12px;border-color:#806b32"><span class="pill">📝 Borrador · privado</span><h3>${escHtml(d.name)}</h3><div class="muted">${escHtml(person?.name||person?.full_name||person?.email||'Cliente')} · ${escHtml(new Date(d.updated_at).toLocaleString('es-ES'))}</div><p class="muted tiny">El cliente sigue viendo su plan activo. Este borrador no envía avisos ni recordatorios.</p><button class="btn" type="button" onclick="openPlanningDraft('${kind}','${d.id}')">✎ Continuar borrador</button></div>`;}).join('');
+ }catch(error){holder.textContent='No se pudieron cargar los borradores. Vuelve a entrar para reintentar.';console.warn('planning drafts',error);}
+}
+async function openPlanningDraft(kind,id){
+ if(currentProfile?.role!=='trainer'||planningDraftBusy||vicDataMutationActive())return;
+ try{
+  const {data:row,error}=await sb.from('planning_drafts').select('*').eq('id',id).eq('trainer_id',currentProfile.id).eq('kind',kind).maybeSingle();
+  if(error)throw error;if(!row)throw new Error('No se encontró este borrador.');
+  const snapshot=row.snapshot;if(snapshot?.schema!==1)throw new Error('Actualiza la aplicación para abrir este borrador.');
+  if(kind==='training'){
+   if(snapshot.sourceId){await loadTrainerRoutines();await openEditRoutine(snapshot.sourceId,true);if(editingRoutineId!==snapshot.sourceId)throw new Error('No se pudo abrir la rutina original.');}
+   else await openRoutineBuilder(true);
+   document.getElementById('routineClient').value=row.client_id;
+   document.getElementById('routineDays').innerHTML='';routineDayCounter=0;
+   for(const d of snapshot.days||[]){
+    addRoutineDay({id:d.id,cardio_enabled:true});const day=document.getElementById('routineDays').lastElementChild;
+    routineApplyRecoveryFields(day,d.dayFields);setRoutineCardioEnabled(day,day.querySelector('.routine-cardio-enabled').value==='1');
+    for(const ex of d.exercises||[]){addRoutineExercise(day);const element=day.querySelector('.routine-exercises').lastElementChild;planningApplyFields(element,ex.fields);Object.assign(element.dataset,ex.dataset);}
+   }
+  }else if(kind==='nutrition'){
+   if(snapshot.sourceId){if(!await editNutritionPlan(snapshot.sourceId))return;}
+   else if(!openNutritionBuilder(row.client_id))return;
+   document.getElementById('nutritionMealEditors').innerHTML='';nutritionMealEditorSeq=0;
+   for(const m of snapshot.meals||[]){addNutritionMealEditor({id:m.id,foods:[]});planningApplyFields(document.getElementById('nutritionMealEditors').lastElementChild,m.fields);}
+   nutritionEnergyContext=snapshot.energyContext||null;nutritionSetGlobalRules(snapshot.globalRules||{});
+  }else{
+   await openSupplementBuilder();supplementEditingPlanId=snapshot.sourceId||null;
+   document.getElementById('suppEditorList').innerHTML='';supplementEditorSeq=0;
+   for(const i of snapshot.items||[]){addSupplementEditor({id:i.id});planningApplyFields(document.getElementById('suppEditorList').lastElementChild,i.fields);}
+  }
+  planningApplyFields(document.getElementById(planningDraftConfig[kind].modal),snapshot.fields,true);
+  document.getElementById(planningDraftConfig[kind].client).value=row.client_id;
+  document.getElementById(planningDraftConfig[kind].client).disabled=Boolean(snapshot.sourceId);
+  planningDraftState[kind]={id:row.id,version:row.version};
+  document.getElementById(planningDraftConfig[kind].message).textContent='📝 Borrador privado recuperado. Guardar conserva tus cambios; Activar los muestra al cliente.';
+  if(kind==='nutrition')scheduleNutritionBuilderSafety();
+ }catch(error){toast(vicError(error,'No se pudo abrir el borrador.'));}
+}
+async function planningRememberSource(kind,sourceId){
+ const state=planningDraftState[kind];if(!state)return;
+ // Retain the partially created parent identity so a retry reuses it, including after reopening the app.
+ const snapshot=collectPlanningSnapshot(kind);snapshot.sourceId=sourceId;
+ const {data,error}=await sb.from('planning_drafts').update({source_id:sourceId,snapshot,version:state.version+1,updated_at:new Date().toISOString()}).eq('id',state.id).eq('version',state.version).select('id,version').maybeSingle();
+ if(error)throw error;if(!data)throw new Error('El borrador cambió. Vuelve a abrirlo antes de activar.');planningDraftState[kind]=data;
+}
+async function completePlanningDraft(kind){
+ const state=planningDraftState[kind];if(!state)return;
+ const {data,error}=await sb.from('planning_drafts').delete().eq('id',state.id).eq('version',state.version).select('id');
+ if(error||!data?.length){toast('Plan activado. No se pudo retirar el borrador; revisa antes de volver a activarlo.');return;}
+ planningDraftState[kind]=null;void loadPlanningDrafts(kind);
+}
+async function publishPlanningDraft(kind){
+ if(currentProfile?.role!=='trainer'||planningDraftBusy||vicDataMutationActive()||trainerProposalBusy)return;
+ if(!confirm('¿Activar este plan? El cliente verá estos cambios y el plan anterior conservará su historial.'))return;
+ if(!await savePlanningDraft(kind,true))return;
+ if(kind==='training')await saveRoutine(true);
+ else if(kind==='nutrition')await saveNutritionPlan(true);
+ else await saveSupplementPlan(true);
+}
+// Keep legacy proposal and validation routines from relabeling private saves as publication.
+for(const config of Object.values(planningDraftConfig)){
+ const button=document.getElementById(config.save);
+ const update=()=>{if(!button.disabled&&button.textContent!=='Guardar borrador')button.textContent='Guardar borrador';};
+ new MutationObserver(update).observe(button,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled']});update();
+}
+// END PRIVATE PLANNING DRAFTS
+
 </script>
 
 <script type="module" src="./cycle.js"></script>
