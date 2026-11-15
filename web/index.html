@@ -17097,7 +17097,7 @@ async function openPlanningDraft(kind,id){
    for(const d of snapshot.days||[]){
     addRoutineDay({id:d.id,cardio_enabled:true});const day=document.getElementById('routineDays').lastElementChild;
     routineApplyRecoveryFields(day,d.dayFields);setRoutineCardioEnabled(day,day.querySelector('.routine-cardio-enabled').value==='1');
-    for(const ex of d.exercises||[]){addRoutineExercise(day);const element=day.querySelector('.routine-exercises').lastElementChild;planningApplyFields(element,ex.fields);Object.assign(element.dataset,ex.dataset);}
+    for(const ex of d.exercises||[]){addRoutineExercise(day);const element=day.querySelector('.routine-exercises').lastElementChild;planningApplyFields(element,ex.fields);Object.assign(element.dataset,ex.dataset);element.querySelector('.re-exercise').dispatchEvent(new Event('change',{bubbles:true}));}
    }
   }else if(kind==='nutrition'){
    if(snapshot.sourceId){if(!await editNutritionPlan(snapshot.sourceId))return;}

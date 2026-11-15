@@ -20,7 +20,7 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
  for(const s of scripts)run(s[2]);
  run(`currentProfile={id:'trainer',role:'trainer'};clients=[{id:'laura',name:'Laura',full_name:'Laura',services:{nutrition:true}}];trainerContentClientId='laura';
  nutritionLoadSafetyProfile=async()=>nutritionProfileBlank();loadRoutineExerciseLibrary=async()=>{};routineSyncVolumeProfileForClient=async()=>{};
- routineExerciseLibrary=[{id:'squat',name:'Sentadilla',muscle_group:'Cuádriceps'}];`);
+ routineExerciseLibrary=[{id:'squat',name:'Sentadilla',muscle_group:'Cuádriceps',image_url:'https://vicbangfit.test/squat.jpg'},{id:'press',name:'Press inclinado con mancuernas',muscle_group:'Pecho',image_url:'https://vicbangfit.test/incline.jpg'}];`);
  // Unfinished raw food lines and empty meals persist, without live-plan writes.
  run(`openNutritionBuilder('laura');document.getElementById('nutritionPlanName').value='Laura · en preparación';document.querySelector('.nutrition-meal-foods').value='Arroz pendiente de cantidad';document.querySelector('#nutritionGlobalRules .nutrition-rules-enabled').checked=true;document.querySelector('#nutritionGlobalRules [data-nutrition-group="fruit"]').checked=true;`);
  await run('saveNutritionPlan()');assert.equal(window.rows.length,1);assert.equal(window.requests.some(q=>q.action!=='select'&&q.table!=='planning_drafts'),false);
@@ -36,8 +36,10 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
  await run(`closeSupplementBuilder();openPlanningDraft('supplements','${suppId}')`);assert.equal(one('.supp-trainer-notes').value,'Revisar mañana');assert.equal(one('.supp-name').value,'');run('closeSupplementBuilder()');
  // Unnamed routines preserve set counts, technical notes and cardio.
  await run('openRoutineBuilder(true)');el('routineClient').value='laura';el('routineName').value='';one('.re-sets').value='4';one('.re-notes').value='Revisar técnica';run("setRoutineCardioEnabled(document.querySelector('.routine-day-editor'),true)");one('.routine-cardio-minutes').value='23';await run('saveRoutine()');
+ one('.re-exercise').value='press';one('.re-exercise').dispatchEvent(new window.Event('change',{bubbles:true}));await run('saveRoutine()');
  const trainingId=window.rows.find(r=>r.kind==='training').id;
  await run(`closeRoutineBuilder();openPlanningDraft('training','${trainingId}')`);assert.equal(one('.re-sets').value,'4');assert.equal(one('.re-notes').value,'Revisar técnica');assert.equal(one('.routine-cardio-minutes').value,'23');
+ assert.equal(one('.re-exercise').value,'press');assert.equal(one('.re-thumb img').getAttribute('src'),'https://vicbangfit.test/incline.jpg');assert.equal(one('.re-thumb img').getAttribute('alt'),'Press inclinado con mancuernas');
  assert.equal(window.requests.some(q=>q.action!=='select'&&q.table!=='planning_drafts'),false);
  // Activation validates completeness, leaving an incomplete draft private.
  await run(`openPlanningDraft('nutrition','${dietId}')`);await run("publishPlanningDraft('nutrition')");
