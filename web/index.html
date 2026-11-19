@@ -4198,7 +4198,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 
     <button id="nutritionInitialProposalBtn" class="btn dark" type="button" onclick="prepareNutritionProposal()">✨ Cargar propuesta de la evaluación</button>
     <details id="nutritionCurrentAdjustment" hidden style="margin:14px 0;padding:14px;border:1px solid #b99b55;border-radius:14px" ontoggle="if(this.open)nutritionQuickLoadReference()">
-      <summary><b>Ajustes de esta dieta</b></summary><div class="field" style="margin-top:12px"><label>Número de comidas</label><select id="nutritionEditMealCount" onchange="nutritionEditorChangeMealCount(this.value)"><option value="1">1 comidas</option><option value="2">2 comidas</option><option value="3">3 comidas</option><option value="4">4 comidas</option><option value="5">5 comidas</option><option value="6">6 comidas</option><option value="7">7 comidas</option><option value="8">8 comidas</option></select><div class="muted tiny">Misma proteína en cada toma. Algo más de carbohidratos en comida y cena; grasas repartidas por igual. Se mantienen los totales diarios, sin juntar menús. Revisa antes de guardar.</div></div><div class="nutrition-percent-controls"><p class="muted tiny">Reducir calorías sobre esta dieta</p><div class="nutrition-percent-presets"><button class="btn ghost" type="button" onclick="nutritionEditorReduce(5)">−5 %</button><button class="btn ghost" type="button" onclick="nutritionEditorReduce(10)">−10 %</button></div><div class="nutrition-percent-custom"><div class="field"><label for="nutritionEditPercent">Otro porcentaje</label><input id="nutritionEditPercent" type="number" inputmode="decimal" min="1" max="99" value="5"></div><button class="btn ghost" type="button" onclick="nutritionEditorReduce(Number(document.getElementById('nutritionEditPercent').value))">Reducir</button></div></div>
+      <summary><b>Ajustes de esta dieta</b></summary><div class="field" style="margin-top:12px"><label>Número de comidas</label><select id="nutritionEditMealCount" onchange="nutritionEditorChangeMealCount(this.value)"><option value="1">1 comidas</option><option value="2">2 comidas</option><option value="3">3 comidas</option><option value="4">4 comidas</option><option value="5">5 comidas</option><option value="6">6 comidas</option><option value="7">7 comidas</option><option value="8">8 comidas</option></select><button class="btn ghost" type="button" onclick="nutritionEditorBalanceCurrentProtein()" style="margin-top:8px">Repartir proteína entre estas comidas</button><div class="muted tiny">Calcula la proteína real de todos los alimentos y ajusta las fuentes proteicas en partes iguales. Revisa los demás macros antes de guardar.</div></div><div class="nutrition-percent-controls"><p class="muted tiny">Reducir calorías sobre esta dieta</p><div class="nutrition-percent-presets"><button class="btn ghost" type="button" onclick="nutritionEditorReduce(5)">−5 %</button><button class="btn ghost" type="button" onclick="nutritionEditorReduce(10)">−10 %</button></div><div class="nutrition-percent-custom"><div class="field"><label for="nutritionEditPercent">Otro porcentaje</label><input id="nutritionEditPercent" type="number" inputmode="decimal" min="1" max="99" value="5"></div><button class="btn ghost" type="button" onclick="nutritionEditorReduce(Number(document.getElementById('nutritionEditPercent').value))">Reducir</button></div></div>
       <p id="nutritionQuickCurrent"></p><details style="margin:12px 0"><summary>Ver referencia de la dieta guardada</summary><div id="nutritionQuickBaseline" style="padding:10px;border:1px solid var(--line);border-radius:12px"></div></details><p id="nutritionQuickReference" class="muted tiny"></p>
       <div class="form-grid">
         <div class="field"><label>Mantenimiento de referencia (kcal, editable)</label><input id="nutritionQuickMaintenance" type="number" min="1" step="1" onchange="nutritionQuickTargetFromMode()"></div>
@@ -9607,6 +9607,20 @@ function nutritionEditorChangeMealCount(value){
   nutritionQuickInvalidate();nutritionEditorReview(true);nutritionMealRedistributionState.signature=nutritionEditorMealSignature(nutritionBuilderCollectMeals());scheduleNutritionBuilderSafety();
   toast('Comidas redistribuidas. Revisa las cantidades y guarda los cambios.');
  }catch(error){toast(error.message);document.getElementById('nutritionEditMealCount').value=String(document.querySelectorAll('#nutritionMealEditors .nutrition-meal-editor').length);}
+}
+function nutritionEditorBalanceCurrentProtein(){
+ if(!nutritionQuickState||nutritionSaving)return;
+ try{
+  const meals=nutritionBuilderCollectMeals();
+  const goal=Number(document.getElementById('nutritionProtein').value);
+  if(!meals.length||!Number.isFinite(goal)||goal<=0)throw new Error('Indica primero la proteína diaria de esta dieta.');
+  const adjusted=meals.map(m=>({...m,foods:m.foods.map(f=>({...f}))}));
+  if(nutritionAdjustmentTotals(adjusted).unknown||!nutritionEditorBalanceProtein(adjusted,goal))throw new Error('Cada comida necesita una fuente de proteína en gramos para hacer el reparto.');
+  document.getElementById('nutritionMealEditors').innerHTML='';
+  adjusted.forEach(m=>addNutritionMealEditor(m));
+  nutritionMealRedistributionState=null;nutritionQuickInvalidate();nutritionEditorReview(true);scheduleNutritionBuilderSafety();
+  toast('Proteína repartida entre '+adjusted.length+' comidas. Revisa y guarda los cambios.');
+ }catch(error){toast(error.message);}
 }
 
 function nutritionEditorReview(recalculate=false){
