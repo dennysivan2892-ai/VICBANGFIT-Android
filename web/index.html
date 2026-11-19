@@ -9493,14 +9493,18 @@ function nutritionEditorNewMeal(meals,count){
   if(!pool.has(key))pool.set(key,{...food,meta});
  }
  const groups=['protein','carb','fat'].map(cat=>[...pool.values()].filter(f=>f.meta.cat===cat));
- if(groups.some(g=>!g.length))throw new Error('Para añadir una comida distinta, incluye fuentes de proteína, carbohidratos y grasas en la dieta.');
+ const available=groups.filter(g=>g.length);
+ if(!available.length)throw new Error('Añade al menos un alimento con cantidad en gramos antes de aumentar las comidas.');
  const fingerprints=new Set(meals.map(nutritionEditorMealFingerprint));
  let foods=null;
- outer:for(const protein of groups[0])for(const carb of groups[1])for(const fat of groups[2]){
-  const candidate=[protein,carb,fat].map(({meta,...f})=>({...f,amount:Math.max(1,Number(f.amount)/2),prepared_amount:f.prepared_amount==null?null:Number(f.prepared_amount)/2}));
-  if(!fingerprints.has(nutritionEditorMealFingerprint({foods:candidate}))){foods=candidate;break outer;}
+ const combinations=available.reduce((list,group)=>list.flatMap(items=>group.map(item=>[...items,item])),[[]]);
+ for(const combination of combinations){
+  const candidate=combination.map(({meta,...f})=>({...f,amount:Math.max(1,Number(f.amount)/2),prepared_amount:f.prepared_amount==null?null:Number(f.prepared_amount)/2}));
+  if(!fingerprints.has(nutritionEditorMealFingerprint({foods:candidate}))){foods=candidate;break;}
  }
- if(!foods)throw new Error('No hay una combinación distinta con estos alimentos. Añade una alternativa antes de aumentar las comidas.');
+ // A limited food list can exhaust distinct combinations. Reusing a menu is
+ // preferable to blocking the meal count; the portion sizes are recalculated below.
+ if(!foods)foods=combinations[0].map(({meta,...f})=>({...f,amount:Math.max(1,Number(f.amount)/2),prepared_amount:f.prepared_amount==null?null:Number(f.prepared_amount)/2}));
  const names=['Media mañana','Merienda','Recena','Comida adicional'];
  const name=names.find(n=>!meals.some(m=>nutritionSwapNormalize(m.name)===nutritionSwapNormalize(n)))||'Comida '+count;
  return {id:null,name,time:null,notes:null,food_rules:{},foods};

@@ -45,7 +45,7 @@ assert.equal(run('five.filter(m=>m.id).length'),4);
 assert.throws(()=>run('nutritionEditorRedistribute([{foods:[{food_name:"Desconocido",amount:1,unit:"unidad"}]}],2)'),/gramos/);
 assert.throws(()=>run('nutritionEditorRedistribute(source,0)'),/1 y 8/);
 // Run the actual selector handler with editor serialization and manual edits.
-vm.runInContext(`let nutritionMealRedistributionState=null,nutritionEditingPlanId='diet',nutritionSaving=false,current=structuredClone(source),messages=[];
+vm.runInContext(`let nutritionMealRedistributionState=null,nutritionEditingPlanId='diet',nutritionSaving=false,nutritionQuickState={plan:{}},current=structuredClone(source),messages=[];
 const nutritionEditorMealSignature=meals=>JSON.stringify(meals),nutritionBuilderCollectMeals=()=>structuredClone(current);
 const document={getElementById(){return {set innerHTML(v){current=[]},value:''}},querySelectorAll(){return current}};
 const addNutritionMealEditor=m=>current.push(structuredClone(m)),nutritionQuickInvalidate=()=>{},nutritionEditorReview=()=>{},scheduleNutritionBuilderSafety=()=>{},toast=m=>messages.push(m);
