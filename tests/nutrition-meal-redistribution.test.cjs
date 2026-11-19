@@ -4,7 +4,7 @@ function fn(name){const a=html.indexOf('function '+name+'(');return html.slice(a
 const a=html.indexOf('const nutritionSubstitutionCatalog='),catalog=html.slice(a,html.indexOf('\n];',a)+3);
 const context=vm.createContext({console,structuredClone});
 vm.runInContext(`${catalog}
-${['nutritionSafetyNorm','nutritionSwapNormalize','nutritionSwapFindFood','nutritionSwapMacros','nutritionAdjustmentTotals','nutritionEditorMealFingerprint','nutritionEditorFitMeal','nutritionMainMealFlags','nutritionMealMacroTargets','nutritionEqualPortions','nutritionQuickPortions','nutritionEditorNewMeal','nutritionEditorRedistribute'].map(fn).join('\n')}
+${['nutritionSafetyNorm','nutritionSwapNormalize','nutritionSwapFindFood','nutritionSwapMacros','nutritionAdjustmentTotals','nutritionEditorMealFingerprint','nutritionEditorFitMeal','nutritionMainMealFlags','nutritionMealMacroTargets','nutritionEqualPortions','nutritionQuickPortions','nutritionEditorNewMeal','nutritionEditorSplitMeal','nutritionEditorRedistribute'].map(fn).join('\n')}
 const nutritionRuleReason=()=>'',nutritionGlobalRules=()=>({});`,context);
 const run=s=>vm.runInContext(s,context),json=s=>JSON.parse(run('JSON.stringify('+s+')'));
 const food=(food_name,amount,prepared_amount=null)=>({food_name,amount,unit:'g',prepared_amount,prepared_unit:prepared_amount==null?null:'g'});
@@ -49,6 +49,17 @@ assert.throws(()=>run('nutritionEditorRedistribute(source,0)'),/1 y 8/);
 run("const sparse=structuredClone(source.slice(0,4));sparse[0].foods=[source[0].foods[1]];sparse[1].foods=[source[1].foods[0]];sparse[2].foods=[source[2].foods[2]];sparse[3].foods=[source[2].foods[0],source[2].foods[1]];const sparseBefore=nutritionAdjustmentTotals(sparse);const sparseFive=nutritionEditorRedistribute(sparse,5);const sparseAfter=nutritionAdjustmentTotals(sparseFive)");
 assert.equal(run('sparseFive.length'),5);
 for(const key of ['p','c','f','k'])assert.ok(run(`Math.abs(sparseBefore.${key}-sparseAfter.${key})<=Math.max(${key==='k'?10:1},sparseBefore.${key}*.01)`),'sparse diet total '+key);
+// Laura-style plan: add a lighter mid-morning meal between breakfast and lunch.
+// Keep the four existing menus and move a portion of lunch's cooked rice and protein.
+run("const laura=structuredClone([source[0],source[2],source[3],source[4]]);const lauraBefore=nutritionAdjustmentTotals(laura);const lauraFive=nutritionEditorRedistribute(laura,5);const lauraAfter=nutritionAdjustmentTotals(lauraFive)");
+assert.deepEqual(json('lauraFive.map(m=>m.name)'),['Desayuno','Media mañana','Comida','Merienda','Cena']);
+assert.deepEqual(json('lauraFive.filter(m=>m.id).map(m=>m.id)'),json('laura.map(m=>m.id)'));
+assert.deepEqual(json('lauraFive[0].foods'),json('laura[0].foods'),'breakfast stays exactly as planned');
+assert.ok(run('lauraFive[2].foods.every(f=>laura[1].foods.some(old=>old.food_name===f.food_name))'),'lunch retains its foods');
+assert.equal(run('lauraFive[2].foods.find(f=>f.food_name==="Arroz en crudo").prepared_amount'),225,'300 g cooked rice becomes 225 g');
+assert.ok(run('lauraFive[1].foods.some(f=>f.food_name==="Arroz en crudo")'),'new meal gets some rice');
+assert.ok(run('lauraFive[1].foods.some(f=>f.food_name==="Pechuga de pollo")'),'new meal gets some protein');
+for(const key of ['p','c','f','k'])assert.ok(run(`Math.abs(lauraBefore.${key}-lauraAfter.${key})<=Math.max(${key==='k'?10:1},lauraBefore.${key}*.01)`),'Laura daily total '+key);
 // Run the actual selector handler with editor serialization and manual edits.
 vm.runInContext(`let nutritionMealRedistributionState=null,nutritionEditingPlanId='diet',nutritionSaving=false,nutritionQuickState={plan:{}},current=structuredClone(source),messages=[];
 const nutritionEditorMealSignature=meals=>JSON.stringify(meals),nutritionBuilderCollectMeals=()=>structuredClone(current);
