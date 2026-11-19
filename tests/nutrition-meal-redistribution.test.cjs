@@ -4,7 +4,7 @@ function fn(name){const a=html.indexOf('function '+name+'(');return html.slice(a
 const a=html.indexOf('const nutritionSubstitutionCatalog='),catalog=html.slice(a,html.indexOf('\n];',a)+3);
 const context=vm.createContext({console,structuredClone});
 vm.runInContext(`${catalog}
-${['nutritionSafetyNorm','nutritionSwapNormalize','nutritionSwapFindFood','nutritionSwapMacros','nutritionAdjustmentTotals','nutritionEditorMealFingerprint','nutritionEditorFitMeal','nutritionMainMealFlags','nutritionMealMacroTargets','nutritionEqualPortions','nutritionQuickPortions','nutritionEditorNewMeal','nutritionEditorSplitMeal','nutritionEditorRedistribute'].map(fn).join('\n')}
+${['nutritionSafetyNorm','nutritionSwapNormalize','nutritionSwapFindFood','nutritionSwapMacros','nutritionAdjustmentTotals','nutritionEditorMealFingerprint','nutritionEditorFitMeal','nutritionMainMealFlags','nutritionMealMacroTargets','nutritionEqualPortions','nutritionQuickPortions','nutritionEditorNewMeal','nutritionEditorSplitMeal','nutritionEditorBalanceProtein','nutritionEditorRedistribute'].map(fn).join('\n')}
 const nutritionRuleReason=()=>'',nutritionGlobalRules=()=>({});`,context);
 const run=s=>vm.runInContext(s,context),json=s=>JSON.parse(run('JSON.stringify('+s+')'));
 const food=(food_name,amount,prepared_amount=null)=>({food_name,amount,unit:'g',prepared_amount,prepared_unit:prepared_amount==null?null:'g'});
@@ -54,7 +54,8 @@ for(const key of ['p','c','f','k'])assert.ok(run(`Math.abs(sparseBefore.${key}-s
 run("const laura=structuredClone([source[0],source[2],source[3],source[4]]);const lauraBefore=nutritionAdjustmentTotals(laura);const lauraFive=nutritionEditorRedistribute(laura,5);const lauraAfter=nutritionAdjustmentTotals(lauraFive)");
 assert.deepEqual(json('lauraFive.map(m=>m.name)'),['Desayuno','Media mañana','Comida','Merienda','Cena']);
 assert.deepEqual(json('lauraFive.filter(m=>m.id).map(m=>m.id)'),json('laura.map(m=>m.id)'));
-assert.deepEqual(json('lauraFive[0].foods'),json('laura[0].foods'),'breakfast stays exactly as planned');
+assert.deepEqual(json('lauraFive[0].foods.map(f=>f.food_name)'),json('laura[0].foods.map(f=>f.food_name)'),'breakfast retains its foods');
+assert.ok(run('lauraFive.every(m=>Math.abs(nutritionAdjustmentTotals([m]).p-lauraBefore.p/5)<.1)'),'five meals have equal actual protein');
 assert.ok(run('lauraFive[2].foods.every(f=>laura[1].foods.some(old=>old.food_name===f.food_name))'),'lunch retains its foods');
 assert.equal(run('lauraFive[2].foods.find(f=>f.food_name==="Arroz en crudo").prepared_amount'),225,'300 g cooked rice becomes 225 g');
 assert.ok(run('lauraFive[1].foods.some(f=>f.food_name==="Arroz en crudo")'),'new meal gets some rice');
