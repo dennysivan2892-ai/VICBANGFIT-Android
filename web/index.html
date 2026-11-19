@@ -8688,7 +8688,7 @@ function nutritionAutoLoadAdjustedPreviousMeals(oldDetails,vals,state){
    const prepared=food.prepared_amount==null?null:Math.round(Number(food.prepared_amount)*ratio);
    return {...food,amount,prepared_amount:prepared};
   });
-  const pct=splits[i]||1/Math.max(1,meals.length),p=Math.round(vals.p*pct),c=Math.round(vals.c*pct),f=Math.round(vals.f*pct),kcal=Math.round(p*4+c*4+f*9);
+  const pct=splits[i]||1/Math.max(1,meals.length),p=Math.round(vals.p/meals.length),c=Math.round(vals.c*pct),f=Math.round(vals.f*pct),kcal=Math.round(p*4+c*4+f*9);
   addNutritionMealEditor({food_rules:meal.food_rules,name:meal.name,time:meal.target_time,notes:`Objetivo aprox.: ${p} g proteína · ${c} g carbohidratos · ${f} g grasa · ${kcal} kcal`,foods});
  });
  const summary=document.getElementById('nutritionAutoMealSummary');if(summary){summary.innerHTML=`Cantidades recalculadas por categoría para aproximarse a ${Math.round(vals.kcal)} kcal, ${Math.round(vals.p)} g de proteína, ${Math.round(vals.c)} g de carbohidratos y ${Math.round(vals.f)} g de grasa. Verduras y alimentos sin equivalencia se conservan para revisión manual.`;summary.classList.add('show')}
