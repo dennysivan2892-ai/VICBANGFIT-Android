@@ -56,6 +56,10 @@ assert.deepEqual(json('lauraFive.map(m=>m.name)'),['Desayuno','Media mañana','C
 assert.deepEqual(json('lauraFive.filter(m=>m.id).map(m=>m.id)'),json('laura.map(m=>m.id)'));
 assert.deepEqual(json('lauraFive[0].foods.map(f=>f.food_name)'),json('laura[0].foods.map(f=>f.food_name)'),'breakfast retains its foods');
 assert.ok(run('lauraFive.every(m=>Math.abs(nutritionAdjustmentTotals([m]).p-lauraBefore.p/5)<.1)'),'five meals have equal actual protein');
+assert.match(html,/Repartir proteína entre estas comidas/,'existing saved meals expose the protein action');
+run('const existing=structuredClone(lauraFive);existing[1].foods.find(f=>f.food_name==="Pechuga de pollo").amount=5;const existingGoal=nutritionAdjustmentTotals(existing).p;const balanced=nutritionEditorBalanceProtein(existing,existingGoal)');
+assert.equal(run('balanced'),true);
+assert.ok(run('existing.every(m=>Math.abs(nutritionAdjustmentTotals([m]).p-existingGoal/5)<.1)'),'existing five meals can be rebalanced without changing meal count');
 assert.ok(run('lauraFive[2].foods.every(f=>laura[1].foods.some(old=>old.food_name===f.food_name))'),'lunch retains its foods');
 assert.equal(run('lauraFive[2].foods.find(f=>f.food_name==="Arroz en crudo").prepared_amount'),225,'300 g cooked rice becomes 225 g');
 assert.ok(run('lauraFive[1].foods.some(f=>f.food_name==="Arroz en crudo")'),'new meal gets some rice');
