@@ -7,6 +7,11 @@ vm.runInContext(`${catalog}
 ${['nutritionSafetyNorm','nutritionSwapNormalize','nutritionSwapFindFood','nutritionSwapMacros','nutritionAdjustmentTotals','nutritionEditorMealFingerprint','nutritionEditorFitMeal','nutritionMainMealFlags','nutritionMealMacroTargets','nutritionEqualPortions','nutritionQuickPortions','nutritionEditorNewMeal','nutritionEditorSplitMeal','nutritionEditorBalanceProtein','nutritionEditorRedistribute'].map(fn).join('\n')}
 const nutritionRuleReason=()=>'',nutritionGlobalRules=()=>({});`,context);
 const run=s=>vm.runInContext(s,context),json=s=>JSON.parse(run('JSON.stringify('+s+')'));
+for(const count of [4,5,6]){
+ const meals=Array.from({length:count},(_,i)=>({name:'Comida '+(i+1)}));
+ context.sampleMeals=meals;
+ assert.ok(run(`nutritionMealMacroTargets(sampleMeals,{p:200,c:250,f:60}).every(m=>Math.abs(m.p-200/${count})<1e-8)`),'creation splits 200 g protein equally into '+count+' meals');
+}
 const food=(food_name,amount,prepared_amount=null)=>({food_name,amount,unit:'g',prepared_amount,prepared_unit:prepared_amount==null?null:'g'});
 const source=[
  {id:'breakfast',name:'Desayuno',time:'08:00',foods:[food('Avena',70),food('Claras de huevo',220),food('Almendras',15)]},
