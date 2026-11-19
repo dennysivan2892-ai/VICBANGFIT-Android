@@ -9509,11 +9509,47 @@ function nutritionEditorNewMeal(meals,count){
  const name=names.find(n=>!meals.some(m=>nutritionSwapNormalize(m.name)===nutritionSwapNormalize(n)))||'Comida '+count;
  return {id:null,name,time:null,notes:null,food_rules:{},foods};
 }
+function nutritionEditorSplitMeal(meals,count){
+ // Transfer measured portions rather than fitting every meal to an exact macro
+ // target. This works for saved diets with unusual or uncatalogued foods too.
+ const entries=meals.flatMap((meal,mi)=>meal.foods.map((food,fi)=>({mi,fi,food,meta:nutritionSwapFindFood(food.food_name)})))
+  .filter(x=>String(x.food.unit).toLowerCase()==='g'&&Number(x.food.amount)>0);
+ if(!entries.length)throw new Error('Indica cantidades en gramos antes de añadir otra comida.');
+ const chosen=[],used=new Set();
+ const lunch=meals.findIndex(m=>/^(comida|almuerzo)(?:\s|$)/.test(nutritionSwapNormalize(m.name)));
+ for(const category of ['carb','protein']){
+  const options=entries.filter(x=>x.meta?.cat===category&&!used.has(x.mi+':'+x.fi))
+   .sort((a,b)=>nutritionSwapMacros(b.meta,b.food.amount)[category==='carb'?'c':'p']-nutritionSwapMacros(a.meta,a.food.amount)[category==='carb'?'c':'p']);
+  const item=options.find(x=>x.mi===lunch)||options[0];
+  if(item){chosen.push(item);used.add(item.mi+':'+item.fi);}
+ }
+ if(!chosen.length)chosen.push(entries.find(x=>x.mi===lunch)||entries[0]);
+ const foods=chosen.map(({mi,fi,food})=>{
+  const amount=Number(food.amount),share=Math.round(amount*(nutritionSwapFindFood(food.food_name)?.cat==='carb'?.25:.2)*10)/10;
+  const moved=Math.max(.1,Math.min(amount-.1,share));
+  const prepared=food.prepared_amount==null?null:Number(food.prepared_amount);
+  const movedPrepared=Number.isFinite(prepared)?Math.round(prepared*moved/amount*10)/10:null;
+  meals[mi].foods[fi].amount=Math.round((amount-moved)*10)/10;
+  if(movedPrepared!=null)meals[mi].foods[fi].prepared_amount=Math.round((prepared-movedPrepared)*10)/10;
+  return {...food,amount:moved,prepared_amount:movedPrepared};
+ });
+ const names=['Media mañana','Merienda','Recena','Comida adicional'];
+ return {id:null,name:names.find(n=>!meals.some(m=>nutritionSwapNormalize(m.name)===nutritionSwapNormalize(n)))||'Comida '+count,time:null,notes:null,food_rules:{},foods};
+}
 function nutritionEditorRedistribute(source,count){
  if(!Number.isInteger(count)||count<1||count>8)throw new Error('Elige entre 1 y 8 comidas.');
  const meals=source.map(m=>({...m,foods:m.foods.map(f=>({...f}))}));
 
  const before=nutritionAdjustmentTotals(meals);
+ if(count>meals.length){
+  while(meals.length<count){
+   const newMeal=nutritionEditorSplitMeal(meals,meals.length+1);
+   const breakfast=meals.findIndex(m=>/^(desayuno|breakfast)(?:\s|$)/.test(nutritionSwapNormalize(m.name)));
+   const lunch=meals.findIndex(m=>/^(comida|almuerzo)(?:\s|$)/.test(nutritionSwapNormalize(m.name)));
+   meals.splice(breakfast>=0?breakfast+1:lunch>=0?lunch:meals.length,0,newMeal);
+  }
+  return meals.map((m,i)=>({...m,order:i+1}));
+ }
  if(before.unknown||!before.k)throw new Error('Indica los alimentos y sus cantidades en gramos antes de redistribuir las comidas.');
  while(meals.length>count){
   // Preserve breakfast, lunch and dinner; remove snack slots first.
@@ -9522,7 +9558,6 @@ function nutritionEditorRedistribute(source,count){
   if(index<0)index=Math.max(0,meals.length-2);
   meals.splice(index,1);
  }
- while(meals.length<count)meals.push(nutritionEditorNewMeal(meals,meals.length+1));
  let result;
  try{result=nutritionEqualPortions(meals,before).meals;}
  catch(error){
