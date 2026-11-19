@@ -55,6 +55,12 @@ const nutritionEditorMealSignature=meals=>JSON.stringify(meals),nutritionBuilder
 const document={getElementById(){return {set innerHTML(v){current=[]},value:''}},querySelectorAll(){return current}};
 const addNutritionMealEditor=m=>current.push(structuredClone(m)),nutritionQuickInvalidate=()=>{},nutritionEditorReview=()=>{},scheduleNutritionBuilderSafety=()=>{},toast=m=>messages.push(m);
 ${fn('nutritionEditorChangeMealCount')}`,context);
+// The real selector handler must accept a saved four-meal diet whose meals
+// contain only a subset of macro categories, as in the reported failure.
+run("current=structuredClone(sparse);nutritionMealRedistributionState=null;nutritionEditorChangeMealCount('5')");
+assert.equal(run('current.length'),5,'selector accepts five meals from a sparse saved plan');
+for(const key of ['p','c','f','k'])assert.ok(run(`Math.abs(nutritionAdjustmentTotals(current).${key}-sparseBefore.${key})<=Math.max(${key==='k'?10:1},sparseBefore.${key}*.01)`),'selector preserves sparse '+key);
+run('current=structuredClone(source);nutritionMealRedistributionState=null');
 run("nutritionEditorChangeMealCount('4');nutritionEditorChangeMealCount('5')");
 assert.deepEqual(json('current.map(m=>({id:m.id,name:m.name,foods:m.foods.map(f=>f.food_name)}))'),source.map(m=>({id:m.id,name:m.name,foods:m.foods.map(f=>f.food_name)})),'5→4→5 restores original separate menus');
 for(const key of ['p','f'])assert.ok(run(`current.every(m=>Math.abs(nutritionAdjustmentTotals([m]).${key}-before.${key}/5)<.5)`),'uniform round trip '+key);
