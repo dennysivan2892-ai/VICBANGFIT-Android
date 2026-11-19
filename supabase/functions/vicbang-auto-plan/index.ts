@@ -136,7 +136,7 @@ function buildNutritionMeals(calc: any, profile: any) {
   const usedP = new Set<string>(), usedC = new Set<string>(), usedF = new Set<string>(), usedX = new Set<string>();
   const names = ["Desayuno", "Comida", "Merienda", "Cena"], times = ["08:00", "14:00", "18:00", "21:00"], splits = [0.25, 0.35, 0.15, 0.25];
   return names.map((name, i) => {
-    const pTarget = calc.protein * splits[i], cTarget = calc.carbs * splits[i], fTarget = calc.fat * splits[i];
+    const pTarget = calc.protein / names.length, cTarget = calc.carbs * splits[i], fTarget = calc.fat * splits[i];
     const proteinName = choose(proteinPool, usedP, profile);
     const carbName = choose(carbPool, usedC, profile);
     const fatName = choose(fatPool, usedF, profile);
@@ -147,10 +147,14 @@ function buildNutritionMeals(calc: any, profile: any) {
     const carbG = round5(Math.max(0, cTarget - prod.carbs_g) / Math.max(0.01, carbF.c / 100), carbF.min, carbF.max);
     const carb = macroLine(carbName, carbG);
     const proteinG = round5(Math.max(0, pTarget - prod.protein_g - carb.protein_g) / Math.max(0.01, protF.p / 100), protF.min, protF.max);
-    const protein = macroLine(proteinName, proteinG);
+    let protein = macroLine(proteinName, proteinG);
     const fatNeed = Math.max(0, fTarget - prod.fat_g - carb.fat_g - protein.fat_g);
     const fatG = round5(fatNeed / Math.max(0.01, fatF.f / 100), fatF.min, fatF.max);
     const fat = macroLine(fatName, fatG);
+    // Nuts and other fat sources also contribute protein. Count every food,
+    // then size the protein source so each meal has the same actual protein.
+    const correctedProteinG = Math.max(0.1, Math.round((pTarget - prod.protein_g - carb.protein_g - fat.protein_g) / Math.max(0.01, protF.p / 100) * 10) / 10);
+    protein = macroLine(proteinName, correctedProteinG);
     return { name, target_time: times[i], notes: `Objetivo aproximado: ${Math.round(pTarget)} g proteína · ${Math.round(cTarget)} g carbohidratos · ${Math.round(fTarget)} g grasa`, foods: [prod, carb, protein, fat] };
   });
 }
