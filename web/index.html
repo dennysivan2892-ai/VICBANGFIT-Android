@@ -9523,8 +9523,18 @@ function nutritionEditorRedistribute(source,count){
   meals.splice(index,1);
  }
  while(meals.length<count)meals.push(nutritionEditorNewMeal(meals,meals.length+1));
- const balanced=nutritionEqualPortions(meals,before);
- return balanced.meals.map((m,i)=>({...m,order:i+1}));
+ let result;
+ try{result=nutritionEqualPortions(meals,before).meals;}
+ catch(error){
+  // Some saved menus have only one macro source in a meal. Such a meal cannot
+  // meet identical protein/fat targets on its own, but the daily totals can.
+  const all={foods:meals.flatMap(m=>m.foods)};
+  nutritionEditorFitMeal(all,before,true);
+  const totals=nutritionAdjustmentTotals(meals);
+  if(['p','c','f'].some(k=>Math.abs(totals[k]-before[k])>Math.max(1,before[k]*.01)))throw error;
+  result=meals;
+ }
+ return result.map((m,i)=>({...m,order:i+1}));
 }
 function nutritionEditorChangeMealCount(value){
  if(!nutritionQuickState||nutritionSaving)return;

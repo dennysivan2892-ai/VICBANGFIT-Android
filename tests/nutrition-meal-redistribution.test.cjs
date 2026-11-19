@@ -44,6 +44,11 @@ for(const key of ['p','c','f','k'])assert.ok(run(`Math.abs(increased.${key}-afte
 assert.equal(run('five.filter(m=>m.id).length'),4);
 assert.throws(()=>run('nutritionEditorRedistribute([{foods:[{food_name:"Desconocido",amount:1,unit:"unidad"}]}],2)'),/gramos/);
 assert.throws(()=>run('nutritionEditorRedistribute(source,0)'),/1 y 8/);
+// A saved diet can have meals without all three macro sources. The selector
+// must still add a meal and preserve daily totals.
+run("const sparse=structuredClone(source.slice(0,4));sparse[0].foods=[source[0].foods[1]];sparse[1].foods=[source[1].foods[0]];sparse[2].foods=[source[2].foods[2]];sparse[3].foods=[source[2].foods[0],source[2].foods[1]];const sparseBefore=nutritionAdjustmentTotals(sparse);const sparseFive=nutritionEditorRedistribute(sparse,5);const sparseAfter=nutritionAdjustmentTotals(sparseFive)");
+assert.equal(run('sparseFive.length'),5);
+for(const key of ['p','c','f','k'])assert.ok(run(`Math.abs(sparseBefore.${key}-sparseAfter.${key})<=Math.max(${key==='k'?10:1},sparseBefore.${key}*.01)`),'sparse diet total '+key);
 // Run the actual selector handler with editor serialization and manual edits.
 vm.runInContext(`let nutritionMealRedistributionState=null,nutritionEditingPlanId='diet',nutritionSaving=false,nutritionQuickState={plan:{}},current=structuredClone(source),messages=[];
 const nutritionEditorMealSignature=meals=>JSON.stringify(meals),nutritionBuilderCollectMeals=()=>structuredClone(current);
