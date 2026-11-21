@@ -7227,6 +7227,70 @@ function routineAddDays(dateLike,days){
  const d=dateLike?new Date(`${dateLike}T12:00:00`):new Date();
  d.setDate(d.getDate()+days);return routineIsoDate(d);
 }
+function routineNextBlockSwaps(source,library,progression){
+ const byId=new Map(library.map(x=>[String(x.id),x]));
+ const used=new Set((source.days||[]).flatMap(d=>(d.exercises||[]).map(x=>String(x.exercise_id))));
+ const swaps=new Map();
+ for(const day of source.days||[]){
+  const exercises=day.exercises||[];
+  const allowance=Math.min(2,Math.floor(exercises.length/4));
+  let changed=0;
+  for(const ex of exercises){
+   if(changed>=allowance)break;
+   const current=byId.get(String(ex.exercise_id));
+   const rec=progression.get(ex.id)?.rec;
+   if(!current?.muscle_group||!current.name||!rec||rec.type==='no-data'||rec.type==='decrease')continue;
+   const family=routineMovementFamily(current.name);
+   if(family==='general')continue;
+   const candidates=library.filter(candidate=>
+    !used.has(String(candidate.id))&&
+    smartNorm(candidate.muscle_group)===smartNorm(current.muscle_group)&&
+    routineMovementFamily(candidate.name)===family&&
+    // Avoid replacing guided movements with technically demanding ones automatically.
+    !/peso muerto|sentadilla con barra|dominada|fondos|olimpic|arrancada|cargada|pistol|salto|explosiv/i.test(candidate.name)
+   ).sort((a,b)=>{
+    const score=x=>(smartNorm(x.equipment)===smartNorm(current.equipment)?2:0)+
+     (smartNorm(x.name).includes('inclinado')===smartNorm(current.name).includes('inclinado')?1:0);
+    return score(b)-score(a)||String(a.name).localeCompare(String(b.name),'es');
+   });
+   if(!candidates.length)continue;
+   const candidate=candidates[0];
+   swaps.set(ex.id,candidate);
+   used.add(String(candidate.id));changed++;
+  }
+ }
+ return swaps;
+}
+function routineNextBlockExtras(source,library,swaps){
+ const byId=new Map(library.map(x=>[String(x.id),x]));
+ const used=new Set((source.days||[]).flatMap(d=>(d.exercises||[]).map(x=>String(x.exercise_id))));
+ for(const replacement of swaps.values())used.add(String(replacement.id));
+ const result=new Map();
+ for(const day of source.days||[]){
+  const exercises=day.exercises||[];
+  if(exercises.length<3||exercises.length>=20)continue;
+  const groups=new Map();
+  for(const ex of exercises){
+   const item=byId.get(String(swaps.get(ex.id)?.id||ex.exercise_id));
+   if(!item?.muscle_group)continue;
+   const muscle=smartNorm(item.muscle_group);
+   if(!groups.has(muscle))groups.set(muscle,[]);
+   groups.get(muscle).push(item);
+  }
+  const muscles=[...groups].filter(([,items])=>items.length>=2).sort((a,b)=>b[1].length-a[1].length);
+  for(const [muscle,items] of muscles){
+   const families=new Set(items.map(x=>routineMovementFamily(x.name)));
+   const options=library.filter(candidate=>!used.has(String(candidate.id))&&
+    smartNorm(candidate.muscle_group)===muscle&&
+    ['apertura','extension','curl','elevacion','core'].includes(routineMovementFamily(candidate.name))&&
+    !families.has(routineMovementFamily(candidate.name)));
+   if(!options.length)continue;
+   options.sort((a,b)=>String(a.name).localeCompare(String(b.name),'es'));
+   result.set(day.id,options[0]);used.add(String(options[0].id));break;
+  }
+ }
+ return result;
+}
 async function routineProgressionMap(source){
  const exerciseRows=(source.days||[]).flatMap(d=>(d.exercises||[]));
  const allSets=exerciseRows.flatMap(ex=>(ex.sets||[]));
@@ -7263,7 +7327,7 @@ async function routineProgressionMap(source){
   const currentWeight=recent[0]?.weight!=null?recent[0].weight:(targetWeights.length?lpMedian(targetWeights):null);
   const rec=lpRecommendation(recent);
   const proposed=lpSuggestedWeight(rec.type,currentWeight,ex.name,ex.muscle_group);
-  result.set(ex.id,{rec,currentWeight,proposed});
+  result.set(ex.id,{rec,currentWeight,proposed,recent});
  }
  return result;
 }
@@ -7321,11 +7385,15 @@ async function createNextRoutineBlock(routineId,reconfigure=false){
   if(!confirm(`Crear el Bloque ${nextBlock} de ${source.client_name||'este cliente'} a partir de la rutina actual? Se generará como BORRADOR para que lo revises antes de activarlo.`))return;
   toast('Generando siguiente bloque…');
   const progression=await routineProgressionMap(source);
+  await loadRoutineExerciseLibrary();
+  const swaps=reconfigure?new Map():routineNextBlockSwaps(source,routineExerciseLibrary,progression);
+  const extras=reconfigure?new Map():routineNextBlockExtras(source,routineExerciseLibrary,swaps);
   const counts={increase:0,maintain:0,decrease:0,noData:0};
   for(const v of progression.values())counts[v.rec?.type==='no-data'?'noData':v.rec?.type||'maintain']++;
   const plannedStart=source.end_date?routineAddDays(source.end_date,1):routineAddDays(new Date(),1);
   const plannedEnd=routineAddDays(plannedStart,27);
-  const notes=`Bloque ${nextBlock} generado desde el Bloque ${Number(source.block_number)||1}. Progresión automática basada en entrenamientos reales: ${counts.increase} subidas, ${counts.maintain} mantenimientos, ${counts.decrease} reducciones y ${counts.noData} sin datos. Revisar antes de activar.`;
+  const changes=[...swaps].map(([id,replacement])=>{const previous=(source.days||[]).flatMap(d=>d.exercises||[]).find(ex=>ex.id===id);return `${previous?.name||'Ejercicio'} → ${replacement.name}`});
+  const notes=`Bloque ${nextBlock} generado desde el Bloque ${Number(source.block_number)||1}. Progresión basada en entrenamientos reales: ${counts.increase} subidas, ${counts.maintain} mantenimientos, ${counts.decrease} reducciones y ${counts.noData} sin datos. ${changes.length?`Variantes propuestas (revisar técnica y carga): ${changes.join('; ')}. `:''}${extras.size?`Accesorios nuevos: ${[...extras.values()].map(x=>x.name).join('; ')} (2 series de 12–15, RIR 2). `:''}Revisar antes de activar.`;
   let newRoutineId=null;
   try{
    const {data:newRoutine,error:rErr}=await sb.from('routines').insert({
@@ -7369,7 +7437,7 @@ async function createNextRoutineBlock(routineId,reconfigure=false){
      const newEx={id:crypto.randomUUID()};
      copiedExercises.push({id:newEx.id,
       workout_day_id:newDay.id,
-      exercise_id:ex.exercise_id,
+      exercise_id:swaps.get(ex.id)?.id||ex.exercise_id,
       exercise_order:ex.exercise_order,
       rest_seconds:ex.rest_seconds||null,
       tempo:ex.tempo||null,
@@ -7381,14 +7449,25 @@ async function createNextRoutineBlock(routineId,reconfigure=false){
       workout_exercise_id:newEx.id,
       set_number:st.set_number,
       target_reps_min:st.target_reps_min,
-      target_reps_max:st.target_reps_max,
+      target_reps_max:!swaps.has(ex.id)&&prog.rec?.type==='maintain'&&prog.recent?.length>=2&&
+       prog.recent[0].avgReps>=Number(st.target_reps_min)&&Number(st.target_reps_max)<15&&!st.is_warmup
+       ?Number(st.target_reps_max)+1:st.target_reps_max,
       target_rir:st.target_rir,
-      target_weight_kg:(prog.proposed!=null&&['increase','decrease'].includes(prog.rec?.type))?prog.proposed:st.target_weight_kg,
+      target_weight_kg:swaps.has(ex.id)?null:(prog.proposed!=null&&['increase','decrease'].includes(prog.rec?.type))?prog.proposed:st.target_weight_kg,
       is_warmup:Boolean(st.is_warmup),
       notes:st.notes||null,
       is_archived:false
      }));
      copiedSets.push(...rows);
+    }
+    const extra=extras.get(day.id);
+    if(extra){
+     const newExId=crypto.randomUUID();
+     copiedExercises.push({id:newExId,workout_day_id:newDay.id,exercise_id:extra.id,
+      exercise_order:Math.max(0,...(day.exercises||[]).map(x=>Number(x.exercise_order)||0))+1,
+      rest_seconds:75,tempo:null,notes:'Accesorio propuesto para el siguiente bloque. Revisa técnica y carga antes de activarlo.',is_archived:false});
+     for(let setNumber=1;setNumber<=2;setNumber++)copiedSets.push({workout_exercise_id:newExId,set_number:setNumber,
+      target_reps_min:12,target_reps_max:15,target_rir:2,target_weight_kg:null,is_warmup:false,notes:null,is_archived:false});
     }
    }
    // Persist the copied block in dependency order, in bounded batches.
