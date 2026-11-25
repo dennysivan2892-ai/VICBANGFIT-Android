@@ -2191,7 +2191,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     <div class="auth-title"><h2 style="margin:0">Tu asesoría en una sola app</h2></div>
     <div class="auth-copy">Acceso seguro para entrenador y clientes.</div>
     <div class="auth-tabs"><button id="loginTab" class="active" onclick="switchAuth('login')">Iniciar sesión</button><button id="signupTab" onclick="switchAuth('signup')">Crear cuenta</button></div>
-    <form id="loginForm" class="auth-form active" onsubmit="loginUser(event)">
+    <form id="loginForm" class="auth-form active" novalidate>
       <div class="auth-field"><label>Email</label><input id="loginEmail" type="email" autocomplete="email" required placeholder="tu@email.com"></div>
       <div class="auth-field"><label>Contraseña</label><input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••"></div>
       <div id="loginMsg" class="auth-error"></div>
@@ -4549,12 +4549,26 @@ function continueSignupOnLogin(email,message){
  setTimeout(()=>loginPassword?.focus(),120);
 }
 async function loginUser(ev){
- ev.preventDefault();const btn=document.getElementById('loginBtn');btn.disabled=true;btn.textContent='Entrando…';setAuthMessage('loginMsg','');
- const email=document.getElementById('loginEmail').value.trim();const password=document.getElementById('loginPassword').value;
- const {data,error}=await sb.auth.signInWithPassword({email,password});
- if(error){setAuthMessage('loginMsg',vicError(error,'No se pudo iniciar sesión.'));btn.disabled=false;btn.textContent='Entrar en VICBANGFIT';return}
- await enterApp(data.user);btn.disabled=false;btn.textContent='Entrar en VICBANGFIT';
+ ev?.preventDefault?.();
+ const btn=document.getElementById('loginBtn'),emailInput=document.getElementById('loginEmail'),passwordInput=document.getElementById('loginPassword');
+ const email=(emailInput?.value||'').trim(),password=passwordInput?.value||'';
+ if(!email){setAuthMessage('loginMsg','Escribe tu correo electrónico.');emailInput?.focus();return false}
+ if(password.length<6){setAuthMessage('loginMsg','Escribe tu contraseña completa.');passwordInput?.focus();return false}
+ btn.disabled=true;btn.textContent='Entrando…';setAuthMessage('loginMsg','');
+ try{
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error)throw error;
+  if(!data?.user)throw new Error('No se recibió una sesión válida. Comprueba tu conexión y vuelve a intentarlo.');
+  await enterApp(data.user);
+ }catch(error){
+  console.error('VICBANGFIT login',error);
+  setAuthMessage('loginMsg',vicError(error,'No se pudo iniciar sesión. Comprueba tu conexión y vuelve a intentarlo.'));
+ }finally{
+  btn.disabled=false;btn.textContent='Entrar en VICBANGFIT';
+ }
+ return false;
 }
+document.getElementById('loginForm')?.addEventListener('submit',loginUser);
 function signupAccountTypeChanged(){
  const type=document.getElementById('signupAccountType')?.value||'client';
  const codeWrap=document.getElementById('signupTrainerCodeWrap');
@@ -7001,16 +7015,8 @@ async function uploadExerciseImage(exerciseId,input){
   toast('Subiendo imagen…');
   const {error:upErr}=await sb.storage.from('exercise-images').upload(path,file,{upsert:true,contentType:file.type,cacheControl:'3600'});
   if(upErr)throw upErr;
-  const {data:pub}=sb.storage.from('exercise-images').getPublicUrl(path);
-  const baseUrl=pub?.publicUrl||'';
-  if(!baseUrl)throw new Error('No se pudo obtener la URL de la imagen');
-  const publicUrl=baseUrl+(baseUrl.includes('?')?'&':'?')+'v='+Date.now();
-  const {error:updateErr}=await sb.from('exercises').update({image_url:publicUrl,updated_at:new Date().toISOString()}).eq('id',exerciseId);
-  if(updateErr)throw updateErr;
-  ex.image_url=publicUrl;
-  renderExerciseManager();
-  routineExerciseLibrary=routineExerciseLibrary.map(x=>x.id===exerciseId?{...x,image_u
-... 157860 bytes omitted ...
+  co
+... 158425 bytes omitted ...
 onQuickFat').value=fat;document.getElementById('nutritionQuickCarbs').value=Math.round(carbs*10)/10;
   nutritionQuickState.userAdjusted=true;nutritionQuickInvalidate();nutritionQuickSyncKg();
  }
