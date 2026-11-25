@@ -43,6 +43,20 @@ jobs:
       - name: Compilar web
         run: npm run build
 
+      - name: Desactivar caché web persistente dentro de Android
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("dist/index.html")
+          s = p.read_text()
+          old = 'if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js"));'
+          new = 'if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(items=>items.forEach(item=>item.unregister())).catch(()=>{});}'
+          if old not in s:
+              raise SystemExit("No se encontró el registro del Service Worker")
+          p.write_text(s.replace(old, new, 1))
+          PY
+
       - name: Guardar configuración Firebase
         run: |
           cp android/app/google-services.json /tmp/google-services.json
@@ -50,6 +64,24 @@ jobs:
 
       - name: Crear proyecto Android
         run: npx cap add android
+      - name: Limpiar caché de WebView al iniciar VICBANGFIT
+        run: |
+          cat > android/app/src/main/java/com/vicbangfit/app/MainActivity.java <<'JAVA'
+          package com.vicbangfit.app;
+
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  if (getBridge() != null && getBridge().getWebView() != null) {
+                      getBridge().getWebView().clearCache(true);
+                  }
+              }
+          }
+          JAVA
       - name: Forzar actualización Android con versión superior
         run: |
           python3 - <<'PY'
