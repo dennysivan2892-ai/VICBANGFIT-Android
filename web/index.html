@@ -5,6 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#070707">
+<meta name="vicbangfit-build" content="auth-local-20261125">
 <link rel="icon" type="image/png" href="VICBANGFIT_AppIcon_Gold_1024.png">
 <link rel="apple-touch-icon" href="VICBANGFIT_AppIcon_Gold_1024.png">
 <title>VICBANGFIT Coach</title>
@@ -7015,8 +7016,8 @@ async function uploadExerciseImage(exerciseId,input){
   toast('Subiendo imagen…');
   const {error:upErr}=await sb.storage.from('exercise-images').upload(path,file,{upsert:true,contentType:file.type,cacheControl:'3600'});
   if(upErr)throw upErr;
-  const {data:pub}=sb.storage.from('exercise-images').getPublic
-... 158366 bytes omitted ...
+  
+... 158427 bytes omitted ...
 onQuickFat').value=fat;document.getElementById('nutritionQuickCarbs').value=Math.round(carbs*10)/10;
   nutritionQuickState.userAdjusted=true;nutritionQuickInvalidate();nutritionQuickSyncKg();
  }
