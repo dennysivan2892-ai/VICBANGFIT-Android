@@ -1,4 +1,4 @@
-const CACHE='vicbangfit-my-day-visuals-20261017';
+const CACHE='vicbangfit-auth-local-20261126';
 const ASSETS=['./','./index.html','./manifest.json','./VICBANGFIT_AppIcon_Gold_1024.png'];
 
 self.addEventListener('install',event=>{
