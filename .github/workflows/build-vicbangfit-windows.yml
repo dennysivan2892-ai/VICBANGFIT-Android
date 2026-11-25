@@ -26,6 +26,12 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Instalar dependencias de la aplicación
+        run: npm install
+
+      - name: Preparar cliente Supabase local
+        run: npm run build:supabase
+
       - name: Crear proyecto Electron temporal
         shell: pwsh
         run: |
