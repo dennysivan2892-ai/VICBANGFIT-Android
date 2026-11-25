@@ -31,6 +31,15 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
+      - name: Mostrar número de compilación en la aplicación
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          html = Path("web/index.html")
+          html.write_text(html.read_text().replace("__VICBANGFIT_BUILD__", os.environ["GITHUB_RUN_NUMBER"]))
+          PY
+
       - name: Compilar web
         run: npm run build
 
@@ -41,6 +50,19 @@ jobs:
 
       - name: Crear proyecto Android
         run: npx cap add android
+      - name: Forzar actualización Android con versión superior
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          run_number = os.environ["GITHUB_RUN_NUMBER"]
+          gradle = Path("android/app/build.gradle")
+          gradle_text = gradle.read_text()
+          gradle_text = gradle_text.replace("versionCode 1", f"versionCode {run_number}", 1)
+          gradle_text = gradle_text.replace('versionName "1.0"', f'versionName "1.0.{run_number}"', 1)
+          gradle.write_text(gradle_text)
+          PY
       - name: Configurar Android para Health Connect
         run: |
           python3 - <<'PY'
