@@ -5704,7 +5704,7 @@ function renderDashboard(){
  const newCount=document.getElementById('newClientsCount');if(newCount)newCount.textContent=String(newcomers.length);
  const newList=document.getElementById('newClientList');if(newList)newList.innerHTML=newcomers.map(({c,i})=>`<div class="new-client-item" onclick="openClient(${i})">${profileAvatarHtml(c,'avatar')}<div class="new-client-copy"><b>${escHtml(c.name)}</b><small>${newClientJoinedLabel(c.joinedAt)}</small></div><span class="new-client-badge">NUEVO</span></div>`).join('');
  if(newPanel)newPanel.classList.toggle('visible',newcomers.length>0);
- const activityOrdered=clients.map((c,i)=>({c,i})).sort((a,b)=>(b.c.activityScore||0)-(a.c.activityScore||0)||new Date(b.c.lastActivityAt||0)-new Date(a.c.lastActivityAt||0)||a.c.name.localeCompare(b.c.name,'es'));
+ const activityOrdered=clients.map((c,i)=>({c,i})).sort((a,b)=>Number(isNewTrainerClient(b.c))-Number(isNewTrainerClient(a.c))||(b.c.activityScore||0)-(a.c.activityScore||0)||new Date(b.c.lastActivityAt||0)-new Date(a.c.lastActivityAt||0)||a.c.name.localeCompare(b.c.name,'es'));
  document.getElementById("clientStrip").innerHTML=activityOrdered.length?activityOrdered.slice(0,10).map(({c,i})=>`<div class="client-card" onclick="openClient(${i})"><span class="status-dot"></span><div class="client-card-main">${profileAvatarHtml(c,'avatar')}<div class="client-card-copy"><h4>${c.name}</h4><div class="meta">${c.weight} · ${c.goal}</div></div></div><div class="bar"><i style="width:${c.adherence??0}%"></i></div><div class="client-card-foot"><span class="green">${c.adherence==null?'—':c.adherence+'%'}</span><span class="blue tiny">${c.today}</span></div></div>`).join(""):'<div class="empty-state" style="grid-column:1/-1">Todavía no tienes clientes reales. Pulsa “+ Nuevo cliente”.</div>';
  const pending=clients.filter(c=>c.check!=='Recibido');
  document.getElementById("pendingChecks").innerHTML=pending.length?pending.slice(0,4).map(c=>`<div class="activity"><div class="icon-dot check-dot">▣</div><div><b>${c.name}</b><div class="muted tiny">Check-in pendiente esta semana</div></div></div>`).join(""):'<div class="muted tiny">✓ Sin check-ins pendientes esta semana.</div>';
@@ -5722,7 +5722,7 @@ function clientGenderLabel(value){return value==='female'?'Mujeres':value==='mal
 function renderClientTable(){
  const q=(document.getElementById("clientSearch")?.value||"").toLowerCase();
  const el=document.getElementById("clientTable");if(!el)return;
- const visible=clients.map((c,i)=>({...c,i})).filter(c=>(clientGenderFilter==='all'||c.gender===clientGenderFilter)&&(c.name+" "+c.goal+" "+c.email).toLowerCase().includes(q)).sort((a,b)=>(b.activityScore||0)-(a.activityScore||0)||new Date(b.lastActivityAt||0)-new Date(a.lastActivityAt||0)||a.name.localeCompare(b.name,'es'));
+ const visible=clients.map((c,i)=>({...c,i})).filter(c=>(clientGenderFilter==='all'||c.gender===clientGenderFilter)&&(c.name+" "+c.goal+" "+c.email).toLowerCase().includes(q)).sort((a,b)=>Number(isNewTrainerClient(b))-Number(isNewTrainerClient(a))||(b.activityScore||0)-(a.activityScore||0)||new Date(b.lastActivityAt||0)-new Date(a.lastActivityAt||0)||a.name.localeCompare(b.name,'es'));
  if(!visible.length){el.innerHTML='<tr><td colspan="6"><div class="empty-state">No hay clientes en este filtro.</div></td></tr>';return}
  const groups=clientGenderFilter==='all'?['female','male','other']:[clientGenderFilter];
  el.innerHTML=groups.map(g=>{
