@@ -2291,7 +2291,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
   <div class="dashboard">
     <div>
       <div class="card">
-        <div class="row"><h3>Tus clientes <span class="muted tiny">(activos)</span></h3><div class="dashboard-clients-actions"><span id="dashboardClientTotal" class="dashboard-client-total">0 clientes</span><button class="btn dark" onclick="showPage('clientes')">Ver todos</button></div></div>
+        <div class="row"><div><h3>Tus clientes <span class="muted tiny">(activos)</span></h3><div class="muted tiny">Ordenados por actividad reciente</div></div><div class="dashboard-clients-actions"><span id="dashboardClientTotal" class="dashboard-client-total">0 clientes</span><button class="btn dark" onclick="showPage('clientes')">Ver todos</button></div></div>
         <div class="client-strip" id="clientStrip"></div>
       </div>
 
@@ -5697,7 +5697,8 @@ function renderDashboard(){
  const count=document.getElementById('activeClientsCount');if(count)count.textContent=clients.length;
  const trend=document.getElementById('activeClientsTrend');if(trend)trend.textContent=clients.length===1?'1 cliente real':'Datos reales de Supabase';
  const totalEl=document.getElementById('dashboardClientTotal');if(totalEl)totalEl.textContent=`${clients.length} ${clients.length===1?'cliente':'clientes'}`;
- document.getElementById("clientStrip").innerHTML=clients.length?clients.slice(0,10).map((c,i)=>`<div class="client-card" onclick="openClient(${i})"><span class="status-dot"></span><div class="client-card-main">${profileAvatarHtml(c,'avatar')}<div class="client-card-copy"><h4>${c.name}</h4><div class="meta">${c.weight} · ${c.goal}</div></div></div><div class="bar"><i style="width:${c.adherence??0}%"></i></div><div class="client-card-foot"><span class="green">${c.adherence==null?'—':c.adherence+'%'}</span><span class="blue tiny">${c.today}</span></div></div>`).join(""):'<div class="empty-state" style="grid-column:1/-1">Todavía no tienes clientes reales. Pulsa “+ Nuevo cliente”.</div>';
+ const activityOrdered=clients.map((c,i)=>({c,i})).sort((a,b)=>(b.c.activityScore||0)-(a.c.activityScore||0)||new Date(b.c.lastActivityAt||0)-new Date(a.c.lastActivityAt||0)||a.c.name.localeCompare(b.c.name,'es'));
+ document.getElementById("clientStrip").innerHTML=activityOrdered.length?activityOrdered.slice(0,10).map(({c,i})=>`<div class="client-card" onclick="openClient(${i})"><span class="status-dot"></span><div class="client-card-main">${profileAvatarHtml(c,'avatar')}<div class="client-card-copy"><h4>${c.name}</h4><div class="meta">${c.weight} · ${c.goal}</div></div></div><div class="bar"><i style="width:${c.adherence??0}%"></i></div><div class="client-card-foot"><span class="green">${c.adherence==null?'—':c.adherence+'%'}</span><span class="blue tiny">${c.today}</span></div></div>`).join(""):'<div class="empty-state" style="grid-column:1/-1">Todavía no tienes clientes reales. Pulsa “+ Nuevo cliente”.</div>';
  const pending=clients.filter(c=>c.check!=='Recibido');
  document.getElementById("pendingChecks").innerHTML=pending.length?pending.slice(0,4).map(c=>`<div class="activity"><div class="icon-dot check-dot">▣</div><div><b>${c.name}</b><div class="muted tiny">Check-in pendiente esta semana</div></div></div>`).join(""):'<div class="muted tiny">✓ Sin check-ins pendientes esta semana.</div>';
  loadTrainerAgendaDashboard();
