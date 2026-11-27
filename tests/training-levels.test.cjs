@@ -9,7 +9,8 @@ vm.runInContext(html.slice(html.indexOf('function smartExerciseSlots('),html.ind
 for(const level of ['beginner','intermediate','advanced']){
  for(const profile of ['male','female_lower','female_balanced']){
   for(const muscle of ['Pecho','Espalda','Cuádriceps','Femoral','Glúteos','Bíceps','Tríceps','Hombros','Gemelos','Abdominales']){
-   const slots=['Pecho','Espalda','Cuádriceps','Femoral','Glúteos'].includes(muscle)?4:2;
+   const big=['Pecho','Espalda','Cuádriceps','Femoral','Glúteos'].includes(muscle);
+   const slots=level==='beginner'?(big?2:1):level==='intermediate'?(big?3:2):(big?4:2);
    for(const frequency of [1,2,3]){
     Object.assign(ctx,{muscle,profile,level,frequency,days:Array.from({length:frequency},(_,i)=>({day:i+1,muscles:[muscle]}))});
     assert.equal(vm.runInContext('smartWeeklySeries(muscle,[],profile,level,frequency)',ctx),slots*3*frequency);
@@ -71,8 +72,8 @@ console.log('PASS: exact frequency two, core exercises away from leg days, compl
 assert.ok(html.includes("select.value=data?.sex==='female'?'female_balanced':'male'"));
 assert.ok(html.includes("const volumeProfile=o.sex==='female'?'female_balanced':'male'"));
 
-// Five-day F2 must train every group twice, with no isolated short arm/core day.
-for(const system of ['recommended','upper_lower','ppl']){
+// The automatic five-day option remains balanced at F2.
+for(const system of ['recommended']){
  ctx.system=system;
  const split=run("smartSplit(5,system,[],'female_balanced',2)");
  for(const muscle of ['Pecho','Espalda','Hombros','Bíceps','Tríceps','Cuádriceps','Femoral','Glúteos','Gemelos','Aductores','Abdominales'])assert.equal(split.filter(d=>d.muscles.includes(muscle)).length,2,system+' '+muscle);
@@ -80,6 +81,18 @@ for(const system of ['recommended','upper_lower','ppl']){
  assert.ok(run("split.every(d=>smartPlannedExerciseCount(d,split,[],'female_balanced','advanced')>=8&&smartPlannedExerciseCount(d,split,[],'female_balanced','advanced')<=18)"));
  assert.ok(run("split.every(d=>smartDayTotalSets(d,split,[],'female_balanced','advanced')===smartPlannedExerciseCount(d,split,[],'female_balanced','advanced')*3)"));
  assert.equal(run("split.reduce((n,d)=>n+smartSessionSeries('Abdominales',d,split,[],'female_balanced','advanced')*(d.muscles.includes('Abdominales')?1:0),0)"),12);
+}
+// Explicit systems must retain their selected identity instead of being
+// replaced by the generic balanced five-day template.
+const explicitFive={
+ upper_lower:['Torso A','Pierna A','Torso B','Pierna B','Torso A 2'],
+ ppl:['Empuje','Tirón','Pierna','Empuje 2','Tirón 2'],
+ fullbody:['Full Body A','Full Body B','Full Body C','Full Body A 2','Full Body B 2'],
+ bodypart:['Pecho + tríceps','Espalda + bíceps','Pierna completa','Hombros + abdomen','Torso mixto']
+};
+for(const [system,names] of Object.entries(explicitFive)){
+ ctx.system=system;
+ assert.deepEqual(Array.from(run("smartSplit(5,system,[],'female_balanced',2)").map(d=>d.name)),names,system);
 }
 // Explicit priorities override the general frequency without multiplying weekly sets.
 for(const frequency of [1,2,3]){
@@ -104,11 +117,12 @@ console.log('PASS: balanced five-day F2 across every muscle, useful session leng
 
 // Full libraries generate distinct four/two exercises on BOTH F2 days for every profile.
 for(const muscle of ['Pecho','Espalda','Cuádriceps','Femoral','Glúteos','Bíceps','Tríceps','Gemelos']){
- const count=['Pecho','Espalda','Cuádriceps','Femoral','Glúteos'].includes(muscle)?4:2;
+ const big=['Pecho','Espalda','Cuádriceps','Femoral','Glúteos'].includes(muscle);
  ctx.muscle=muscle;
  ctx.library=Array.from({length:8},(_,i)=>({id:muscle+i,name:'Máquina '+i,muscle_group:muscle,equipment:'Máquina'}));
  run('routineExerciseLibrary=library');
  for(const profile of ['male','female_lower','female_balanced'])for(const level of ['beginner','intermediate','advanced']){
+  const count=level==='beginner'?(big?2:1):level==='intermediate'?(big?3:2):(big?4:2);
   Object.assign(ctx,{profile,level,days:[1,2].map(day=>({day,muscles:[muscle]}))});
   const results=run("days.map(day=>smartBuildDayExercises(day,days,level,smartPrescription('muscle',level),90,[],profile))");
   for(const rows of results){assert.equal(rows.length,count);assert.equal(new Set(rows.map(x=>x.exercise_id)).size,count);assert.ok(rows.every(x=>x.sets.length===3));}
