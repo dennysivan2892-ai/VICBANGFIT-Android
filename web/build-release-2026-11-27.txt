@@ -1,0 +1,2 @@
+VICBANGFIT release trigger for the training-system selector fix.
+Source commit: 95b658ffaa1bec59ad85dc498ab0fc58361ddffe
