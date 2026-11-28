@@ -9863,7 +9863,39 @@ function nutritionQuickTargets(base,kcal,keepProtein=true,distribution='carbs'){
  return {...Object.fromEntries(Object.entries(next).map(([k,v])=>[k,Math.round(v*10)/10])),k:Math.round(kcal)};
 }
 function nutritionQuickPortions(source,desired){
- return nutritionEqualPortions(source,desired);
+ // Recalcular una dieta existente debe respetar las mismas porciones prácticas
+ // que el generador y no usar la fruta para cubrir los carbohidratos principales.
+ let exact=null;
+ try{exact=nutritionEqualPortions(source,desired)}catch(error){}
+ const absurd=!exact||exact.meals.some(meal=>meal.foods.some(food=>{
+  const meta=nutritionSwapFindFood(food.food_name),amount=Number(food.amount)||0;
+  if(meta?.cat==='fruit')return amount>nutritionAutoLimits(meta.cat,meta.name).max;
+  if(meta?.cat==='carb')return amount>0&&amount<10;
+  if(meta?.cat==='protein')return amount>0&&amount<20;
+  if(meta?.cat==='fat')return amount>0&&amount<2;
+  return false;
+ }));
+ if(!absurd)return exact;
+ const practical=source.map(meal=>({...meal,foods:meal.foods.map(food=>{
+  const copy={...food},meta=nutritionSwapFindFood(copy.food_name);
+  if(meta?.cat==='fruit'){
+   const lim=nutritionAutoLimits(meta.cat,meta.name);
+   copy.amount=Math.max(lim.min,Math.min(lim.max,Number(copy.amount)||lim.min));
+  }
+  return copy;
+ })}));
+ try{return nutritionEqualPortions(practical,desired,{generated:true})}catch(error){
+  // Algunas dietas heredadas ya llegan con combinaciones imposibles de cuadrar
+  // exactamente. En ese caso se priorizan raciones humanas y una aproximación
+  // segura a los macros antes que devolver gramos absurdos.
+ }
+ const targets=nutritionMealMacroTargets(practical,desired);
+ for(let i=0;i<practical.length;i++){
+  nutritionEditorFitMeal(practical[i],targets[i],false,true);
+  const actual=nutritionAdjustmentTotals([practical[i]]);
+  if(!practical[i].notes||/^Objetivo aprox\.:/.test(practical[i].notes))practical[i].notes='Objetivo aprox.: '+(Math.round(actual.p*10)/10)+' g proteína · '+(Math.round(actual.c*10)/10)+' g carbohidratos · '+(Math.round(actual.f*10)/10)+' g grasa · '+Math.round(actual.k)+' kcal';
+ }
+ return {meals:practical,totals:nutritionAdjustmentTotals(practical),perMeal:targets};
 }
 function nutritionQuickReset(){nutritionMealRedistributionState=null;nutritionQuickState=null;nutritionEnergyContext=null;const panel=document.getElementById('nutritionCurrentAdjustment');if(panel){panel.hidden=true;panel.open=false}}
 function nutritionQuickBase(){return {k:Number(nutritionQuickState.plan.target_calories)||0,p:Number(nutritionQuickState.plan.target_protein_g)||0,c:Number(nutritionQuickState.plan.target_carbs_g)||0,f:Number(nutritionQuickState.plan.target_fat_g)||0}}
@@ -10212,6 +10244,10 @@ function nutritionAutoCatalogFood(name){
  return nutritionSubstitutionCatalog.find(x=>nutritionSafetyNorm(x.name)===nutritionSafetyNorm(name))||null;
 }
 function nutritionAutoLimits(cat,name){
+ if(cat==='fruit'){
+  if(/sandía|melón/i.test(name))return {min:100,max:300};
+  return {min:80,max:250};
+ }
  if(cat==='fat')return {min:5,max:40};
  if(cat==='protein'){
   if(/lentejas|garbanzos|alubias|edamame/i.test(name))return {min:100,max:500};
