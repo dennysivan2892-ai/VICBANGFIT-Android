@@ -40,6 +40,13 @@ assert.equal(run('JSON.stringify(source)===original'),true,'equal preview is non
 run("const generatedBreakfast={name:'Desayuno',foods:[{food_name:'Fresas',amount:180,unit:'g'},{food_name:'Avena',amount:70,unit:'g'},{food_name:'Yogur griego 0%',amount:250,unit:'g'},{food_name:'Crema de cacahuete',amount:15,unit:'g'}]};const generatedFruitBefore=generatedBreakfast.foods[0].amount;nutritionEditorFitMeal(generatedBreakfast,{p:40,c:55,f:15,k:515},true,true)");
 assert.equal(run('generatedBreakfast.foods[0].amount'),run('generatedFruitBefore'),'generated fruit serving stays fixed');
 assert.ok(run("generatedBreakfast.foods.find(f=>f.food_name==='Avena').amount>=20"),'generated oats keep a practical serving');
+// Regression from Javier's preview: recalculating an existing plan must not
+// propose 910 g strawberries, 2.9 g oats, 3.3 g prawns or 0.1 g fat.
+run("const jf=(food_name,amount)=>({food_name,amount,unit:'g'});const javier=[{name:'Desayuno',foods:[jf('Fresas',910.5),jf('Avena',2.9),jf('Jamón serrano magro',92.6),jf('Crema de cacahuete',.1)]},{name:'Media mañana',foods:[jf('Melón',220),jf('Pita integral',92.2),jf('Pavo loncheado 95%',92.1),jf('Aguacate',75.6)]},{name:'Comida',foods:[jf('Gazpacho',250),jf('Alubias cocidas',399.2),jf('Gambas',3.3),jf('Aceite de oliva virgen extra',8)]},{name:'Merienda',foods:[jf('Melocotón',180),jf('Crema de arroz',61.7),jf('Proteína whey',30.3),jf('Almendras',24.1)]},{name:'Cena',foods:[jf('Calabacín',220),jf('Quinoa en crudo',133.6),jf('Lubina',60),jf('Tahini',7.4)]}];const javierFixed=nutritionQuickPortions(javier,{p:180,c:270,f:60,k:2340})");
+assert.ok(run("javierFixed.meals[0].foods.find(f=>f.food_name==='Fresas').amount<=250"),'strawberries are capped to one practical serving');
+assert.ok(run("javierFixed.meals[0].foods.find(f=>f.food_name==='Avena').amount>=20"),'oats cannot collapse below a practical serving');
+assert.ok(run("javierFixed.meals[2].foods.find(f=>f.food_name==='Gambas').amount>=60"),'prawns keep a practical protein serving');
+assert.ok(run("javierFixed.meals[0].foods.find(f=>f.food_name==='Crema de cacahuete').amount>=5"),'fat source cannot collapse to a token amount');
 // Same rice in lunch/snack: vegetable carbs must not invert the rice portions.
 run("const shared=JSON.parse(JSON.stringify(source));shared[3].foods=[{food_name:'Arroz en crudo',amount:55,unit:'g',prepared_amount:165,prepared_unit:'g'},{food_name:'Atún al natural',amount:190,unit:'g'},{food_name:'Aceite de oliva virgen extra',amount:11,unit:'g'}];const moderate=nutritionQuickPortions(shared,{p:270,c:200,f:80,k:2600})");
 assert.ok(run('moderate.meals[2].foods.find(f=>f.food_name.includes("Arroz")).amount>moderate.meals[3].foods[0].amount'),'main rice portion exceeds snack');
