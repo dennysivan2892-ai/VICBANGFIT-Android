@@ -4,7 +4,7 @@ function fn(name){const a=html.indexOf('function '+name+'(');return html.slice(a
 const a=html.indexOf('const nutritionSubstitutionCatalog='),catalog=html.slice(a,html.indexOf('\n];',a)+3);
 const context=vm.createContext({console,structuredClone});
 vm.runInContext(`${catalog}
-${['nutritionSafetyNorm','nutritionSwapNormalize','nutritionSwapFindFood','nutritionSwapMacros','nutritionAdjustmentTotals','nutritionEditorMealFingerprint','nutritionEditorFitMeal','nutritionMainMealFlags','nutritionMealMacroTargets','nutritionEqualPortions','nutritionQuickPortions','nutritionEditorNewMeal','nutritionEditorSplitMeal','nutritionEditorBalanceProtein','nutritionEditorRedistribute'].map(fn).join('\n')}
+${['nutritionSafetyNorm','nutritionSwapNormalize','nutritionSwapFindFood','nutritionSwapMacros','nutritionAdjustmentTotals','nutritionAutoLimits','nutritionEditorMealFingerprint','nutritionEditorFitMeal','nutritionMainMealFlags','nutritionMealMacroTargets','nutritionEqualPortions','nutritionQuickPortions','nutritionEditorNewMeal','nutritionEditorSplitMeal','nutritionEditorBalanceProtein','nutritionEditorRedistribute'].map(fn).join('\n')}
 const nutritionRuleReason=()=>'',nutritionGlobalRules=()=>({});`,context);
 const run=s=>vm.runInContext(s,context),json=s=>JSON.parse(run('JSON.stringify('+s+')'));
 for(const count of [4,5,6]){
@@ -35,6 +35,11 @@ for(const key of ['p','f'])assert.ok(run(`fiveEqual.meals.every(m=>Math.abs(nutr
 run('const fourEqual=nutritionQuickPortions(four,{p:300,c:250,f:75,k:2875})');
 for(const key of ['p','f'])assert.ok(run(`fourEqual.meals.every(m=>Math.abs(nutritionAdjustmentTotals([m]).${key}-({p:75,c:62.5,f:18.75})[${JSON.stringify(key)}])<.5)`),'four equal '+key);
 assert.equal(run('JSON.stringify(source)===original'),true,'equal preview is nonmutating');
+// A freshly generated breakfast keeps fruit as a moderate fixed serving and
+// never collapses its main carbohydrate source to a token 2–3 g portion.
+run("const generatedBreakfast={name:'Desayuno',foods:[{food_name:'Fresas',amount:180,unit:'g'},{food_name:'Avena',amount:70,unit:'g'},{food_name:'Yogur griego 0%',amount:250,unit:'g'},{food_name:'Crema de cacahuete',amount:15,unit:'g'}]};const generatedFruitBefore=generatedBreakfast.foods[0].amount;nutritionEditorFitMeal(generatedBreakfast,{p:40,c:55,f:15,k:515},true,true)");
+assert.equal(run('generatedBreakfast.foods[0].amount'),run('generatedFruitBefore'),'generated fruit serving stays fixed');
+assert.ok(run("generatedBreakfast.foods.find(f=>f.food_name==='Avena').amount>=20"),'generated oats keep a practical serving');
 // Same rice in lunch/snack: vegetable carbs must not invert the rice portions.
 run("const shared=JSON.parse(JSON.stringify(source));shared[3].foods=[{food_name:'Arroz en crudo',amount:55,unit:'g',prepared_amount:165,prepared_unit:'g'},{food_name:'Atún al natural',amount:190,unit:'g'},{food_name:'Aceite de oliva virgen extra',amount:11,unit:'g'}];const moderate=nutritionQuickPortions(shared,{p:270,c:200,f:80,k:2600})");
 assert.ok(run('moderate.meals[2].foods.find(f=>f.food_name.includes("Arroz")).amount>moderate.meals[3].foods[0].amount'),'main rice portion exceeds snack');
