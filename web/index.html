@@ -2194,11 +2194,11 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     <div class="auth-copy">Acceso seguro para entrenador y clientes.</div>
     <div class="auth-copy tiny" id="appBuildLabel">Compilación __VICBANGFIT_BUILD__ · acceso local</div>
     <div class="auth-tabs"><button id="loginTab" class="active" onclick="switchAuth('login')">Iniciar sesión</button><button id="signupTab" onclick="switchAuth('signup')">Crear cuenta</button></div>
-    <form id="loginForm" class="auth-form active" novalidate onsubmit="return loginUser(event)">
+    <form id="loginForm" class="auth-form active" novalidate>
       <div class="auth-field"><label>Email</label><input id="loginEmail" type="email" autocomplete="email" required placeholder="tu@email.com"></div>
       <div class="auth-field"><label>Contraseña</label><input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••"></div>
       <div id="loginMsg" class="auth-error"></div>
-      <button id="loginBtn" class="btn auth-btn" type="button" onclick="return loginUser(event)">Entrar en VICBANGFIT</button>
+      <button id="loginBtn" class="btn auth-btn" type="submit">Entrar en VICBANGFIT</button>
       <button class="auth-link" type="button" onclick="resetPassword()">He olvidado mi contraseña</button>
     </form>
     <form id="signupForm" class="auth-form" onsubmit="signupUser(event)">
@@ -4572,6 +4572,7 @@ async function loginUser(ev){
  }
  return false;
 }
+document.getElementById('loginForm')?.addEventListener('submit',loginUser);
 function signupAccountTypeChanged(){
  const type=document.getElementById('signupAccountType')?.value||'client';
  const codeWrap=document.getElementById('signupTrainerCodeWrap');
@@ -6966,8 +6967,8 @@ window.expandExerciseLibrary=expandExerciseLibrary;
 async function loadExerciseManager(){
  if(currentProfile?.role!=='trainer')return;
  const list=document.getElementById('exerciseManagerList');
- if(list)list.innerHTML='<
-... 163669 bytes omitted ...
+ if(list)list.inner
+... 163676 bytes omitted ...
 maiz)\b/.test(n);
  for(const group of r.exclude_groups){
   if((group==='fruit'&&food?.cat==='fruit')||(group==='rice'&&/\barroz\b/.test(n))||(group==='pasta'&&/\b(pasta|macarrones|espaguetis|tallarines|fideos)\b/.test(n))||(group==='starch'&&starch)||(group==='polyols'&&/sorbitol|manitol|xilitol|maltitol|eritritol|isomalt|lactitol|polialcohol/.test(n)))return `Ajuste del entrenador: excluir ${nutritionRuleGroups[group]}.`;
