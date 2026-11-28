@@ -7,7 +7,10 @@ const form=html.match(/<form id="loginForm"[\s\S]*?<\/form>/)?.[0]||'';
 
 assert.ok(form,'login form exists');
 assert.doesNotMatch(form,/onsubmit=/,'login must not depend on an inline submit handler');
-assert.match(html,/addEventListener\('submit',loginUser\)/,'login uses a registered submit listener');
+assert.match(html,/loginForm\?\.addEventListener\('submit',event=>keepFieldsAndRun\(event,'loginUser'\)\)/,'login uses an early registered submit listener');
+assert.match(html,/event\.preventDefault\(\);[\s\S]*event\.stopPropagation\(\)/,'the early guard blocks native form navigation');
+assert.doesNotMatch(form,/onclick=/,'login actions do not depend on inline click handlers');
+assert.doesNotMatch(html.match(/<div class="auth-tabs">[\s\S]*?<\/div>/)?.[0]||'',/onclick=/,'auth tabs use registered listeners');
 assert.match(html,/ev\?\.preventDefault\?\.\(\)/,'login always blocks native form navigation');
 assert.match(html,/catch\(error\)[\s\S]*VICBANGFIT login/,'login reports unexpected runtime failures');
 assert.match(html,/src="\.\/vendor\/supabase\.min\.js"/,'Supabase auth is bundled with the app');
