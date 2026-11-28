@@ -2193,15 +2193,15 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     <div class="auth-title"><h2 style="margin:0">Tu asesoría en una sola app</h2></div>
     <div class="auth-copy">Acceso seguro para entrenador y clientes.</div>
     <div class="auth-copy tiny" id="appBuildLabel">Compilación __VICBANGFIT_BUILD__ · acceso local</div>
-    <div class="auth-tabs"><button id="loginTab" class="active" onclick="switchAuth('login')">Iniciar sesión</button><button id="signupTab" onclick="switchAuth('signup')">Crear cuenta</button></div>
+    <div class="auth-tabs"><button id="loginTab" type="button" class="active">Iniciar sesión</button><button id="signupTab" type="button">Crear cuenta</button></div>
     <form id="loginForm" class="auth-form active" novalidate>
       <div class="auth-field"><label>Email</label><input id="loginEmail" type="email" autocomplete="email" required placeholder="tu@email.com"></div>
       <div class="auth-field"><label>Contraseña</label><input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••"></div>
       <div id="loginMsg" class="auth-error"></div>
       <button id="loginBtn" class="btn auth-btn" type="submit">Entrar en VICBANGFIT</button>
-      <button class="auth-link" type="button" onclick="resetPassword()">He olvidado mi contraseña</button>
+      <button id="resetPasswordBtn" class="auth-link" type="button">He olvidado mi contraseña</button>
     </form>
-    <form id="signupForm" class="auth-form" onsubmit="signupUser(event)">
+    <form id="signupForm" class="auth-form">
       <div class="auth-field"><label>Quiero crear una cuenta como</label><select id="signupAccountType" onchange="signupAccountTypeChanged()"><option value="client">Cliente</option><option value="trainer">Entrenador</option></select></div>
       <div class="auth-field"><label>Nombre completo</label><input id="signupName" required autocomplete="name" placeholder="Nombre y apellidos"></div>
       <div class="auth-field"><label>Email</label><input id="signupEmail" type="email" autocomplete="email" required placeholder="tu@email.com"></div>
@@ -2212,7 +2212,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
       <button id="signupBtn" class="btn auth-btn" type="submit">Crear cuenta de cliente</button>
       <div id="signupSecurityCopy" class="muted tiny" style="margin-top:10px;text-align:center">El código enlaza tu cuenta con tu entrenador de forma segura.</div>
     </form>
-    <form id="recoveryForm" class="auth-form" onsubmit="saveNewPassword(event)">
+    <form id="recoveryForm" class="auth-form">
       <h2 class="recovery-title">Nueva contraseña</h2>
       <div class="recovery-copy">Escribe una contraseña nueva para tu cuenta VICBANGFIT.</div>
       <div class="auth-field"><label>Nueva contraseña</label><input id="recoveryPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Mínimo 8 caracteres"></div>
@@ -2223,6 +2223,30 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
     <div class="auth-security">🔒 Autenticación gestionada por Supabase. La app usa una clave pública; no contiene claves administrativas.</div>
   </div>
 </div>
+<script>
+/* Los controles de acceso se conectan junto al propio formulario. Así siguen
+   respondiendo aunque otra parte grande de la aplicación falle al arrancar. */
+(function bindAuthScreen(){
+ const loginForm=document.getElementById('loginForm');
+ const signupForm=document.getElementById('signupForm');
+ const recoveryForm=document.getElementById('recoveryForm');
+ function keepFieldsAndRun(event,handlerName){
+  event.preventDefault();
+  event.stopPropagation();
+  const handler=window[handlerName];
+  if(typeof handler==='function')return handler(event);
+  const msg=document.getElementById(handlerName==='loginUser'?'loginMsg':handlerName==='signupUser'?'signupMsg':'recoveryMsg');
+  if(msg)msg.textContent='La aplicación no terminó de iniciar. Cierra y vuelve a abrirla.';
+  return false;
+ }
+ loginForm?.addEventListener('submit',event=>keepFieldsAndRun(event,'loginUser'));
+ signupForm?.addEventListener('submit',event=>keepFieldsAndRun(event,'signupUser'));
+ recoveryForm?.addEventListener('submit',event=>keepFieldsAndRun(event,'saveNewPassword'));
+ document.getElementById('loginTab')?.addEventListener('click',()=>window.switchAuth?.('login'));
+ document.getElementById('signupTab')?.addEventListener('click',()=>window.switchAuth?.('signup'));
+ document.getElementById('resetPasswordBtn')?.addEventListener('click',()=>window.resetPassword?.());
+})();
+</script>
 <div id="trainerPendingShell" class="auth-shell" style="display:none">
   <div class="auth-card">
     <div class="auth-brand">VICBANG<span>FIT</span></div>
@@ -4572,7 +4596,6 @@ async function loginUser(ev){
  }
  return false;
 }
-document.getElementById('loginForm')?.addEventListener('submit',loginUser);
 function signupAccountTypeChanged(){
  const type=document.getElementById('signupAccountType')?.value||'client';
  const codeWrap=document.getElementById('signupTrainerCodeWrap');
@@ -6950,25 +6973,8 @@ const VIC_EXERCISE_EXPANSION=[
  ['Cuerpo completo','Peso muerto convencional','Barra'],['Cuerpo completo','Peso muerto sumo','Barra'],['Cuerpo completo','Thruster','Mancuernas'],['Cuerpo completo','Kettlebell swing','Kettlebell'],['Cuerpo completo','Burpee','Peso corporal'],['Cuerpo completo','Empuje de trineo','Trineo']
 ];
 async function expandExerciseLibrary(){
- if(currentProfile?.role!=='trainer'||!currentProfile?.is_admin){toast('Solo la cuenta ADMIN puede ampliar la biblioteca global');return}
- const btn=document.getElementById('expandExerciseLibraryBtn');if(btn){btn.disabled=true;btn.textContent='Ampliando…'}
- try{
-  const {data,error}=await sb.from('exercises').select('name');if(error)throw error;
-  const existing=new Set((data||[]).map(x=>String(x.name||'').trim().toLocaleLowerCase('es')));
-  const rows=VIC_EXERCISE_EXPANSION.filter(x=>!existing.has(x[1].toLocaleLowerCase('es'))).map(([muscle_group,name,equipment])=>({name,muscle_group,equipment,is_global:true,trainer_id:null}));
-  if(!rows.length){toast('La biblioteca ampliada ya está completa ✓');return}
-  for(let i=0;i<rows.length;i+=40){const {error:e}=await sb.from('exercises').insert(rows.slice(i,i+40));if(e)throw e}
-  await loadExerciseManager();toast(`${rows.length} ejercicios nuevos añadidos ✓`);
- }catch(error){console.error(error);toast(vicError(error,'No se pudo ampliar la biblioteca'))}
- finally{if(btn){btn.disabled=false;btn.textContent='＋ Ampliar biblioteca'}}
-}
-window.expandExerciseLibrary=expandExerciseLibrary;
-
-async function loadExerciseManager(){
- if(currentProfile?.role!=='trainer')return;
- const list=document.getElementById('exerciseManagerList');
- if(list)list.inner
-... 163676 bytes omitted ...
+ if(currentProfile?.role!=='trainer'||!currentProfile?.is_admin){toast('Solo la cuenta ADMIN puede ampliar la bib
+... 164880 bytes omitted ...
 maiz)\b/.test(n);
  for(const group of r.exclude_groups){
   if((group==='fruit'&&food?.cat==='fruit')||(group==='rice'&&/\barroz\b/.test(n))||(group==='pasta'&&/\b(pasta|macarrones|espaguetis|tallarines|fideos)\b/.test(n))||(group==='starch'&&starch)||(group==='polyols'&&/sorbitol|manitol|xilitol|maltitol|eritritol|isomalt|lactitol|polialcohol/.test(n)))return `Ajuste del entrenador: excluir ${nutritionRuleGroups[group]}.`;
